@@ -39,5 +39,3 @@ variable "tag_allow_ssh" {
   description = "TAG for ssh access enable"
   default     = "allow-ssh"
 }
-
-
