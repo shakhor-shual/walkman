@@ -19,7 +19,7 @@ ENV_PREFIX="CW4D_"
 START_POINT=$PWD
 DEBUG=0
 TF_EC=0
-RUN_LIST="init apply destroy validate describe --list --host"
+RUN_LIST="init apply destroy validate describe gitops --list --host"
 
 check_ansible_connection() {
     local group=${1:-"all"}
@@ -437,7 +437,7 @@ stage_kind_detect() {
     *"variables.tf") echo "TF" ;;
     *".yaml") echo "ANS" ;;
     *"RUN") echo "RUN" ;;
-    *"GET") echo "GET" ;;
+    *"LOAD") echo "LOAD" ;;
     *) echo "UNKNOWN" ;;
     esac
 }
@@ -521,6 +521,83 @@ perform_selfcompile() {
     echo "============================================================================="
 }
 
+git_checkout() {
+    [ -z "$2" ] && return 0
+    git -C "$1" checkout "$2" | grep -q "up to date" && return 0
+    return 1
+}
+
+git_clone_or_pull() {
+    [ -z "$2" ] && return 0
+
+    if [ -d "$1/.git" ]; then
+        git -C "$1" pull | grep -q "up to date" && return 0
+    else
+        [ "$1" = "." ] && [ -f ".LOAD" ] && mv -f .LOAD /tmp/.LOAD
+        [ "$1" = "." ] && [ -f "gitops.csh" ] && mv -f gitops.csh /tmp/gitops.csh
+        [ "$1" = "." ] && rm -rf "${packet_dir:?}/"*
+        [ "$1" = "." ] && rm -rf "${packet_dir:?}/."meta
+        git clone "$2" "$1"
+        [ "$1" = "." ] && [ -f "/tmp/.LOAD" ] && mv -f /tmp/.LOAD .LOAD
+        [ "$1" = "." ] && [ -f "/tmp/gitops.csh" ] && mv -f /tmp/gitops.csh gitops.csh
+    fi
+    return 1
+}
+
+perform_remotes() {
+    local get
+    local git
+    local branch
+    local path
+    local script
+    local packet_dir
+    local updated=1
+
+    while [ $updated -eq 1 ]; do
+        updated=0
+        cd "$ALBUM_HOME" || exit
+        for packet_path in $(find "$ALBUM_HOME" -maxdepth 2 -name ".LOAD" -o -name "gitops.csh" | grep -v '.meta' | sort); do
+            packet_dir=$(dirname "$packet_path")
+            get=$(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^get' | sed 's/^get=//;s/^get@@@=//' | head -n 1)
+            git=$(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^git' | sed 's/^git=//;s/^git@@@=//' | head -n 1)
+            branch=$(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^branch' | sed 's/^branch=//;s/^branch@@@=//' | head -n 1)
+            path=$(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^path' | sed 's/^path=//;s/^path@@@=//' | head -n 1)
+            script=$(sed <"$packet_path" 's/#.*$//;/^$/d' | grep '^script' | sed 's/^script=//;s/^scripth@@@=//' | head -n 1)
+            cd "$packet_dir" || exit
+            echo "=====$packet_dir==========="
+            ls -a
+            echo "=======$packet_path========="
+            if [ -n "$git" ]; then
+                [ -z "$path" ] && path=$(echo "$git" | awk -F/ '{print $NF}' | sed 's/.git$//')
+                ! git_clone_or_pull "$path" "$git" && updated=1 && break
+                ! git_checkout "$path" "$branch" && updated=1 && break
+            fi
+            if [ -n "$get" ]; then
+                if echo "$get" | grep -q '.zip'; then
+                    curl -o stage_archive.zip "$get"
+                    if [ -n "$path" ]; then
+                        mkdir -p "$path"
+                        unzip -o stage_archive.zip -d "$path"
+                    else
+                        unzip -o stage_archive.zip
+                    fi
+                    rm -f stage_archive.zip
+                else
+                    if [ -n "$path" ]; then
+                        curl -o "$get"
+                    else
+                        curl -o "$get"
+                    fi
+                fi
+            fi
+        done
+        echo "===$updated===="
+    done
+
+    [ -n "$script" ] && /usr/local/bin/cw4d ${script}
+    exit
+}
+
 #====================================START of SCRIPT BODY ====================================
 #start=$(date +%s.%N)
 init_home_local_bin
@@ -587,7 +664,7 @@ case $RUN_MODE in
     head_tmp=$(mktemp)
     #set_debug_mode
     print_head_yes=yes
-    for packet_path in $(find "$ALBUM_HOME" -maxdepth 3 -name "variables.tf" -o -name "*.yaml" -o -name "RUN" -o -name "GET" | grep -v '.meta' | sort); do
+    for packet_path in $(find "$ALBUM_HOME" -maxdepth 3 -name "variables.tf" -o -name "*.yaml" -o -name ".RUN" | grep -v '.meta' | sort); do
         cd "$(dirname "$packet_path")" || exit
         stage_template_print "$stages_tmp" "$packet_path" $print_head_yes
         unset print_head_yes
@@ -600,7 +677,8 @@ case $RUN_MODE in
     exit
     ;;
 
-"apply" | "init")
+"apply" | "init" | "gitops")
+    perform_remotes
     reset_album_tmp
     set_debug_mode
 
@@ -640,6 +718,8 @@ case $RUN_MODE in
             fi
 
             if [ "$RUN_MODE" == "apply" ]; then
+                echo "------------------ Refresh TERRAFORM with init -----------------------------"
+                terraform init --upgrade
                 echo "---------------------- Run TERRAFORM apply ---------------------------------"
                 terraform apply -auto-approve
                 TF_EC=$?
