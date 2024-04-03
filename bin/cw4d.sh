@@ -318,15 +318,16 @@ get_in_album_home() {
     ALBUM_HOME=""
     if [ -f "$album" ]; then
         ALBUM_HOME=$(dirname "$album")
-        [[ -d "$ALBUM_HOME" ]] && cd "$ALBUM_HOME" || exit
+        [ -d "$ALBUM_HOME" ] && cd "$ALBUM_HOME" || exit
         ALBUM_SCRIPT=$PWD/$(basename "$album")
-
         META="../.meta"
+        [ -d "$META" ] || mkdir -p "$META"
         ALBUM_HOME_FULL_PATH=$PWD
         ALBUM_META="$ALBUM_HOME_FULL_PATH"/.meta
+        [ -d "$ALBUM_META" ] || mkdir -p "$ALBUM_META"
         ALBUM_TMP=$ALBUM_META/tmp
+        [ -d "$ALBUM_TMP" ] || mkdir -p "$ALBUM_TMP"
         ALBUM_DRAFT_FILE="$ALBUM_TMP"/album_draft.csh
-        # ALBUM_INVENTORY=$ALBUM_TMP/inventoty_templates
         INV_DRAFT_HOST=$ALBUM_TMP/inventoty_fraft.host
         INV_DRAFT_LIST_HEAD=$ALBUM_TMP/inventoty_fraft.head
         INV_DRAFT_LIST_TAIL=$ALBUM_TMP/inventoty_fraft.tail
@@ -484,97 +485,7 @@ stage_template_print() {
     } >>"$1"
 }
 
-#====================================START of SCRIPT BODY ====================================
-#start=$(date +%s.%N)
-init_home_local_bin
-
-if [ "$0" = "./cw4d.sh" ]; then
-    echo "======================= CW4D self-compilation ================================"
-    try_as_root /usr/bin/shc -vrf "$0" -o /usr/local/bin/cw4d
-    try_as_root rm ./cw4d.sh.x.c
-    echo "============================================================================="
-    echo "========= CW4D now self-compiled to ELF-executable and ready to use ========="
-    echo "========= try run: cw4d some_my_deploymet.sch                       ========="
-    echo "========= OR just: /path-to-deployment-script/any_deploymet.sch     ========="
-    echo "============================================================================="
-    echo " WARNING: the second one will only work if your deployment-script "
-    echo " has SHEBANG look like this: #!/usr/local/bin/cw4d"
-    echo "============================================================================="
-    exit
-fi
-
-show_run_parameters $0 $1 $2 $3 $4
-
-if it_contains "$RUN_LIST" "$1"; then
-    RUN_MODE="$1"
-    get_in_album_home "$2"
-else
-    if it_contains "$RUN_LIST" "$2"; then
-        RUN_MODE="$2"
-        get_in_album_home "$1"
-    else
-        get_in_album_home "${2:-"$1"}"
-        RUN_MODE="$(sed <"$ALBUM_SCRIPT" 's/#.*$//;/^$/d' | grep 'run@@@' | tr -d ' ' | awk -F= '{print $2}')"
-    fi
-fi
-
-! it_contains "$RUN_LIST" "$RUN_MODE" && echo "{ }" && exit
-
-case $RUN_MODE in
-
-"--host")
-    if [ -n "$3" ]; then
-        while IFS="" read -r host || [ -n "$host" ]; do
-            echo "$host" | grep -q "$3" && echo "$host" && exit
-        done <"$INV_DRAFT_HOST"
-    fi
-    echo "{ }" && exit
-    ;;
-
-"--list")
-    echo -n "{"
-    tr <"$INV_DRAFT_LIST_HEAD" -d ' ' | tr -d '\n'
-    echo -n "\"_meta\": { \"hostvars\": {"
-    tr <"$INV_DRAFT_LIST_TAIL" -d ' ' | tr -d '\n' | sed 's/.$//'
-    echo -n "}}}"
-    exit
-    ;;
-
-"destroy")
-    reset_album_tmp
-    set_debug_mode
-    for tf_packet_path in $(find "$ALBUM_HOME" -maxdepth 3 -name "main.tf" | sort -r); do
-
-        cd "$(dirname "$tf_packet_path")" || exit
-        if [ -f "main.tf" ]; then
-            echo "TERRAFORM ################ $tf_packet_path ############################"
-            [ "$RUN_MODE" == "destroy" ] && terraform destroy -auto-approve
-            echo "---------------------------------------------------------------------------------"
-        fi
-        cd "$START_POINT" || exit
-    done
-    ;;
-
-"describe")
-    reset_album_tmp
-    stages_tmp=$(mktemp)
-    head_tmp=$(mktemp)
-    #set_debug_mode
-    print_head_yes=yes
-    for packet_path in $(find "$ALBUM_HOME" -maxdepth 3 -name "variables.tf" -o -name "*.yaml" -o -name "RUN" -o -name "GET" | grep -v '.meta' | sort); do
-        cd "$(dirname "$packet_path")" || exit
-        stage_template_print "$stages_tmp" "$packet_path" $print_head_yes
-        unset print_head_yes
-        cd "$START_POINT" || exit
-    done
-    root_template_print "$head_tmp" "$stages_tmp"
-    cat "$head_tmp" >>"$ALBUM_HOME"/album.tpl.csh
-    chmod 744 "$ALBUM_HOME"/album.tpl.csh
-    rm -f "$stages_tmp" "$head_tmp"
-    exit
-    ;;
-
-"help")
+print_help_info() {
     echo "   USAGE: cw4d [OPTION] some-deployment-script.csh"
     echo "OR* just: some-deployment-script.sch [OPTION]"
     echo -n
@@ -594,6 +505,99 @@ case $RUN_MODE in
     echo "==================================================="
     echo "*only if SHEBANG in some-deployment-script.csh set to:"
     echo "#!/usr/local/bin/cw4d"
+}
+
+perform_selfcompile() {
+    echo "======================= CW4D self-compilation ================================"
+    try_as_root /usr/bin/shc -vrf "$0" -o /usr/local/bin/cw4d
+    try_as_root rm ./cw4d.sh.x.c
+    echo "============================================================================="
+    echo "========= CW4D now self-compiled to ELF-executable and ready to use ========="
+    echo "========= try run: cw4d some_my_deploymet.sch                       ========="
+    echo "========= OR just: /path-to-deployment-script/any_deploymet.sch     ========="
+    echo "============================================================================="
+    echo " WARNING: the second one will only work if your deployment-script "
+    echo " has SHEBANG look like this: #!/usr/local/bin/cw4d"
+    echo "============================================================================="
+}
+
+#====================================START of SCRIPT BODY ====================================
+#start=$(date +%s.%N)
+init_home_local_bin
+
+if [ "$0" = "./cw4d.sh" ]; then
+    perform_selfcompile
+    exit
+fi
+
+if it_contains "$RUN_LIST" "$1"; then
+    RUN_MODE="$1"
+    get_in_album_home "$2"
+else
+    if it_contains "$RUN_LIST" "$2"; then
+        RUN_MODE="$2"
+        get_in_album_home "$1"
+    else
+        get_in_album_home "${2:-"$1"}"
+        RUN_MODE="$(sed <"$ALBUM_SCRIPT" 's/#.*$//;/^$/d' | grep 'run@@@' | tr -d ' ' | awk -F= '{print $2}')"
+    fi
+fi
+
+! it_contains "$RUN_LIST" "$RUN_MODE" && echo "{ }" && exit
+
+case $RUN_MODE in
+"--host")
+    if [ -n "$3" ]; then
+        while IFS="" read -r host || [ -n "$host" ]; do
+            echo "$host" | grep -q "$3" && echo "$host" && exit
+        done <"$INV_DRAFT_HOST"
+    fi
+    echo "{ }" && exit
+    ;;
+
+"--list")
+    echo -n "{"
+    tr <"$INV_DRAFT_LIST_HEAD" -d ' ' | tr -d '\n'
+    echo -n "\"_meta\": { \"hostvars\": {"
+    tr <"$INV_DRAFT_LIST_TAIL" -d ' ' | tr -d '\n' | sed 's/.$//'
+    echo -n "}}}"
+    exit
+    ;;
+
+"help") print_help_info ;;
+
+"destroy")
+    reset_album_tmp
+    set_debug_mode
+    for tf_packet_path in $(find "$ALBUM_HOME" -maxdepth 3 -name "main.tf" | sort -r); do
+
+        cd "$(dirname "$tf_packet_path")" || exit
+        if [ -f "main.tf" ]; then
+            echo "TERRAFORM ################ $tf_packet_path ############################"
+            [ "$RUN_MODE" == "destroy" ] && terraform destroy -auto-approve
+            echo "---------------------------------------------------------------------------------"
+        fi
+        cd "$START_POINT" || exit
+    done
+    ;;
+
+"describe")
+    # reset_album_tmp
+    stages_tmp=$(mktemp)
+    head_tmp=$(mktemp)
+    #set_debug_mode
+    print_head_yes=yes
+    for packet_path in $(find "$ALBUM_HOME" -maxdepth 3 -name "variables.tf" -o -name "*.yaml" -o -name "RUN" -o -name "GET" | grep -v '.meta' | sort); do
+        cd "$(dirname "$packet_path")" || exit
+        stage_template_print "$stages_tmp" "$packet_path" $print_head_yes
+        unset print_head_yes
+        cd "$START_POINT" || exit
+    done
+    root_template_print "$head_tmp" "$stages_tmp"
+    cat "$head_tmp" >>"$ALBUM_HOME"/album.tpl.csh
+    chmod 744 "$ALBUM_HOME"/album.tpl.csh
+    rm -f "$stages_tmp" "$head_tmp"
+    exit
     ;;
 
 "apply" | "init")
