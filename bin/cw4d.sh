@@ -564,9 +564,6 @@ perform_remotes() {
             path=$(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^path' | sed 's/^path=//;s/^path@@@=//' | head -n 1)
             script=$(sed <"$packet_path" 's/#.*$//;/^$/d' | grep '^script' | sed 's/^script=//;s/^scripth@@@=//' | head -n 1)
             cd "$packet_dir" || exit
-            echo "=====$packet_dir==========="
-            ls -a
-            echo "=======$packet_path========="
             if [ -n "$git" ]; then
                 [ -z "$path" ] && path=$(echo "$git" | awk -F/ '{print $NF}' | sed 's/.git$//')
                 ! git_clone_or_pull "$path" "$git" && updated=1 && break
@@ -595,7 +592,7 @@ perform_remotes() {
     done
 
     [ -n "$script" ] && /usr/local/bin/cw4d ${script}
-    exit
+    #   exit
 }
 
 #====================================START of SCRIPT BODY ====================================
