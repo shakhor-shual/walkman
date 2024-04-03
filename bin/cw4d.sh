@@ -311,21 +311,9 @@ set_debug_mode() {
 get_in_album_home() {
     local album=$1
     if [ -z "$album" ]; then
-        album=$START_POINT/new-album-template.csh
+        album=$START_POINT/album.tpl.csh
+        [ -f "$album" ] && cp -f "$album" "$album".bak
         echo "#!/usr/local/bin/cw4d" >"$album"
-        {
-            echo "######## AUTO-GENERATED ALBUM TEMPLATE #######"
-            echo -n
-            echo "ROOT "
-            echo "# ===== Start of ROOT variables section ======"
-            echo "# put here any global variables i.e. "
-            echo "my_project=some_project "
-            echo "my_tags=[ta1,tag2]"
-            echo "access_key=@@meta/my_key"
-            echo "my_variable1=etc"
-            echo -n
-            echo "# ===== End of ROOT variables section ========"
-        } >>"$album"
     fi
     ALBUM_HOME=""
     if [ -f "$album" ]; then
@@ -443,40 +431,57 @@ init_home_local_bin() {
     export ANSIBLE_HOST_KEY_CHECKING=False
 }
 
-stage_template_print() {
-    local path_to=$1
-    local type_of="TERRAFORM"
-
-    label=$(basename "$(dirname "$path_to")")
-    case $path_to in
-    *"variables.tf")
-        label=$(basename "$(dirname "$(dirname "$path_to")")")
-        type_of="TF"
-        ;;
-    *".yaml") type_of="ANS" ;;
-    *"RUN") type_of="RUN" ;;
-    *"GET") type_of="GET" ;;
-    *) type_of="UNKNOWN" ;;
+stage_kind_detect() {
+    case $1 in
+    *"variables.tf") echo "TF" ;;
+    *".yaml") echo "ANS" ;;
+    *"RUN") echo "RUN" ;;
+    *"GET") echo "GET" ;;
+    *) echo "UNKNOWN" ;;
     esac
+}
+
+root_template_print() {
+    {
+        echo "################# AUTO-GENERATED DEPLOYMENT-SCRIPT TEMPLATE #####################"
+        echo "run@@@=init   #RUN-mode will used if another don't specefied (as script [PARAM])"
+        echo "debug@@@=2    #VERBOSITY-level for script execution (0..3)"
+        echo
+        echo "ROOT:"
+        echo "################## AUTO-GENERATED COMMON VARIABLES #####################"
+        echo "########################################################################"
+        echo "##### you can define own values, which will be automatically  ##########"
+        echo "##### reused for ALL same named variables UNLESS THEY ARE    ###########"
+        echo "########  EXPLICITLY ASSIGNED TO ANOTHER VALUES IN ANY WAY #############"
+        echo "########################################################################"
+        sed <"$2" 's/#.*$//;/^$/d;/^~/d;/@@last/d;s/@@/"value?"/ ' | tr -d ' ' | sort -u
+        cat "$2"
+    } >>"$1"
+}
+
+stage_template_print() {
+    local label
+    local kind
+
+    kind=$(stage_kind_detect "$2")
+    label=$(basename "$(dirname "$2")")
+    [ "$kind" = "TF" ] && label=$(basename "$(dirname "$(dirname "$2")")")
     {
         echo
-        echo "~${type_of}_${label^^}:"
+        echo "~${kind}_${label^^}:"
         echo "##################################################################"
-    } >>"$2"
-
-    if [ "$3" -gt 0 ]; then
-        {
-            echo "###^^^  This is an automatically generated stage label/name.   ###"
-            echo "###^^^  You can refer to this stage with it and/or change it.  ###"
-            echo "##################################################################"
-            echo "###  Here are the variables used in the stage, each of which   ###"
-            echo "###  is now automatically set to its default value (with the   ###"
-            echo "###  '@@' directive) The current (default) values are shown in ###"
-            echo "###  each end line comment, but you can set any of yor own     ###"
-            echo "##################################################################"
-        } >>"$2"
-    fi
-
+        [ -n "$3" ] && echo "###^^^  This is an automatically generated stage label/name.   ###"
+        [ -n "$3" ] && echo "###^^^  You can refer to this stage with it and/or change it.  ###"
+        [ -n "$3" ] && echo "##################################################################"
+        [ -n "$3" ] && echo "###  Here are the variables used in the stage, each of which   ###"
+        [ -n "$3" ] && echo "###  is now automatically set to its default value (with the   ###"
+        [ -n "$3" ] && echo "###  '@@' directive) The current (default) values are shown in ###"
+        [ -n "$3" ] && echo "###  each end line comment, but you can set any of yor own     ###"
+        [ -n "$3" ] && echo "##################################################################"
+        [ "$kind" = "TF" ] && sed <"$2" 's/#.*$//;/^$/d' | grep -E 'variable|default' | tr -d ' ' | sed 's/^variable//' | sed ':a;N;$!ba;s/{\n/#/g' |
+            sed 's/"//;s/"/=@@/;s/default=/@@=/' | sed 's/@@#"/=@@last\n/;s/"#"/=@@last\n/g;s/"#/=@@/;s/@@@@/@@#@@/;s/#@@/ #@@/' |
+            column -t | sed 's/#@@/\t\t# @@/'
+    } >>"$1"
 }
 
 #====================================START of SCRIPT BODY ====================================
@@ -555,36 +560,17 @@ case $RUN_MODE in
     stages_tmp=$(mktemp)
     head_tmp=$(mktemp)
     #set_debug_mode
-    print_head=1
+    print_head_yes=yes
     for packet_path in $(find "$ALBUM_HOME" -maxdepth 3 -name "variables.tf" -o -name "*.yaml" -o -name "RUN" -o -name "GET" | grep -v '.meta' | sort); do
-        stage_template_print "$packet_path" "$stages_tmp" $print_head
-        print_head=0
         cd "$(dirname "$packet_path")" || exit
-        if [ -f "variables.tf" ]; then
-            sed <variables.tf 's/#.*$//;/^$/d' | grep -E 'variable|default' | tr -d ' ' | sed 's/^variable//' | sed ':a;N;$!ba;s/{\n/#/g' |
-                sed 's/"//;s/"/=@@/;s/default=/@@=/' | sed 's/@@#"/=@@last\n/;s/"#"/=@@last\n/g;s/"#/=@@/;s/@@@@/@@#@@/;s/#@@/ #@@/' |
-                column -t | sed 's/#@@/\t\t# @@/' >>"$stages_tmp"
-        fi
+        stage_template_print "$stages_tmp" "$packet_path" $print_head_yes
+        unset print_head_yes
         cd "$START_POINT" || exit
     done
-    {
-        echo "#!/usr/local/bin/cw4d"
-        echo "############# AUTO-GENERATED DEPLOYMENT-SCRIPT TEMPLATE #####################"
-        echo
-        echo "ROOT:"
-        echo "################## AUTO-GENERATED COMMON VARIABLES #####################"
-        echo "########################################################################"
-        echo "##### you can define own values, which will be automatically  ##########"
-        echo "##### reused for ALL same named variables UNLESS THEY ARE    ###########"
-        echo "########  EXPLICITLY ASSIGNED TO ANOTHER VALUES IN ANY WAY #############"
-        echo "########################################################################"
-        sed <"$stages_tmp" 's/#.*$//;/^$/d;/^~/d;/@@last/d;s/@@/"value?"/ ' | tr -d ' ' | sort -u
-        cat "$stages_tmp"
-    } >>"$head_tmp"
-    cat "$head_tmp"
-
-    rm -f "$stages_tmp"
-    rm -f "$head_tmp"
+    root_template_print "$head_tmp" "$stages_tmp"
+    cat "$head_tmp" >>"$ALBUM_HOME"/album.tpl.csh
+    chmod 744 "$ALBUM_HOME"/album.tpl.csh
+    rm -f "$stages_tmp" "$head_tmp"
     exit
     ;;
 

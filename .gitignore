@@ -12,6 +12,8 @@
 *.pub
 *.pem
 gcp.json
+*.tpl.csh
+*.bak
 
 # Crash log files
 crash.log
