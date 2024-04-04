@@ -374,6 +374,7 @@ finish_grace() {
         ;;
     esac
     unset ANSIBLE_HOST_KEY_CHECKING
+    [ -f "$ALBUM_SCRIPT.lock" ] && rm -f "$ALBUM_SCRIPT".lock
     cd "$START_POINT" && exit || exit
 }
 
@@ -544,7 +545,27 @@ git_clone_or_pull() {
     return 1
 }
 
-perform_remotes() {
+load_from_remote() {
+    if echo "$1" | grep -q '.zip'; then
+        curl -o stage_archive.zip "$1"
+        if [ -n "$path" ]; then
+            mkdir -p "$path"
+            unzip -o stage_archive.zip -d "$path"
+        else
+            unzip -o stage_archive.zip
+        fi
+        rm -f stage_archive.zip
+    else
+        if [ -n "$path" ]; then
+            curl -o "$1"
+        else
+            curl -o "$1"
+        fi
+    fi
+    return 0
+}
+
+sync_remote_updates() {
     local get
     local git
     local branch
@@ -552,10 +573,11 @@ perform_remotes() {
     local script
     local packet_dir
     local updated=1
+    local apply_it=1
 
     while [ $updated -eq 1 ]; do
         updated=0
-        for packet_path in $(find "$ALBUM_HOME" -maxdepth 2 -name ".LOAD" -o -name "gitops.csh" | grep -v '.meta' | sort); do
+        for packet_path in $(find "$ALBUM_HOME" -maxdepth 2 -name ".LOAD" -o -name "gitops.csh" | grep -v '\.meta\|\.git' | sort); do
             cd "$ALBUM_HOME" || exit
             packet_dir=$(dirname "$packet_path")
             get=$(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^get' | sed 's/^get=//;s/^get@@@=//' | head -n 1)
@@ -566,37 +588,34 @@ perform_remotes() {
             cd "$packet_dir" || exit
             if [ -n "$git" ]; then
                 [ -z "$path" ] && path=$(echo "$git" | awk -F/ '{print $NF}' | sed 's/.git$//')
-                ! git_clone_or_pull "$path" "$git" && updated=1 && break
-                ! git_checkout "$path" "$branch" && updated=1 && break
+                ! git_clone_or_pull "$path" "$git" && apply_it=0 && updated=1 && break
+                ! git_checkout "$path" "$branch" && apply_it=0 && updated=1 && break
             fi
-            if [ -n "$get" ]; then
-                if echo "$get" | grep -q '.zip'; then
-                    curl -o stage_archive.zip "$get"
-                    if [ -n "$path" ]; then
-                        mkdir -p "$path"
-                        unzip -o stage_archive.zip -d "$path"
-                    else
-                        unzip -o stage_archive.zip
-                    fi
-                    rm -f stage_archive.zip
-                else
-                    if [ -n "$path" ]; then
-                        curl -o "$get"
-                    else
-                        curl -o "$get"
-                    fi
-                fi
-            fi
+            [ -n "$get" ] && load_from_remote "$get" && apply_it=0 && updated=1 && break
         done
-        echo "===$updated===="
+        # echo "===$updated===="
     done
 
     cd "$ALBUM_HOME" || exit
     if [ -n "$script" ]; then
-        get_in_tf_packet_home "$ALBUM_HOME"/${script}
+        get_in_album_home "$ALBUM_HOME"/${script}
     else
-        get_in_tf_packet_home "$ALBUM_HOME"/album.csh
+        get_in_album_home "$ALBUM_HOME"/album.csh
     fi
+    return $apply_it
+}
+
+accept_inlines() {
+    local stage_count=1
+    for stage_path in $(
+        find "$ALBUM_HOME" -maxdepth 1 -type d | sort | grep -v '\.meta\|\.git' | tail -n +2
+    ); do
+
+        if get_in_tf_packet_home "$stage_path"; then
+            cat $stage_path/*.sch
+        fi
+        ((stage_count++))
+    done
 }
 
 #====================================START of SCRIPT BODY ====================================
@@ -616,7 +635,9 @@ else
         RUN_MODE="$2"
         get_in_album_home "$1"
     else
-        get_in_album_home "${2:-"$1"}"
+        # show_run_parameters $0 $1 $2 $3
+        echo "$2" | grep -q '/' && get_in_album_home "$2"
+        echo "$1" | grep -q '/' && get_in_album_home "$1"
         RUN_MODE="$(sed <"$ALBUM_SCRIPT" 's/#.*$//;/^$/d' | grep 'run@@@' | tr -d ' ' | awk -F= '{print $2}')"
     fi
 fi
@@ -645,6 +666,7 @@ case $RUN_MODE in
 "help") print_help_info ;;
 
 "destroy")
+    touch "$ALBUM_SCRIPT".lock
     reset_album_tmp
     set_debug_mode
     for tf_packet_path in $(find "$ALBUM_HOME" -maxdepth 3 -name "variables.tf" | sort -r); do
@@ -657,6 +679,7 @@ case $RUN_MODE in
         fi
         cd "$START_POINT" || exit
     done
+    [ -f "$ALBUM_SCRIPT.lock" ] && rm -f "$ALBUM_SCRIPT".lock
     ;;
 
 "describe")
@@ -665,7 +688,7 @@ case $RUN_MODE in
     head_tmp=$(mktemp)
     #set_debug_mode
     print_head_yes=yes
-    for packet_path in $(find "$ALBUM_HOME" -maxdepth 3 -name "variables.tf" -o -name "*.yaml" -o -name ".RUN" | grep -v '.meta' | grep -v '.git' | sort); do
+    for packet_path in $(find "$ALBUM_HOME" -maxdepth 3 -name "variables.tf" -o -name "*.yaml" -o -name ".RUN" | grep -v '\.meta\|\.git' | sort); do
         cd "$(dirname "$packet_path")" || exit
         stage_template_print "$stages_tmp" "$packet_path" $print_head_yes
         unset print_head_yes
@@ -679,7 +702,15 @@ case $RUN_MODE in
     ;;
 
 "apply" | "init" | "gitops")
-    perform_remotes
+    [ -f "$ALBUM_SCRIPT.lock" ] && exit
+    if ! sync_remote_updates; then
+        if [ "$RUN_MODE" = "gitops" ]; then
+            echo "gitops no changes"
+            exit
+        fi
+    fi
+
+    touch "$ALBUM_SCRIPT".lock
     reset_album_tmp
     set_debug_mode
 
@@ -689,9 +720,8 @@ case $RUN_MODE in
 
     STAGE_COUNT=1
     for stage_path in $(
-        find "$ALBUM_HOME" -maxdepth 1 -type d | sort | grep -v ".meta" | grep -v '.git' | tail -n +2
+        find "$ALBUM_HOME" -maxdepth 1 -type d | sort | grep -v '\.meta\|\.git' | tail -n +2
     ); do
-
         SINGLE_INIT_FILE="$ALBUM_TMP/single"$(printf %02d $STAGE_COUNT)_draft.csh
         SINGLE_LABEL=$(head <"$SINGLE_INIT_FILE" -n 1 | sed 's/#//g;s/ //g;s/://g;s/~//g;')
         SINGLE_ECHO_FILE=$ALBUM_META/.ssh-$SINGLE_LABEL.sh
@@ -703,43 +733,39 @@ case $RUN_MODE in
         echo "### Single HOME: $stage_path"
 
         if get_in_tf_packet_home "$stage_path"; then #get in packet dir
-
             mkdir -p "$META"
             echo "#~""$SINGLE_LABEL" >"$IN_SINGLE_ECHO_FILE"
-
             draft_tfvars_from_packet_variables
             tune_tfvars_for_workflow "$SINGLE_INIT_FILE"
             export_vars_to_env "$TF_VARS" # export_vars_to_env "$TF_VARS"
 
-            [ "$STAGE_COUNT" -ge 6 ] && exit
-
-            if [ "$RUN_MODE" == "init" ]; then
+            case $RUN_MODE in
+            "init")
                 echo "----------------------- Run TERRAFORM init ---------------------------------"
                 terraform init --upgrade
-            fi
-
-            if [ "$RUN_MODE" == "apply" ] || [ "$RUN_MODE" == "gitops" ]; then
+                ;;
+            "apply" | "gitops")
+                touch "$ALBUM_SCRIPT".lock
                 echo "------------------ Refresh TERRAFORM with init -----------------------------"
                 terraform init --upgrade
                 echo "---------------------- Run TERRAFORM apply ---------------------------------"
                 terraform apply -auto-approve
                 TF_EC=$?
                 [ "$TF_EC" -eq 1 ] && finish_grace "err_tf" "$STAGE_COUNT" "$stage_path"
-                export_vars_to_env "$SINGLE_INIT_FILE" #export_setters_to_env $SINGLE_INIT_FILE
-            fi
-
+                export_vars_to_env "$SINGLE_INIT_FILE"
+                ;;
+            esac
             echo "----------------------------------------------------------------------------"
             cd "$ALBUM_HOME" || exit #return from packet to album level
 
         else
             echo "This not TF packet!!!"
-
             export_vars_to_env "$SINGLE_INIT_FILE"
         fi
         ((STAGE_COUNT++))
     done
+    [ -f "$ALBUM_SCRIPT.lock" ] && rm -f "$ALBUM_SCRIPT".lock
     ;;
-
 *)
     #show_run_parameters $0 $1 $2 $3 $4
     ;;
