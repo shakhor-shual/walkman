@@ -37,7 +37,7 @@ check_ansible_connection() {
 GET_from_state_by_type() {
     local val
     local stored_path=$PWD
-    for stage_state_path in $(find "$ALBUM_HOME_FULL_PATH" -maxdepth 3 -name terraform.tfstate | sort); do
+    for stage_state_path in $(find "$ALBUM_HOME" -maxdepth 3 -name terraform.tfstate | sort); do
         val=""
         cd "$(dirname "$stage_state_path")" || exit
         if [ "$(terraform show -json | jq '.values.root_module.resources ')" != "null" ]; then
@@ -55,7 +55,7 @@ GET_from_state_by_type() {
 }
 
 SET_ansible_ready() {
-    if [ -f "$INV_DRAFT_HOST" ] && [ -f "$INV_DRAFT_LIST_TAIL" ] && [ -f "$INV_DRAFT_LIST_HEAD" ]; then
+    if [ -f "$INVENTORY_HOST" ] && [ -f "$INVENTORY_LIST_TAIL" ] && [ -f "$INVENTORY_LIST_HEAD" ]; then
         check_ansible_connection "$1" "$2" | grep ': \[' | tr -d '[' | tr -d ']' | tr '\n' ',' | tr -d ' ' | sed 's/.$//' | sed 's/^/"{/; s/$/}"/'
     else
         echo "{}"
@@ -81,15 +81,15 @@ SET_access_artefacts() {
         echo "KEY_FILE=$secret" >>"$SINGLE_ECHO_FILE"
     fi
 
-    print_hosts_for_list_request "$ips" "$user" "$secret": >>"$INV_DRAFT_LIST_HEAD"
+    print_hosts_for_list_request "$ips" "$user" "$secret": >>"$INVENTORY_LIST_HEAD"
     # ips=$(echo "$ips" | sed 's/,/ /;s/\[//;s/\]//')
 
     for ip in $(echo "$ips" | sed 's/,/ /;s/\[//;s/\]//'); do
         # echo "ssh-keygen -f ~/.ssh/known_hosts -R $ip " >>$SINGLE_ECHO_FILE
         #echo 'ssh  -o IdentitiesOnly=yes -i $KEY_FILE '$2'@'$ip >>$SINGLE_ECHO_FILE
         echo 'ssh  -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i $KEY_FILE '"$user"'@'"$ip" >>"$SINGLE_ECHO_FILE"
-        print_hostvars_for_host_request "$ip" "$user" "$secret" >>"$INV_DRAFT_HOST"
-        print_hostvars_for_list_request "$ip" "$user" "$secret" >>"$INV_DRAFT_LIST_TAIL"
+        print_hostvars_for_host_request "$ip" "$user" "$secret" >>"$INVENTORY_HOST"
+        print_hostvars_for_list_request "$ip" "$user" "$secret" >>"$INVENTORY_LIST_TAIL"
     done
 
     cat "$SINGLE_ECHO_FILE" >"$IN_SINGLE_ECHO_FILE"
@@ -181,7 +181,7 @@ to_bash_lang_translator() {
     if [ -n "$SINGLE_LABEL" ]; then
         echo "$val" | grep -q '@@meta' && val="$(echo "$val" | sed 's/@@meta/..\/.meta/')"
     else
-        echo "$val" | grep -q '@@meta' && val="$ALBUM_HOME_FULL_PATH$(echo "$val" | sed 's/@@meta/\/.meta/')"
+        echo "$val" | grep -q '@@meta' && val="$ALBUM_HOME$(echo "$val" | sed 's/@@meta/\/.meta/')"
     fi
 
     if echo "$val" | grep -q '<<'; then # DO for HELPERS
@@ -310,28 +310,28 @@ set_debug_mode() {
 
 get_in_album_home() {
     local album=$1
+    local album_home
     if [ -z "$album" ]; then
         album=$START_POINT/album.tpl.csh
-        [ -f "$album" ] && cp -f "$album" "$album".bak
+        [ -f "$album" ] && cat"$album" >"$album".bak
         echo "#!/usr/local/bin/cw4d" >"$album"
+        chmod 744 "$album"
     fi
-    ALBUM_HOME=""
+
     if [ -f "$album" ]; then
-        ALBUM_HOME=$(dirname "$album")
-        [ -d "$ALBUM_HOME" ] && cd "$ALBUM_HOME" || exit
+        album_home=$(dirname "$album")
+        [ -d "$album_home" ] && cd "$album_home" || exit
+        ALBUM_HOME=$PWD
         ALBUM_SCRIPT=$PWD/$(basename "$album")
-        META="../.meta"
-        [ -d "$META" ] || mkdir -p "$META"
-        ALBUM_HOME_FULL_PATH=$PWD
-        ALBUM_META="$ALBUM_HOME_FULL_PATH"/.meta
-        [ -d "$ALBUM_META" ] || mkdir -p "$ALBUM_META"
+        ALBUM_META="$ALBUM_HOME"/.meta
         ALBUM_TMP=$ALBUM_META/tmp
         [ -d "$ALBUM_TMP" ] || mkdir -p "$ALBUM_TMP"
         ALBUM_DRAFT_FILE="$ALBUM_TMP"/album_draft.csh
-        INV_DRAFT_HOST=$ALBUM_TMP/inventoty_fraft.host
-        INV_DRAFT_LIST_HEAD=$ALBUM_TMP/inventoty_fraft.head
-        INV_DRAFT_LIST_TAIL=$ALBUM_TMP/inventoty_fraft.tail
+        INVENTORY_HOST=$ALBUM_TMP/inventoty_fraft.host
+        INVENTORY_LIST_HEAD=$ALBUM_TMP/inventoty_fraft.head
+        INVENTORY_LIST_TAIL=$ALBUM_TMP/inventoty_fraft.tail
         ANSIBLE_CHECKER=$ALBUM_TMP/check_hosts.yml
+        META="../.meta"
     fi
 }
 
@@ -555,8 +555,8 @@ perform_remotes() {
 
     while [ $updated -eq 1 ]; do
         updated=0
-        cd "$ALBUM_HOME" || exit
         for packet_path in $(find "$ALBUM_HOME" -maxdepth 2 -name ".LOAD" -o -name "gitops.csh" | grep -v '.meta' | sort); do
+            cd "$ALBUM_HOME" || exit
             packet_dir=$(dirname "$packet_path")
             get=$(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^get' | sed 's/^get=//;s/^get@@@=//' | head -n 1)
             git=$(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^git' | sed 's/^git=//;s/^git@@@=//' | head -n 1)
@@ -591,8 +591,12 @@ perform_remotes() {
         echo "===$updated===="
     done
 
-    [ -n "$script" ] && /usr/local/bin/cw4d ${script}
-    #   exit
+    cd "$ALBUM_HOME" || exit
+    if [ -n "$script" ]; then
+        get_in_tf_packet_home "$ALBUM_HOME"/${script}
+    else
+        get_in_tf_packet_home "$ALBUM_HOME"/album.csh
+    fi
 }
 
 #====================================START of SCRIPT BODY ====================================
@@ -624,16 +628,16 @@ case $RUN_MODE in
     if [ -n "$3" ]; then
         while IFS="" read -r host || [ -n "$host" ]; do
             echo "$host" | grep -q "$3" && echo "$host" && exit
-        done <"$INV_DRAFT_HOST"
+        done <"$INVENTORY_HOST"
     fi
     echo "{ }" && exit
     ;;
 
 "--list")
     echo -n "{"
-    tr <"$INV_DRAFT_LIST_HEAD" -d ' ' | tr -d '\n'
+    tr <"$INVENTORY_LIST_HEAD" -d ' ' | tr -d '\n'
     echo -n "\"_meta\": { \"hostvars\": {"
-    tr <"$INV_DRAFT_LIST_TAIL" -d ' ' | tr -d '\n' | sed 's/.$//'
+    tr <"$INVENTORY_LIST_TAIL" -d ' ' | tr -d '\n' | sed 's/.$//'
     echo -n "}}}"
     exit
     ;;
@@ -643,7 +647,7 @@ case $RUN_MODE in
 "destroy")
     reset_album_tmp
     set_debug_mode
-    for tf_packet_path in $(find "$ALBUM_HOME" -maxdepth 3 -name "main.tf" | sort -r); do
+    for tf_packet_path in $(find "$ALBUM_HOME" -maxdepth 3 -name "variables.tf" | sort -r); do
 
         cd "$(dirname "$tf_packet_path")" || exit
         if [ -f "main.tf" ]; then
@@ -661,7 +665,7 @@ case $RUN_MODE in
     head_tmp=$(mktemp)
     #set_debug_mode
     print_head_yes=yes
-    for packet_path in $(find "$ALBUM_HOME" -maxdepth 3 -name "variables.tf" -o -name "*.yaml" -o -name ".RUN" | grep -v '.meta' | sort); do
+    for packet_path in $(find "$ALBUM_HOME" -maxdepth 3 -name "variables.tf" -o -name "*.yaml" -o -name ".RUN" | grep -v '.meta' | grep -v '.git' | sort); do
         cd "$(dirname "$packet_path")" || exit
         stage_template_print "$stages_tmp" "$packet_path" $print_head_yes
         unset print_head_yes
@@ -669,7 +673,7 @@ case $RUN_MODE in
     done
     root_template_print "$head_tmp" "$stages_tmp"
     cat "$head_tmp" >>"$ALBUM_HOME"/album.tpl.csh
-    chmod 744 "$ALBUM_HOME"/album.tpl.csh
+
     rm -f "$stages_tmp" "$head_tmp"
     exit
     ;;
@@ -685,7 +689,7 @@ case $RUN_MODE in
 
     STAGE_COUNT=1
     for stage_path in $(
-        find "$ALBUM_HOME_FULL_PATH" -maxdepth 1 -type d | sort | grep -v ".meta" | tail -n +2
+        find "$ALBUM_HOME" -maxdepth 1 -type d | sort | grep -v ".meta" | grep -v '.git' | tail -n +2
     ); do
 
         SINGLE_INIT_FILE="$ALBUM_TMP/single"$(printf %02d $STAGE_COUNT)_draft.csh
@@ -714,7 +718,7 @@ case $RUN_MODE in
                 terraform init --upgrade
             fi
 
-            if [ "$RUN_MODE" == "apply" ]; then
+            if [ "$RUN_MODE" == "apply" ] || [ "$RUN_MODE" == "gitops" ]; then
                 echo "------------------ Refresh TERRAFORM with init -----------------------------"
                 terraform init --upgrade
                 echo "---------------------- Run TERRAFORM apply ---------------------------------"
@@ -725,7 +729,7 @@ case $RUN_MODE in
             fi
 
             echo "----------------------------------------------------------------------------"
-            cd "$ALBUM_HOME_FULL_PATH" || exit #return from packet to album level
+            cd "$ALBUM_HOME" || exit #return from packet to album level
 
         else
             echo "This not TF packet!!!"
