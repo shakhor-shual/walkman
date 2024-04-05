@@ -30,7 +30,7 @@ check_ansible_connection() {
     echo "  - name: Wait for hosts become reachable" >>"$ANSIBLE_CHECKER"
     echo "    ansible.builtin.wait_for_connection:" >>"$ANSIBLE_CHECKER"
     echo "      timeout: $delay" >>"$ANSIBLE_CHECKER"
-    ansible-playbook -i "$ALBUM_ORIGIN" "$ANSIBLE_CHECKER"
+    ansible-playbook -i "$ALBUM_SELF" "$ANSIBLE_CHECKER"
 }
 
 ################ EXTENTION HELPERS LIBRARY #############################
@@ -115,7 +115,7 @@ run_helper_by_name() {
             add_or_replace_var "$1" "$val"
         fi
     else
-        finish_grace "err_helper" "$helper_name" "$ALBUM_ORIGIN"
+        finish_grace "err_helper" "$helper_name" "$ALBUM_SELF"
     fi
 }
 
@@ -304,13 +304,15 @@ show_run_parameters() {
 set_debug_mode() {
     local debug
     local re='^[0-9]+$'
-    debug="$(sed <"$ALBUM_ORIGIN" 's/#.*$//;/^$/d' | grep 'debug@@@' | tr -d ' ' | awk -F= '{print $2}')"
+    debug="$(sed <"$ALBUM_SELF" 's/#.*$//;/^$/d' | grep 'debug@@@' | tr -d ' ' | awk -F= '{print $2}')"
     [[ $debug =~ $re ]] && DEBUG=$debug
 }
 
-get_in_album_home() {
+init_album_home() {
     local album=$1
     local album_home
+    local album_name
+    local album_prefix
     if [ -z "$album" ]; then
         album=$START_POINT/album.tpl.csh
         [ -f "$album" ] && cat"$album" >"$album".bak
@@ -320,17 +322,21 @@ get_in_album_home() {
 
     if [ -f "$album" ]; then
         album_home=$(dirname "$album")
+        album_name=$(basename "$album")
+        album_prefix=${album_name//.csh/}
         [ -d "$album_home" ] && cd "$album_home" || exit
         ALBUM_HOME_DIR=$PWD
-        ALBUM_ORIGIN=$PWD/$(basename "$album")
-        ALBUM_LOCK="$ALBUM_ORIGIN.lock"
-        ALBUM_META_DIR="$ALBUM_HOME_DIR"/.meta
-        ALBUM_TMP_DIR=$ALBUM_META_DIR/tmp
-        [ -d "$ALBUM_TMP_DIR" ] || mkdir -p "$ALBUM_TMP_DIR"
-        ALBUM_VARS_DRAFT="$ALBUM_TMP_DIR"/album_vars.draft
-        INVENTORY_HOST=$ALBUM_TMP_DIR/inventoty_host.draft
-        INVENTORY_LIST_HEAD=$ALBUM_TMP_DIR/inventoty_head.draft
-        INVENTORY_LIST_TAIL=$ALBUM_TMP_DIR/inventoty_tail.draft
+        ALBUM_SELF="$ALBUM_HOME_DIR/$album_name"
+        ALBUM_META_DIR="$ALBUM_HOME_DIR/.meta"
+        ALBUM_TMP_DIR="$ALBUM_META_DIR/tmp"
+        mkdir -p "$ALBUM_TMP_DIR"
+        ALBUM_LOCK="$ALBUM_HOME_DIR/${album_prefix}.lock"
+        ALBUM_VARS_DRAFT="$ALBUM_TMP_DIR/${album_prefix}_vars.draft"
+        ALBUM_EXEC_DRAFT="$ALBUM_TMP_DIR/${album_prefix}_exec.draft"
+        cat "$ALBUM_SELF" >"$ALBUM_EXEC_DRAFT"
+        INVENTORY_HOST="$ALBUM_TMP_DIR/${album_prefix}_inventoty_host.draft"
+        INVENTORY_LIST_HEAD="$ALBUM_TMP_DIR/${album_prefix}_inventoty_head.draft"
+        INVENTORY_LIST_TAIL="$ALBUM_TMP_DIR/${album_prefix}_inventoty_tail.draft"
         ANSIBLE_CHECKER=$ALBUM_TMP_DIR/check_hosts.yml
         META="../.meta"
     fi
@@ -599,9 +605,9 @@ sync_remote_updates() {
 
     cd "$ALBUM_HOME_DIR" || exit
     if [ -n "$script" ]; then
-        get_in_album_home "$ALBUM_HOME_DIR"/${script}
+        init_album_home "$ALBUM_HOME_DIR"/${script}
     else
-        get_in_album_home "$ALBUM_HOME"/album.csh
+        init_album_home "$ALBUM_HOME"/album.csh
     fi
     return $apply_it
 }
@@ -630,16 +636,16 @@ fi
 
 if it_contains "$RUN_LIST" "$1"; then
     RUN_MODE="$1"
-    get_in_album_home "$2"
+    init_album_home "$2"
 else
     if it_contains "$RUN_LIST" "$2"; then
         RUN_MODE="$2"
-        get_in_album_home "$1"
+        init_album_home "$1"
     else
         # show_run_parameters $0 $1 $2 $3
-        echo "$2" | grep -q '/' && get_in_album_home "$2"
-        echo "$1" | grep -q '/' && get_in_album_home "$1"
-        RUN_MODE="$(sed <"$ALBUM_ORIGIN" 's/#.*$//;/^$/d' | grep 'run@@@' | tr -d ' ' | awk -F= '{print $2}')"
+        echo "$2" | grep -q '/' && init_album_home "$2"
+        echo "$1" | grep -q '/' && init_album_home "$1"
+        RUN_MODE="$(sed <"$ALBUM_SELF" 's/#.*$//;/^$/d' | grep 'run@@@' | tr -d ' ' | awk -F= '{print $2}')"
     fi
 fi
 
@@ -715,7 +721,7 @@ case $RUN_MODE in
     reset_album_tmp
     set_debug_mode
 
-    grep <"$ALBUM_ORIGIN" -v '@@@' | sed 's/#.*$//;/^$/d' | tr -d ' ' >"$ALBUM_VARS_DRAFT"
+    grep <"$ALBUM_SELF" -v '@@@' | sed 's/#.*$//;/^$/d' | tr -d ' ' >"$ALBUM_VARS_DRAFT"
     export_vars_to_env "$ALBUM_VARS_DRAFT" "fast"
     sed <"$ALBUM_VARS_DRAFT" 's/^~/###~/' | csplit - -s '/^###~/' '{*}' -f "$ALBUM_TMP_DIR"/single -b "%02d_vars.draft"
 
