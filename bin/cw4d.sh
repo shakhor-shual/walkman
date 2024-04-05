@@ -37,7 +37,7 @@ check_ansible_connection() {
 GET_from_state_by_type() {
     local val
     local stored_path=$PWD
-    for stage_state_path in $(find "$ALBUM_HOME_DIR" -maxdepth 3 -name terraform.tfstate | sort); do
+    for stage_state_path in $(find "$ALBUM_HOME_DIR" -maxdepth 3 -name variables.tf | sort); do
         val=""
         cd "$(dirname "$stage_state_path")" || exit
         if [ "$(terraform show -json | jq '.values.root_module.resources ')" != "null" ]; then
@@ -769,7 +769,7 @@ case $RUN_MODE in
         done
         [ -f "$ALBUM_LOCK" ] && rm -f "$ALBUM_LOCK"
         [ -f "$ALBUM_ERR" ] && rm -f "$ALBUM_ERR"
-        touch "ALBUM_OK"
+        touch "$ALBUM_OK"
     done
     ;;
 *)
