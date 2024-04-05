@@ -537,17 +537,21 @@ git_checkout() {
 
 git_clone_or_pull() {
     [ -z "$2" ] && return 0
-
+    local tmp
     if [ -d "$1/.git" ]; then
         git -C "$1" pull | grep -q "up to date" && return 0
     else
-        [ "$1" = "." ] && [ -f ".LOAD" ] && mv -f .LOAD /tmp/.LOAD
-        [ "$1" = "." ] && [ -f "gitops.csh" ] && mv -f gitops.csh /tmp/gitops.csh
-        [ "$1" = "." ] && rm -rf "${packet_dir:?}/"*
-        [ "$1" = "." ] && rm -rf "${packet_dir:?}/."meta
+        if [ "$1" = "." ]; then
+            tmp=$(mktemp)
+            mv ./*.csh "$tmp" 2>/dev/null
+            rm -rf "${packet_dir:?}/"*
+            rm -rf "${packet_dir:?}/."meta
+        fi
         git clone "$2" "$1"
-        [ "$1" = "." ] && [ -f "/tmp/.LOAD" ] && mv -f /tmp/.LOAD .LOAD
-        [ "$1" = "." ] && [ -f "/tmp/gitops.csh" ] && mv -f /tmp/gitops.csh gitops.csh
+        if [ "$1" = "." ]; then
+            mv -n "$tmp/*.csh" . 2>/dev/null
+            rm -rf "$tmp"
+        fi
     fi
     return 1
 }
