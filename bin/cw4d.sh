@@ -92,9 +92,9 @@ SET_access_artefacts() {
         print_hostvars_for_list_request "$ip" "$user" "$secret" >>"$INVENTORY_LIST_TAIL"
     done
 
-    cat "$SINGLE_ECHO_FILE" >"$IN_SINGLE_ECHO_FILE"
+    #  cat "$SINGLE_ECHO_FILE" >"$IN_SINGLE_ECHO_FILE"
     chmod 777 "$SINGLE_ECHO_FILE"
-    chmod 777 "$IN_SINGLE_ECHO_FILE"
+    #  chmod 777 "$IN_SINGLE_ECHO_FILE"
 
     echo "$ips"
 }
@@ -150,10 +150,12 @@ detect_terraform_provider() {
 
 extract_ip_from_state_file() {
     local provider
+    local state_file
     local val='[]'
     provider=$(detect_terraform_provider)
+    state_file=$(find "$PACK_HOME_FULL_PATH" -maxdepth 3 -name variables.tf | grep "$WS_NAME")
     if [ "$provider" = "GCP" ]; then
-        [ -f "$PACK_HOME_FULL_PATH/terraform.tfstate" ] && val="$(tr <"$PACK_HOME_FULL_PATH"/terraform.tfstate -d ' ' | grep "$1" | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | tr '\n' ',' | sed 's/.$//')"
+        [ -f "$state_file" ] && val="$(tr <"$PACK_HOME_FULL_PATH"/terraform.tfstate -d ' ' | grep "$1" | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | tr '\n' ',' | sed 's/.$//')"
         echo "[$val]"
         return
     fi
@@ -319,26 +321,26 @@ init_album_home() {
         chmod 744 "$album"
     fi
     if [ -f "$album" ]; then
-        ALBUM=$album
+        #   ALBUM=$album
         album_home=$(dirname "$album")
         album_name=$(basename "$album")
-        ALBUM_PREFIX=${album_name//.csh/}
+        WS_NAME=${album_name//.csh/}
         [ -d "$album_home" ] && cd "$album_home" || exit
         ALBUM_HOME_DIR=$PWD
         ALBUM_SELF="$ALBUM_HOME_DIR/$album_name"
-        ALBUM_META_DIR="$ALBUM_HOME_DIR/.meta"
-        ALBUM_TMP_DIR="$ALBUM_META_DIR/tmp"
-        mkdir -p "$ALBUM_TMP_DIR"
-        ALBUM_LOCK="$ALBUM_HOME_DIR/.${ALBUM_PREFIX}.lock"
-        ALBUM_ERR="$ALBUM_HOME_DIR/.${ALBUM_PREFIX}.err"
-        ALBUM_OK="$ALBUM_HOME_DIR/.${ALBUM_PREFIX}.ok"
-        ALBUM_VARS_DRAFT="$ALBUM_TMP_DIR/${ALBUM_PREFIX}_vars.draft"
-        ALBUM_EXEC_DRAFT="$ALBUM_TMP_DIR/${ALBUM_PREFIX}_exec.draft"
+        ALBUM_META="$ALBUM_HOME_DIR/.meta"
+        WS_TMP="$ALBUM_META/$WS_NAME/tmp"
+        mkdir -p "$WS_TMP"
+        ALBUM_LOCK="$ALBUM_HOME_DIR/.$WS_NAME.lock"
+        ALBUM_ERR="$ALBUM_HOME_DIR/.$WS_NAME.err"
+        ALBUM_OK="$ALBUM_HOME_DIR/.$WS_NAME.ok"
+        ALBUM_VARS_DRAFT="$WS_TMP/$WS_NAME.vars.draft"
+        ALBUM_EXEC_DRAFT="$WS_TMP/$WS_NAME.exec.draft"
         cat "$ALBUM_SELF" >"$ALBUM_EXEC_DRAFT"
-        INVENTORY_HOST="$ALBUM_TMP_DIR/${ALBUM_PREFIX}_inventoty_host.draft"
-        INVENTORY_LIST_HEAD="$ALBUM_TMP_DIR/${ALBUM_PREFIX}_inventoty_head.draft"
-        INVENTORY_LIST_TAIL="$ALBUM_TMP_DIR/${ALBUM_PREFIX}_inventoty_tail.draft"
-        ANSIBLE_CHECKER=$ALBUM_TMP_DIR/check_hosts.yml
+        INVENTORY_HOST="$WS_TMP/$WS_NAME.inventoty_host.draft"
+        INVENTORY_LIST_HEAD="$WS_TMP/$WS_NAME.inventoty_head.draft"
+        INVENTORY_LIST_TAIL="$WS_TMP/$WS_NAME.inventoty_tail.draft"
+        ANSIBLE_CHECKER=$WS_TMP/check_hosts.yml
         META="../.meta"
         echo "====== USING SCRIPT: $ALBUM_SELF========="
     fi
@@ -355,15 +357,15 @@ get_in_tf_packet_home() {
 }
 
 reset_album_tmp() {
-    [ -d "$ALBUM_TMP_DIR" ] && rm -rf "$ALBUM_TMP_DIR"
-    mkdir -p "$ALBUM_TMP_DIR"
+    [ -d "$WS_TMP" ] && rm -rf "$WS_TMP"
+    mkdir -p "$WS_TMP"
 }
 
 finish_grace() {
     case "$1" in
     "err_tf")
         echo -e
-        echo "################### TERRAFORM ERROR on Single-$2 ############################"
+        echo "################### TERRAFORM ERROR on Stage-$2 ############################"
         echo "### IN: $3"
         echo "##################### ALBUM DEPLOYMENT CANCELED #############################"
         echo -e && echo -e
@@ -569,7 +571,6 @@ sync_remote_updates() {
     local git
     local branch
     local path
-    local script
     local packet_dir
     local updated=1
     local apply_it=1
@@ -615,7 +616,7 @@ destroy_deployment() {
     for tf_packet_path in $(find "$ALBUM_HOME_DIR" -maxdepth 3 -name "variables.tf" | sort -r); do
 
         cd "$(dirname "$tf_packet_path")" || exit
-        terraform workspace select -or-create "$ALBUM_PREFIX"
+        terraform workspace select -or-create "$WS_NAME"
         if [ -f "variables.tf" ]; then
             echo "TERRAFORM ################ $tf_packet_path ############################"
             terraform destroy -auto-approve
@@ -716,32 +717,33 @@ case $RUN_MODE in
         reset_album_tmp
         set_debug_mode
 
-        grep <"$ALBUM_SELF" -v '@@@' | sed 's/#.*$//;/^$/d' | sed "s/@@this/env-$ALBUM_PREFIX/g" | tr -d ' ' >"$ALBUM_VARS_DRAFT"
+        grep <"$ALBUM_SELF" -v '@@@' | sed 's/#.*$//;/^$/d' | sed "s/@@this/env-$WS_NAME/g" | tr -d ' ' >"$ALBUM_VARS_DRAFT"
         export_vars_to_env "$ALBUM_VARS_DRAFT" "fast"
-        sed <"$ALBUM_VARS_DRAFT" 's/^~/###~/' | csplit - -s '/^###~/' '{*}' -f "$ALBUM_TMP_DIR/$ALBUM_PREFIX" -b "%02d_vars.draft"
+        sed <"$ALBUM_VARS_DRAFT" 's/^~/###~/' | csplit - -s '/^###~/' '{*}' -f "$WS_TMP/$WS_NAME" -b "%02d_vars.draft"
 
         STAGE_COUNT=1
         for stage_path in $(
             find "$ALBUM_HOME_DIR" -maxdepth 1 -type d | sort | grep -v '\.meta\|\.git' | tail -n +2
         ); do
-            SINGLE_INIT_FILE="$ALBUM_TMP_DIR/$ALBUM_PREFIX"$(printf %02d $STAGE_COUNT)_vars.draft
+            SINGLE_INIT_FILE="$WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
             SINGLE_LABEL=$(head <"$SINGLE_INIT_FILE" -n 1 | sed 's/#//g;s/ //g;s/://g;s/~//g;')
-            SINGLE_ECHO_FILE=$ALBUM_META_DIR/.ssh-$SINGLE_LABEL.sh
-            IN_SINGLE_ECHO_FILE=$META/.$SINGLE_LABEL.sh
+            SINGLE_ECHO_FILE=$ALBUM_META/ssh-to-$WS_NAME-$SINGLE_LABEL.sh
+            #  IN_SINGLE_ECHO_FILE=$META/.$SINGLE_LABEL.sh
 
-            echo -e
-            echo "############################## Single-$STAGE_COUNT ################################"
-            echo "### Single LABEL: $SINGLE_LABEL  "
-            echo "### Single HOME: $stage_path"
+            echo
+            echo "############################## Stage-$STAGE_COUNT ################################"
+            echo "### Stage LABEL: $SINGLE_LABEL  "
+            echo "### Stage HOME: $stage_path"
+            echo
 
             if get_in_tf_packet_home "$stage_path"; then #get in packet dir
                 mkdir -p "$META"
-                echo "#~""$SINGLE_LABEL" >"$IN_SINGLE_ECHO_FILE"
+                #   echo "#~""$SINGLE_LABEL" >"$IN_SINGLE_ECHO_FILE"
                 draft_tfvars_from_packet_variables
                 tune_tfvars_for_workflow "$SINGLE_INIT_FILE"
                 export_vars_to_env "$TF_VARS" # export_vars_to_env "$TF_VARS"
 
-                terraform workspace select -or-create "$ALBUM_PREFIX"
+                terraform workspace select -or-create "$WS_NAME"
                 case $RUN_MODE in
                 "init")
                     echo "----------------------- Run TERRAFORM init ---------------------------------"
