@@ -144,7 +144,7 @@ increment_if_possible() {
 }
 
 detect_terraform_provider() {
-    [ -f "$PACK_HOME_FULL_PATH/terraform.tfstate" ] && grep <"$PACK_HOME_FULL_PATH"/terraform.tfstate -q "https://www.googleapis.com/compute/" && echo "GCP" && exit
+    [ -f "$1" ] && grep <"$1" -q "https://www.googleapis.com/compute/" && echo "GCP" && exit
     echo "NaN"
 }
 
@@ -152,10 +152,10 @@ extract_ip_from_state_file() {
     local provider
     local state_file
     local val='[]'
-    provider=$(detect_terraform_provider)
-    state_file=$(find "$PACK_HOME_FULL_PATH" -maxdepth 3 -name variables.tf | grep "$WS_NAME")
+    state_file=$(find "$PACK_HOME_FULL_PATH" -maxdepth 3 -type f -name terraform.tfstate | grep "/$WS_NAME/")
+    provider=$(detect_terraform_provider "$state_file")
     if [ "$provider" = "GCP" ]; then
-        [ -f "$state_file" ] && val="$(tr <"$PACK_HOME_FULL_PATH"/terraform.tfstate -d ' ' | grep "$1" | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | tr '\n' ',' | sed 's/.$//')"
+        [ -f "$state_file" ] && val="$(tr <"$state_file" -d ' ' | grep "$1" | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | tr '\n' ',' | sed 's/.$//')"
         echo "[$val]"
         return
     fi
@@ -342,7 +342,6 @@ init_album_home() {
         INVENTORY_LIST_TAIL="$WS_TMP/$WS_NAME.inventoty_tail.draft"
         ANSIBLE_CHECKER=$WS_TMP/check_hosts.yml
         META="../.meta"
-        echo "====== USING SCRIPT: $ALBUM_SELF========="
     fi
 }
 
