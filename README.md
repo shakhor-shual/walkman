@@ -1,5 +1,5 @@
 # walkman
-Walkman is an auxiliary tool for automating the management of deployment
+Walkman is an SMALL auxiliary tool for automating the management of deployment
 and configuration of cloud infrastructure in small projects/tasks.
 It was invented for situations where the solution to the problem looks 
 much larger and more complex than the problem itself.
