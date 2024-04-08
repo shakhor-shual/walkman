@@ -340,7 +340,7 @@ init_album_home() {
         INVENTORY_LIST_HEAD="$DIR_WS_TMP/$WS_NAME.inventoty_head.draft"
         INVENTORY_LIST_TAIL="$DIR_WS_TMP/$WS_NAME.inventoty_tail.draft"
         ANSIBLE_CHECKER=$DIR_WS_TMP/check_hosts.yml
-        META="../.meta"
+        DIR_META="../.meta"
     fi
 }
 
