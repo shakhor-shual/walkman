@@ -161,10 +161,21 @@ extract_ip_from_state_file() {
     echo "[]"
 }
 
+var_not_exported() {
+    local env_var
+    env_var="$ENV_PREFIX$1"
+    if export | grep -q "$env_var"; then
+        return 1
+    else
+        return 0
+    fi
+}
+
 to_bash_lang_translator() {
     local key_val
     local key
     local val
+    local env_var
     key_val=$(echo "$1" | tr '$' '\0' | sed "s/\o0[A-Za-z]/$ENV_PREFIX&/g" | sed "s/$ENV_PREFIX\o0/\o0$ENV_PREFIX/g" | tr '\0' '$' | tr -d '"')
 
     if echo "$key_val" | grep -q '^<<<'; then
@@ -176,8 +187,16 @@ to_bash_lang_translator() {
     fi
     echo "$val" | grep -q ':' || val=$(echo "$val" | sed 's/^{/[/; s/}$/]/;') # set correct type brakets for list type
 
-    echo "$val" | grep -q '@@last$' && val='$'"$ENV_PREFIX$key"
-    echo "$val" | grep -q '++last$' && val=$(increment_if_possible "$(eval echo '$'"$ENV_PREFIX$key")") && echo "=======$(eval echo '$'"$ENV_PREFIX$key")=============$val==========="
+    if echo "$val" | grep -q '@@last$'; then
+        var_not_exported "$key" && return
+        val='$'"$ENV_PREFIX$key"
+    # echo "$val" | tr '$' '\0' | sed "s/\o0[A-Za-z]/$ENV_PREFIX&/g" | sed "s/$ENV_PREFIX\o0/\o0$ENV_PREFIX/g" | tr '\0' '$' | tr -d '"'
+    fi
+    if echo "$val" | grep -q '++last$'; then
+        var_not_exported "$key" && return
+        val=$(increment_if_possible "$(eval echo '$'"$ENV_PREFIX$key")")
+        # echo "=======$(eval echo '$'"$ENV_PREFIX$key")=============$val==========="
+    fi
     # echo "$val" | grep -q '@@self' && val=$(echo '['$(extract_ip_from_state_file $(echo "$val" | cut -d '/' -f 2))']' | tr ' ' ',')
     if [ -n "$SINGLE_LABEL" ]; then
         echo "$val" | grep -q '@@meta' && val="$(echo "$val" | sed 's/@@meta/..\/.meta/')"
