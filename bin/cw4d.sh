@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ###########################################################################
-
 ENV_PREFIX="CW4D_"
 START_POINT=$PWD
 DEBUG=0
@@ -37,7 +36,7 @@ check_ansible_connection() {
 GET_from_state_by_type() {
     local val
     local stored_path=$PWD
-    for stage_state_path in $(find "$ALBUM_HOME_DIR" -maxdepth 3 -name variables.tf | sort); do
+    for stage_state_path in $(find "$DIR_ALBUM_HOME" -maxdepth 3 -name variables.tf | sort); do
         val=""
         cd "$(dirname "$stage_state_path")" || exit
         if [ "$(terraform show -json | jq '.values.root_module.resources ')" != "null" ]; then
@@ -73,7 +72,7 @@ SET_access_artefacts() {
     echo "#~""$SINGLE_LABEL" >>"$SINGLE_ECHO_FILE"
     echo "# hosts:$ips" >>"$SINGLE_ECHO_FILE"
 
-    if echo "$3" | grep -q "$META"; then
+    if echo "$3" | grep -q "$DIR_META"; then
         secret=$PACK_HOME_FULL_PATH/$3
         echo "KEY_FILE=$secret" >>"$SINGLE_ECHO_FILE"
     else
@@ -183,7 +182,7 @@ to_bash_lang_translator() {
     if [ -n "$SINGLE_LABEL" ]; then
         echo "$val" | grep -q '@@meta' && val="$(echo "$val" | sed 's/@@meta/..\/.meta/')"
     else
-        echo "$val" | grep -q '@@meta' && val="$ALBUM_HOME_DIR$(echo "$val" | sed 's/@@meta/\/.meta/')"
+        echo "$val" | grep -q '@@meta' && val="$DIR_ALBUM_HOME$(echo "$val" | sed 's/@@meta/\/.meta/')"
     fi
 
     if echo "$val" | grep -q '<<'; then # DO for HELPERS
@@ -326,21 +325,21 @@ init_album_home() {
         album_name=$(basename "$album")
         WS_NAME=${album_name//.csh/}
         [ -d "$album_home" ] && cd "$album_home" || exit
-        ALBUM_HOME_DIR=$PWD
-        ALBUM_SELF="$ALBUM_HOME_DIR/$album_name"
-        ALBUM_META="$ALBUM_HOME_DIR/.meta"
-        WS_TMP="$ALBUM_META/$WS_NAME/tmp"
-        mkdir -p "$WS_TMP"
-        ALBUM_LOCK="$ALBUM_HOME_DIR/.album.lock"
-        ALBUM_ERR="$ALBUM_HOME_DIR/.album.err"
-        ALBUM_OK="$ALBUM_HOME_DIR/.album.$WS_NAME.ok"
-        ALBUM_VARS_DRAFT="$WS_TMP/$WS_NAME.vars.draft"
-        ALBUM_EXEC_DRAFT="$WS_TMP/$WS_NAME.exec.draft"
+        DIR_ALBUM_HOME=$PWD
+        ALBUM_SELF="$DIR_ALBUM_HOME/$album_name"
+        DIR_ALBUM_META="$DIR_ALBUM_HOME/.meta"
+        DIR_WS_TMP="$DIR_ALBUM_META/$WS_NAME/tmp"
+        mkdir -p "$DIR_WS_TMP"
+        FLAG_LOCK="$DIR_ALBUM_HOME/.album.lock"
+        FLAG_ERR="$DIR_ALBUM_HOME/.album.err"
+        FLAG_OK="$DIR_ALBUM_HOME/.album.$WS_NAME.ok"
+        ALBUM_VARS_DRAFT="$DIR_WS_TMP/$WS_NAME.vars.draft"
+        ALBUM_EXEC_DRAFT="$DIR_WS_TMP/$WS_NAME.exec.draft"
         cat "$ALBUM_SELF" >"$ALBUM_EXEC_DRAFT"
-        INVENTORY_HOST="$WS_TMP/$WS_NAME.inventoty_host.draft"
-        INVENTORY_LIST_HEAD="$WS_TMP/$WS_NAME.inventoty_head.draft"
-        INVENTORY_LIST_TAIL="$WS_TMP/$WS_NAME.inventoty_tail.draft"
-        ANSIBLE_CHECKER=$WS_TMP/check_hosts.yml
+        INVENTORY_HOST="$DIR_WS_TMP/$WS_NAME.inventoty_host.draft"
+        INVENTORY_LIST_HEAD="$DIR_WS_TMP/$WS_NAME.inventoty_head.draft"
+        INVENTORY_LIST_TAIL="$DIR_WS_TMP/$WS_NAME.inventoty_tail.draft"
+        ANSIBLE_CHECKER=$DIR_WS_TMP/check_hosts.yml
         META="../.meta"
     fi
 }
@@ -356,8 +355,8 @@ get_in_tf_packet_home() {
 }
 
 reset_album_tmp() {
-    [ -d "$WS_TMP" ] && rm -rf "$WS_TMP"
-    mkdir -p "$WS_TMP"
+    [ -d "$DIR_WS_TMP" ] && rm -rf "$DIR_WS_TMP"
+    mkdir -p "$DIR_WS_TMP"
 }
 
 finish_grace() {
@@ -374,7 +373,7 @@ finish_grace() {
             destroy_deployment
             echo "############## CANCELED DEPLOYMENT WRECKAGE CLEANED UP #####################"
         fi
-        touch "$ALBUM_ERR"
+        touch "$FLAG_ERR"
         ;;
 
     "err_helper")
@@ -391,7 +390,7 @@ finish_grace() {
         ;;
     esac
     unset ANSIBLE_HOST_KEY_CHECKING
-    [ -f "$ALBUM_LOCK" ] && rm -f "$ALBUM_LOCK"
+    [ -f "$FLAG_LOCK" ] && rm -f "$FLAG_LOCK"
     cd "$START_POINT" && exit || exit
 }
 
@@ -576,8 +575,8 @@ sync_remote_updates() {
 
     while [ $updated -eq 1 ]; do
         updated=0
-        for packet_path in $(find "$ALBUM_HOME_DIR" -maxdepth 2 -name "*.csh" | grep -v '\.meta\|\.git' | sort); do
-            cd "$ALBUM_HOME_DIR" || exit
+        for packet_path in $(find "$DIR_ALBUM_HOME" -maxdepth 2 -name "*.csh" | grep -v '\.meta\|\.git' | sort); do
+            cd "$DIR_ALBUM_HOME" || exit
             packet_dir=$(dirname "$packet_path")
             git=$(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^git' | sed 's/^git=//;s/^git@@@=//' | head -n 1)
             branch=$(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^branch' | sed 's/^branch=//;s/^branch@@@=//' | head -n 1)
@@ -590,14 +589,14 @@ sync_remote_updates() {
             fi
         done
     done
-    cd "$ALBUM_HOME_DIR" || exit
+    cd "$DIR_ALBUM_HOME" || exit
     return $apply_it
 }
 
 accept_inlines() {
     local stage_count=1
     for stage_path in $(
-        find "$ALBUM_HOME_DIR" -maxdepth 1 -type d | sort | grep -v '\.meta\|\.git' | tail -n +2
+        find "$DIR_ALBUM_HOME" -maxdepth 1 -type d | sort | grep -v '\.meta\|\.git' | tail -n +2
     ); do
 
         if get_in_tf_packet_home "$stage_path"; then
@@ -608,11 +607,11 @@ accept_inlines() {
 }
 
 destroy_deployment() {
-    [ -f "$ALBUM_OK" ] && rm -f "$ALBUM_OK"
-    touch "$ALBUM_LOCK"
+    [ -f "$FLAG_OK" ] && rm -f "$FLAG_OK"
+    touch "$FLAG_LOCK"
     reset_album_tmp
     set_debug_mode
-    for tf_packet_path in $(find "$ALBUM_HOME_DIR" -maxdepth 3 -name "variables.tf" | sort -r); do
+    for tf_packet_path in $(find "$DIR_ALBUM_HOME" -maxdepth 3 -name "variables.tf" | sort -r); do
 
         cd "$(dirname "$tf_packet_path")" || exit
         terraform workspace select -or-create "$WS_NAME"
@@ -623,7 +622,7 @@ destroy_deployment() {
         fi
         cd "$START_POINT" || exit
     done
-    [ -f "$ALBUM_LOCK" ] && rm -f "$ALBUM_LOCK"
+    [ -f "$FLAG_LOCK" ] && rm -f "$FLAG_LOCK"
 }
 
 #====================================START of SCRIPT BODY ====================================
@@ -686,22 +685,22 @@ case $RUN_MODE in
     stages_tmp=$(mktemp)
     head_tmp=$(mktemp)
     print_head_yes=yes
-    for packet_path in $(find "$ALBUM_HOME_DIR" -maxdepth 3 -name "variables.tf" -o -name "*.yaml" -o -name ".RUN" | grep -v '\.meta\|\.git' | sort); do
+    for packet_path in $(find "$DIR_ALBUM_HOME" -maxdepth 3 -name "variables.tf" -o -name "*.yaml" -o -name ".RUN" | grep -v '\.meta\|\.git' | sort); do
         cd "$(dirname "$packet_path")" || exit
         stage_template_print "$stages_tmp" "$packet_path" $print_head_yes
         unset print_head_yes
         cd "$START_POINT" || exit
     done
     root_template_print "$head_tmp" "$stages_tmp"
-    cat "$head_tmp" >>"$ALBUM_HOME_DIR"/album.tpl.csh
+    cat "$head_tmp" >>"$DIR_ALBUM_HOME"/album.tpl.csh
     rm -f "$stages_tmp" "$head_tmp"
     exit
     ;;
 
 "apply" | "init" | "gitops")
-    [ -f "$ALBUM_LOCK" ] && exit
+    [ -f "$FLAG_LOCK" ] && exit
     if ! sync_remote_updates; then
-        if [ "$RUN_MODE" = "gitops" ] && [ ! -f "$ALBUM_ERR" ]; then
+        if [ "$RUN_MODE" = "gitops" ] && [ ! -f "$FLAG_ERR" ]; then
             echo "gitops: no changes, no crashes"
             exit
         fi
@@ -711,23 +710,23 @@ case $RUN_MODE in
         ! grep <"$SELF" -q "^~" || [ "$album_script" = "$SELF" ] || continue
         grep <"$album_script" -q "^~" || continue
         init_album_home "$album_script"
-        [ -f "$ALBUM_OK" ] && rm -f "$ALBUM_OK"
-        touch "$ALBUM_LOCK"
+        [ -f "$FLAG_OK" ] && rm -f "$FLAG_OK"
+        touch "$FLAG_LOCK"
         reset_album_tmp
         set_debug_mode
 
         grep <"$ALBUM_SELF" -v '@@@' | sed 's/#.*$//;/^$/d' | sed "s/@@this/env-$WS_NAME/g" | tr -d ' ' >"$ALBUM_VARS_DRAFT"
         export_vars_to_env "$ALBUM_VARS_DRAFT" "fast"
-        sed <"$ALBUM_VARS_DRAFT" 's/^~/###~/' | csplit - -s '/^###~/' '{*}' -f "$WS_TMP/$WS_NAME" -b "%02d_vars.draft"
+        sed <"$ALBUM_VARS_DRAFT" 's/^~/###~/' | csplit - -s '/^###~/' '{*}' -f "$DIR_WS_TMP/$WS_NAME" -b "%02d_vars.draft"
 
         STAGE_COUNT=1
         for stage_path in $(
-            find "$ALBUM_HOME_DIR" -maxdepth 1 -type d | sort | grep -v '\.meta\|\.git' | tail -n +2
+            find "$DIR_ALBUM_HOME" -maxdepth 1 -type d | sort | grep -v '\.meta\|\.git' | tail -n +2
         ); do
-            SINGLE_INIT_FILE="$WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
+            SINGLE_INIT_FILE="$DIR_WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
             SINGLE_LABEL=$(head <"$SINGLE_INIT_FILE" -n 1 | sed 's/#//g;s/ //g;s/://g;s/~//g;')
-            SINGLE_ECHO_FILE=$ALBUM_META/ssh-to-$WS_NAME-$SINGLE_LABEL.sh
-            #  IN_SINGLE_ECHO_FILE=$META/.$SINGLE_LABEL.sh
+            SINGLE_ECHO_FILE=$DIR_ALBUM_META/ssh-to-$WS_NAME-$SINGLE_LABEL.sh
+            #  IN_SINGLE_ECHO_FILE=$DIR_META/.$SINGLE_LABEL.sh
 
             echo
             echo "############################## Stage-$STAGE_COUNT ################################"
@@ -736,7 +735,7 @@ case $RUN_MODE in
             echo
 
             if get_in_tf_packet_home "$stage_path"; then #get in packet dir
-                mkdir -p "$META"
+                mkdir -p "$DIR_META"
                 #   echo "#~""$SINGLE_LABEL" >"$IN_SINGLE_ECHO_FILE"
                 draft_tfvars_from_packet_variables
                 tune_tfvars_for_workflow "$SINGLE_INIT_FILE"
@@ -749,7 +748,7 @@ case $RUN_MODE in
                     terraform init --upgrade
                     ;;
                 "apply" | "gitops")
-                    touch "$ALBUM_LOCK"
+                    touch "$FLAG_LOCK"
                     echo "------------------ Refresh TERRAFORM with init -----------------------------"
                     terraform init --upgrade
                     echo "---------------------- Run TERRAFORM apply ---------------------------------"
@@ -760,7 +759,7 @@ case $RUN_MODE in
                     ;;
                 esac
                 echo "----------------------------------------------------------------------------"
-                cd "$ALBUM_HOME_DIR" || exit #return from packet to album level
+                cd "$DIR_ALBUM_HOME" || exit #return from packet to album level
 
             else
                 echo "This not TF packet!!!"
@@ -768,9 +767,9 @@ case $RUN_MODE in
             fi
             ((STAGE_COUNT++))
         done
-        [ -f "$ALBUM_LOCK" ] && rm -f "$ALBUM_LOCK"
-        [ -f "$ALBUM_ERR" ] && rm -f "$ALBUM_ERR"
-        touch "$ALBUM_OK"
+        [ -f "$FLAG_LOCK" ] && rm -f "$FLAG_LOCK"
+        [ -f "$FLAG_ERR" ] && rm -f "$FLAG_ERR"
+        touch "$FLAG_OK"
     done
     ;;
 *)
