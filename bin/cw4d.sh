@@ -162,20 +162,14 @@ extract_ip_from_state_file() {
 }
 
 var_not_exported() {
-    local env_var
-    env_var="$ENV_PREFIX$1"
-    if export | grep -q "$env_var"; then
-        return 1
-    else
-        return 0
-    fi
+    export | grep -q "$ENV_PREFIX$1" && return 1
+    return 0
 }
 
-to_bash_lang_translator() {
+bashcl_translator() {
     local key_val
     local key
     local val
-    local env_var
     key_val=$(echo "$1" | tr '$' '\0' | sed "s/\o0[A-Za-z]/$ENV_PREFIX&/g" | sed "s/$ENV_PREFIX\o0/\o0$ENV_PREFIX/g" | tr '\0' '$' | tr -d '"')
 
     if echo "$key_val" | grep -q '^<<<'; then
@@ -189,8 +183,8 @@ to_bash_lang_translator() {
 
     if echo "$val" | grep -q '@@last$'; then
         var_not_exported "$key" && return
-        val='$'"$ENV_PREFIX$key"
-    # echo "$val" | tr '$' '\0' | sed "s/\o0[A-Za-z]/$ENV_PREFIX&/g" | sed "s/$ENV_PREFIX\o0/\o0$ENV_PREFIX/g" | tr '\0' '$' | tr -d '"'
+        #val='$'"$ENV_PREFIX$key"
+        val=$(echo "$val" | tr '$' '\0' | sed "s/@@last/\o0$ENV_PREFIX$key/g" | tr '\0' '$')
     fi
     if echo "$val" | grep -q '++last$'; then
         var_not_exported "$key" && return
@@ -236,11 +230,11 @@ add_or_replace_var() {
 export_vars_to_env() {
     if [ -n "$2" ]; then #fast - vars only
         for key_val in $(sed <"$1" 's/#.*$//;/^$/d' | grep '=' | grep -Ev '^~|<<<' | tr -d ' ' | grep -v '""' | sed 's/=~/=/;s/,~/,/;s/@@all/all/g'); do
-            to_bash_lang_translator "$key_val" "env"
+            bashcl_translator "$key_val" "env"
         done
     else #full-  vars & helpers
         for key_val in $(sed <"$1" 's/#.*$//;/^$/d' | grep -E '=|<<<' | grep -v '^~' | tr -d ' ' | grep -v '""' | sed 's/=~/=/;s/,~/,/;s/@@all/all/g'); do
-            to_bash_lang_translator "$key_val" "env"
+            bashcl_translator "$key_val" "env"
         done
     fi
 
@@ -257,7 +251,7 @@ tune_tfvars_for_workflow() {
     # create template-based part of dynamic tfvar (just exclude all macro-defined variables and extract only inline-defined )
     [ "$DEBUG" -ge 1 ] && echo "======== in ENV vars BEFORE stage tune:=========" && export | grep $ENV_PREFIX | awk '{print $3}' | sed "s/$ENV_PREFIX//" && echo -e
     for key_val in $(grep <"$1" '^[[:lower:]]'); do
-        to_bash_lang_translator "$key_val"
+        bashcl_translator "$key_val"
     done
 
     [ "$DEBUG" -ge 1 ] && echo "================ TUNED tvfars: ===================" && cat "$TF_VARS" && echo -e
