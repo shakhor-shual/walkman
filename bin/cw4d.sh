@@ -751,18 +751,20 @@ case $RUN_MODE in
                 "plan")
                     echo "----------------------- Run TERRAFORM init ---------------------------------"
                     if terraform init --upgrade; then
+                        echo "----------------------- Run TERRAFORM plan ---------------------------------"
                         terraform plan
                     fi
                     ;;
                 "apply" | "gitops")
                     touch "$FLAG_LOCK"
                     echo "------------------ Refresh TERRAFORM with init -----------------------------"
-                    terraform init --upgrade
-                    echo "---------------------- Run TERRAFORM apply ---------------------------------"
-                    terraform apply -auto-approve
-                    TF_EC=$?
-                    [ "$TF_EC" -eq 1 ] && finish_grace "err_tf" "$STAGE_COUNT" "$stage_path"
-                    export_vars_to_env "$SINGLE_INIT_FILE"
+                    if terraform init --upgrade; then
+                        echo "---------------------- Run TERRAFORM apply ---------------------------------"
+                        terraform apply -auto-approve
+                        TF_EC=$?
+                        [ "$TF_EC" -eq 1 ] && finish_grace "err_tf" "$STAGE_COUNT" "$stage_path"
+                        export_vars_to_env "$SINGLE_INIT_FILE"
+                    fi
                     ;;
                 esac
                 echo "----------------------------------------------------------------------------"
