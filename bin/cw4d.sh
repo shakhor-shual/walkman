@@ -18,7 +18,7 @@ ENV_PREFIX="CW4D_"
 START_POINT=$PWD
 DEBUG=0
 TF_EC=0
-RUN_LIST="init apply destroy validate describe gitops --list --host"
+RUN_LIST="init apply destroy validate describe gitops plan --list --host"
 
 check_ansible_connection() {
     local group=${1:-"all"}
@@ -576,6 +576,7 @@ sync_remote_updates() {
     while [ $updated -eq 1 ]; do
         updated=0
         for packet_path in $(find "$DIR_ALBUM_HOME" -maxdepth 2 -name "*.csh" | grep -v '\.meta\|\.git' | sort); do
+            echo "==============$packet_path=====!!!!!!!!!!!"
             cd "$DIR_ALBUM_HOME" || exit
             packet_dir=$(dirname "$packet_path")
             git=$(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^git' | sed 's/^git=//;s/^git@@@=//' | head -n 1)
@@ -697,7 +698,7 @@ case $RUN_MODE in
     exit
     ;;
 
-"apply" | "init" | "gitops")
+"apply" | "init" | "plan" | "gitops")
     [ -f "$FLAG_LOCK" ] && exit
     if ! sync_remote_updates; then
         if [ "$RUN_MODE" = "gitops" ] && [ ! -f "$FLAG_ERR" ]; then
@@ -715,7 +716,7 @@ case $RUN_MODE in
         reset_album_tmp
         set_debug_mode
 
-        grep <"$ALBUM_SELF" -v '@@@' | sed 's/#.*$//;/^$/d' | sed "s/@@this/env-$WS_NAME/g" | tr -d ' ' >"$ALBUM_VARS_DRAFT"
+        grep <"$ALBUM_SELF" -v '@@@' | sed 's/#.*$//;/^$/d' | tr -d ' ' | sed "s/@@this/env-$WS_NAME/g;/=@@$/d" >"$ALBUM_VARS_DRAFT"
         export_vars_to_env "$ALBUM_VARS_DRAFT" "fast"
         sed <"$ALBUM_VARS_DRAFT" 's/^~/###~/' | csplit - -s '/^###~/' '{*}' -f "$DIR_WS_TMP/$WS_NAME" -b "%02d_vars.draft"
 
@@ -747,6 +748,12 @@ case $RUN_MODE in
                     echo "----------------------- Run TERRAFORM init ---------------------------------"
                     terraform init --upgrade
                     ;;
+                "plan")
+                    echo "----------------------- Run TERRAFORM init ---------------------------------"
+                    if terraform init --upgrade; then
+                        terraform plan
+                    fi
+                    ;;
                 "apply" | "gitops")
                     touch "$FLAG_LOCK"
                     echo "------------------ Refresh TERRAFORM with init -----------------------------"
@@ -762,8 +769,10 @@ case $RUN_MODE in
                 cd "$DIR_ALBUM_HOME" || exit #return from packet to album level
 
             else
-                echo "This not TF packet!!!"
-                export_vars_to_env "$SINGLE_INIT_FILE"
+                if [ "$RUN_MODE" = "apply" ] || [ "$RUN_MODE" = "gitops" ]; then
+                    echo "This not TF packet!!!"
+                    export_vars_to_env "$SINGLE_INIT_FILE"
+                fi
             fi
             ((STAGE_COUNT++))
         done
