@@ -488,7 +488,6 @@ init_home_local_bin() {
         try_as_root chown -R "$user":"$user" "$user_home_bin"
     fi
 
-    export ANSIBLE_HOST_KEY_CHECKING=False
 }
 
 stage_kind_detect() {
@@ -695,6 +694,7 @@ else
 fi
 [ -n "$3" ] && it_contains "$RUN_LIST" "$3" && RUN_MODE=$3
 ! it_contains "$RUN_LIST" "$RUN_MODE" && echo "{ }" && exit
+export ANSIBLE_HOST_KEY_CHECKING=False
 
 case $RUN_MODE in
 "--host")
