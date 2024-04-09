@@ -336,8 +336,8 @@ init_album_home() {
         #   ALBUM=$album
         album_home=$(dirname "$album")
         album_name=$(basename "$album")
-        WS_NAME=${album_name//.csh/}
         [ -d "$album_home" ] && cd "$album_home" || exit
+        WS_NAME=$(echo "$album_name" | sed 's/\.csh//;s/_/-/g;s/\./-/g;s/ /-/g;s/^default$/default-d/')
         DIR_ALBUM_HOME=$PWD
         ALBUM_SELF="$DIR_ALBUM_HOME/$album_name"
         DIR_ALBUM_META="$DIR_ALBUM_HOME/.meta"
@@ -729,7 +729,7 @@ case $RUN_MODE in
         reset_album_tmp
         set_debug_mode
 
-        grep <"$ALBUM_SELF" -v '@@@' | sed 's/#.*$//;/^$/d' | tr -d ' ' | sed "s/@@this/env-$WS_NAME/g;/=@@$/d" >"$ALBUM_VARS_DRAFT"
+        grep <"$ALBUM_SELF" -v '@@@' | sed 's/#.*$//;/^$/d' | tr -d ' ' | sed "s/@@this/$WS_NAME/g;/=@@$/d" >"$ALBUM_VARS_DRAFT"
         export_vars_to_env "$ALBUM_VARS_DRAFT" "fast"
         sed <"$ALBUM_VARS_DRAFT" 's/^~/###~/' | csplit - -s '/^###~/' '{*}' -f "$DIR_WS_TMP/$WS_NAME" -b "%02d_vars.draft"
 
