@@ -434,10 +434,27 @@ init_home_local_bin() {
     else
         user=$(whoami)
     fi
-    if [ -z "$(which curl)" ] || [ -z "$(which pip3)" ] || [ -z "$(which unzip)" ] || [ -z "$(which shc)" ] || [ -z "$(which rsync)" ]; then
-        try_as_root apt update
-        try_as_root apt -y install curl python3-pip unzip shc rsync
+    if [ -n "$(which apt-get)" ]; then
+        if [ -z "$(which curl)" ] || [ -z "$(which pip3)" ] || [ -z "$(which unzip)" ] || [ -z "$(which shc)" ] || [ -z "$(which rsync)" ]; then
+            try_as_root apt update
+            try_as_root apt -y install curl unzip shc rsync python3-pip
+        fi
     fi
+
+    if [ -n "$(which yum)" ]; then
+        if [ -z "$(which curl)" ] || [ -z "$(which pip3)" ] || [ -z "$(which unzip)" ] || [ -z "$(which shc)" ] || [ -z "$(which rsync)" ]; then
+            try_as_root yum install epel-release
+            try_as_root yum install curl unzip shc rsync python-pip
+        fi
+    fi
+
+    if [ -n "$(which dnf)" ]; then
+        if [ -z "$(which curl)" ] || [ -z "$(which pip3)" ] || [ -z "$(which unzip)" ] || [ -z "$(which shc)" ] || [ -z "$(which rsync)" ]; then
+            try_as_root dnf install epel-release
+            try_as_root dnf install curl unzip shc rsync python-pip
+        fi
+    fi
+
     user_home_bin=/home/$user/.local/bin
     [ "$user" = "root" ] && user_home_bin=/root/.local/bin
 
