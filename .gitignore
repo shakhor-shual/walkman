@@ -15,7 +15,9 @@
 gcp.json
 *.tpl.csh
 *.bak
-
+*.ok
+*ssh-to*.sh
+*.ssh-to*
 # Crash log files
 crash.log
 crash.*.log

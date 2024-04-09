@@ -15,12 +15,12 @@ vpc_name="walkman-managed-vpc"
 project_id=@@last
 region=@@last
 vpc_name=@@last
-ssh_key_public=@@meta/public.key
-ssh_key_private=@@meta/private.key
+auto_key_public=@@meta/public.key
+auto_key_private=@@meta/private.key
 zone=@@last
 machine_type="n2-standard-2"
-ssh_user=@@
-ssh_key_public=@@meta/public.key
-ssh_key_private=@@meta/private.key
-startup_script=@@meta/init.sh
-<<<SET_access_artefacts | nat_ip | $ssh_user | $ssh_key_private
+ssh_user=walkman
+auto_key_public=@@meta/public.key
+auto_key_private=@@meta/private.key
+startup_script=@@meta/cw4d.sh
+<<<SET_access_artefacts | nat_ip | $ssh_user | $auto_key_private

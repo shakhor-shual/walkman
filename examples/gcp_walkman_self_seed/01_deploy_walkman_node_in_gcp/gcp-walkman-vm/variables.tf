@@ -49,9 +49,5 @@ variable "auto_key_private" {
   default     = "../.meta/private.key"
 }
 
-variable "startup_script" {
-  description = "StartupScript for additional configuration"
-  default     = ""
-}
 
 

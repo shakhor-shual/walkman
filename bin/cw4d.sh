@@ -425,19 +425,20 @@ try_as_root() {
 }
 
 init_home_local_bin() {
-    local whoami
+    local whoami=$1
     local terraform_v=1.7.5
+    [ -z "$whoami" ] && whoami=$(whoami)
 
     if [ -z "$(which curl)" ] || [ -z "$(which pip3)" ] || [ -z "$(which unzip)" ] || [ -z "$(which shc)" ]; then
         try_as_root apt update
         try_as_root apt -y install curl python3-pip unzip shc
     fi
 
-    [ -d ~/.local/bin ] || mkdir -p ~/.local/bin
-    if [ $EUID -eq 0 ]; then
+    if [ "$whoami" = "root" ]; then
+        [ -d /root/.local/bin ] || mkdir -p /root/.local/bin
         echo "$PATH" | grep -q "/root/.local/bin" || export PATH=/root/.local/bin:$PATH
     else
-        whoami=$(whoami)
+        [ -d "/home/$whoami/.local/bin" ] || mkdir -p "/home/$whoami/.local/bin"
         echo "$PATH" | grep -q "/home/$whoami/.local/bin" || export PATH=/home/$whoami/.local/bin:$PATH
     fi
 
@@ -642,9 +643,9 @@ destroy_deployment() {
 
 #====================================START of SCRIPT BODY ====================================
 #start=$(date +%s.%N)
-init_home_local_bin
 
 if [ "$0" = "./cw4d.sh" ]; then
+    init_home_local_bin "$1"
     perform_selfcompile
     exit
 fi
