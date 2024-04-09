@@ -424,6 +424,37 @@ try_as_root() {
     fi
 }
 
+fix_user_home() {
+    [ -z "$1" ] && return
+    [ "$1" = "root" ] && return
+    [ -d "/home/$1" ] && try_as_root chown -R "$1":"$1" "/home/$1"
+}
+
+no_which() {
+    [ -z "$(which "$1")" ] && return 0
+    return 1
+}
+
+system_pakages_install() {
+    if no_which curl || no_which pip3 || no_which unzip || no_which shc || no_which rsync; then
+        if [ -n "$(which apt-get)" ]; then
+            try_as_root apt update
+            try_as_root apt -y install curl unzip shc rsync python3-pip
+            return
+        fi
+        if [ -n "$(which yum)" ]; then
+            try_as_root yum install epel-release
+            try_as_root yum install curl unzip shc rsync python-pip
+            return
+        fi
+        if [ -n "$(which dnf)" ]; then
+            try_as_root dnf install epel-release
+            try_as_root dnf install curl unzip shc rsync python-pip
+            return
+        fi
+    fi
+}
+
 init_home_local_bin() {
     local user
     local user_home_bin
@@ -434,38 +465,23 @@ init_home_local_bin() {
     else
         user=$(whoami)
     fi
-    if [ -n "$(which apt-get)" ]; then
-        if [ -z "$(which curl)" ] || [ -z "$(which pip3)" ] || [ -z "$(which unzip)" ] || [ -z "$(which shc)" ] || [ -z "$(which rsync)" ]; then
-            try_as_root apt update
-            try_as_root apt -y install curl unzip shc rsync python3-pip
-        fi
-    fi
 
-    if [ -n "$(which yum)" ]; then
-        if [ -z "$(which curl)" ] || [ -z "$(which pip3)" ] || [ -z "$(which unzip)" ] || [ -z "$(which shc)" ] || [ -z "$(which rsync)" ]; then
-            try_as_root yum install epel-release
-            try_as_root yum install curl unzip shc rsync python-pip
-        fi
-    fi
-
-    if [ -n "$(which dnf)" ]; then
-        if [ -z "$(which curl)" ] || [ -z "$(which pip3)" ] || [ -z "$(which unzip)" ] || [ -z "$(which shc)" ] || [ -z "$(which rsync)" ]; then
-            try_as_root dnf install epel-release
-            try_as_root dnf install curl unzip shc rsync python-pip
-        fi
-    fi
+    system_pakages_install
 
     user_home_bin=/home/$user/.local/bin
     [ "$user" = "root" ] && user_home_bin=/root/.local/bin
 
-    [ -d "$user_home_bin" ] || try_as_root mkdir -p "$user_home_bin"
+    if [ ! -d "$user_home_bin" ]; then
+        try_as_root mkdir -p "$user_home_bin"
+        fix_user_home "$user"
+    fi
     echo "$PATH" | grep -q "$user_home_bin" || export PATH=$user_home_bin:$PATH
 
     if [ -z "$(which terraform)" ]; then
         try_as_root curl -o "$user_home_bin"/terraform_linux_amd64.zip https://releases.hashicorp.com/terraform/${terraform_v}/terraform_${terraform_v}_linux_amd64.zip
         try_as_root unzip -o "$user_home_bin"/terraform_linux_amd64.zip -d "$user_home_bin"
         try_as_root rm -f "$user_home_bin"/terraform_linux_amd64.zip
-        try_as_root chown -R "$user":"$user" "$user_home_bin"
+        fix_user_home "$user"
     fi
 
     if [ -z "$(which ansible)" ]; then
@@ -473,7 +489,7 @@ init_home_local_bin() {
             python3 -m pip install --user ansible-core
         else
             sudo -H -u "$user" python3 -m pip install --user ansible-core
-            try_as_root chown -R "$user":"$user" "$user_home_bin"
+            fix_user_home "$user"
         fi
     fi
 
@@ -485,9 +501,8 @@ init_home_local_bin() {
         try_as_root curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
         try_as_root chmod +x kubectl
         try_as_root mv ./kubectl "$user_home_bin"/kubectl
-        try_as_root chown -R "$user":"$user" "$user_home_bin"
+        fix_user_home "$user"
     fi
-
 }
 
 stage_kind_detect() {
@@ -695,7 +710,6 @@ fi
 [ -n "$3" ] && it_contains "$RUN_LIST" "$3" && RUN_MODE=$3
 ! it_contains "$RUN_LIST" "$RUN_MODE" && echo "{ }" && exit
 export ANSIBLE_HOST_KEY_CHECKING=False
-
 case $RUN_MODE in
 "--host")
     if [ -n "$3" ]; then
