@@ -81,7 +81,7 @@ resource "google_compute_instance" "my_instance" {
     block-project-ssh-keys = true
   }
 
-  metadata_startup_script = "sudo apt update; sudo apt install -y git mc; sudo -H -u ${var.ssh_user} git clone https://github.com/shakhor-shual/walkman ~/walkman; sudo -H -u ${var.ssh_user} ~/walkman/bin/cw4d.sh > ~/walkman/install.log"
+  metadata_startup_script = "sudo apt update; sudo apt install -y git mc; git clone https://github.com/shakhor-shual/walkman /tmp/walkman;/tmp/walkman/bin/cw4d.sh ${var.ssh_user}  > /tmp/walkman/install.log"
 }
 
 output "nat_ip" {
