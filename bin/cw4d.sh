@@ -425,31 +425,39 @@ try_as_root() {
 }
 
 init_home_local_bin() {
-    local whoami=$1
+    local user
+    local user_home_bin
     local terraform_v=1.7.5
-    [ -z "$whoami" ] && whoami=$(whoami)
 
-    if [ -z "$(which curl)" ] || [ -z "$(which pip3)" ] || [ -z "$(which unzip)" ] || [ -z "$(which shc)" ]; then
-        try_as_root apt update
-        try_as_root apt -y install curl python3-pip unzip shc
-    fi
-
-    if [ "$whoami" = "root" ]; then
-        [ -d /root/.local/bin ] || mkdir -p /root/.local/bin
-        echo "$PATH" | grep -q "/root/.local/bin" || export PATH=/root/.local/bin:$PATH
+    if [ -n "$1" ] && getent passwd "$1" >/dev/null 2>&1; then
+        user=$1
     else
-        [ -d "/home/$whoami/.local/bin" ] || mkdir -p "/home/$whoami/.local/bin"
-        echo "$PATH" | grep -q "/home/$whoami/.local/bin" || export PATH=/home/$whoami/.local/bin:$PATH
+        user=$(whoami)
     fi
+    if [ -z "$(which curl)" ] || [ -z "$(which pip3)" ] || [ -z "$(which unzip)" ] || [ -z "$(which shc)" ] || [ -z "$(which rsync)" ]; then
+        try_as_root apt update
+        try_as_root apt -y install curl python3-pip unzip shc rsync
+    fi
+    user_home_bin=/home/$user/.local/bin
+    [ "$user" = "root" ] && user_home_bin=/root/.local/bin
+
+    [ -d "$user_home_bin" ] || try_as_root mkdir -p "$user_home_bin"
+    echo "$PATH" | grep -q "$user_home_bin" || export PATH=$user_home_bin:$PATH
 
     if [ -z "$(which terraform)" ]; then
-        curl -o ~/.local/bin/terraform_linux_amd64.zip https://releases.hashicorp.com/terraform/${terraform_v}/terraform_${terraform_v}_linux_amd64.zip
-        unzip -o ~/.local/bin/terraform_linux_amd64.zip -d ~/.local/bin
-        rm -f ~/.local/bin/terraform_linux_amd64.zip
+        try_as_root curl -o "$user_home_bin"/terraform_linux_amd64.zip https://releases.hashicorp.com/terraform/${terraform_v}/terraform_${terraform_v}_linux_amd64.zip
+        try_as_root unzip -o "$user_home_bin"/terraform_linux_amd64.zip -d "$user_home_bin"
+        try_as_root rm -f "$user_home_bin"/terraform_linux_amd64.zip
+        try_as_root chown -R "$user":"$user" "$user_home_bin"
     fi
 
     if [ -z "$(which ansible)" ]; then
-        python3 -m pip install --user ansible-core
+        if [ "$user" = "$(whoami)" ]; then
+            python3 -m pip install --user ansible-core
+        else
+            sudo -H -u "$user" python3 -m pip install --user ansible-core
+            try_as_root chown -R "$user":"$user" "$user_home_bin"
+        fi
     fi
 
     if [ -z "$(which helm)" ]; then
@@ -457,10 +465,12 @@ init_home_local_bin() {
     fi
 
     if [ -z "$(which kubectl)" ]; then
-        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-        chmod +x kubectl
-        mv ./kubectl ~/.local/bin/kubectl
+        try_as_root curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        try_as_root chmod +x kubectl
+        try_as_root mv ./kubectl "$user_home_bin"/kubectl
+        try_as_root chown -R "$user":"$user" "$user_home_bin"
     fi
+
     export ANSIBLE_HOST_KEY_CHECKING=False
 }
 
@@ -644,7 +654,7 @@ destroy_deployment() {
 #====================================START of SCRIPT BODY ====================================
 #start=$(date +%s.%N)
 
-if [ "$0" = "./cw4d.sh" ]; then
+if [[ $0 =~ /cw4d\.sh$ ]]; then
     init_home_local_bin "$1"
     perform_selfcompile
     exit
