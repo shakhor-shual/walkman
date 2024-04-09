@@ -326,6 +326,7 @@ init_album_home() {
     local album=$1
     local album_home
     local album_name
+
     if [ -z "$album" ]; then
         album=$START_POINT/album.tpl.csh
         [ -f "$album" ] && cat"$album" >"$album".bak
@@ -337,7 +338,7 @@ init_album_home() {
         album_home=$(dirname "$album")
         album_name=$(basename "$album")
         [ -d "$album_home" ] && cd "$album_home" || exit
-        WS_NAME=$(echo "$album_name" | sed 's/\.csh//;s/_/-/g;s/\./-/g;s/ /-/g;s/^default$/default-d/')
+        WS_NAME=$(echo "$album_name" | tr '[:upper:]' '[:lower:]' | sed 's/\.csh//;s/_/-/g;s/\./-/g;s/ /-/g;s/^default$/default-d/')
         DIR_ALBUM_HOME=$PWD
         ALBUM_SELF="$DIR_ALBUM_HOME/$album_name"
         DIR_ALBUM_META="$DIR_ALBUM_HOME/.meta"
