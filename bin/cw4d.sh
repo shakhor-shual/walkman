@@ -13,7 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-###########################################################################
+#########################################################################
+TERRAFORM_v=1.7.5
 ENV_PREFIX="CW4D_"
 START_POINT=$PWD
 DEBUG=0
@@ -458,7 +459,6 @@ system_pakages_install() {
 init_home_local_bin() {
     local user
     local user_home_bin
-    local terraform_v=1.7.5
 
     if [ -n "$1" ] && getent passwd "$1" >/dev/null 2>&1; then
         user=$1
@@ -478,7 +478,7 @@ init_home_local_bin() {
     echo "$PATH" | grep -q "$user_home_bin" || export PATH=$user_home_bin:$PATH
 
     if [ -z "$(which terraform)" ]; then
-        try_as_root curl -o "$user_home_bin"/terraform_linux_amd64.zip https://releases.hashicorp.com/terraform/${terraform_v}/terraform_${terraform_v}_linux_amd64.zip
+        try_as_root curl -o "$user_home_bin"/terraform_linux_amd64.zip https://releases.hashicorp.com/terraform/${TERRAFORM_v}/terraform_${TERRAFORM_v}_linux_amd64.zip
         try_as_root unzip -o "$user_home_bin"/terraform_linux_amd64.zip -d "$user_home_bin"
         try_as_root rm -f "$user_home_bin"/terraform_linux_amd64.zip
         fix_user_home "$user"
