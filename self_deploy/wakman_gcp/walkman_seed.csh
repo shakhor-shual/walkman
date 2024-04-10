@@ -22,5 +22,5 @@ machine_type="n2-standard-2"
 ssh_user=walkman
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
-startup_script=@@meta/cw4d.sh
+#Sstartup_script=@@meta/cw4d.sh
 <<<SET_access_artefacts | nat_ip | $ssh_user | $auto_key_private
