@@ -1,8 +1,20 @@
 #!/usr/local/bin/cw4d
-#################################################################################################
-#   "BASHCL" play with TERRAFORM & ANSIBLE in old-fashion BASH-style
-#################################################################################################
-run@@@ = apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new 
+###########################################################################
+# Copyright The Vadym Yanik.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#########################################################################
+run@@@ = apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ = 2   # possible here are 0, 1, 2, 3
 
 # ROOT
@@ -27,7 +39,6 @@ vpc_name=@@last         # they are present in the script only to illustrate
 ssh_key_public=@@meta/public.key
 ssh_key_private=@@meta/private.key
 fau=@@
-
 
 ~FIREWALL:
 credentials_file=@@last
@@ -91,4 +102,3 @@ playbooks="{init_master }"
 
 #this initial dynamic-inventory settings for fifth SINGLE (for Ansible)
 # Varibles for Ansible section
-
