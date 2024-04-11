@@ -31,7 +31,9 @@ resource "aws_subnet" "walkman_subnet" {
 }
 
 resource "aws_security_group" "walkman_ssh" {
-  vpc_id = aws_vpc.project_vpc.id
+  vpc_id      = aws_vpc.project_vpc.id
+  name        = "my-security-group"
+  description = "Allow SSH and ICMP traffic"
 
   ingress {
     from_port   = 22
@@ -39,16 +41,55 @@ resource "aws_security_group" "walkman_ssh" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  ingress {
+    from_port   = 8
+    to_port     = 0
+    protocol    = "icmp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Разрешение исходящего трафика
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"] # Разрешить доступ в любую сеть
+  }
 }
 
-resource "aws_instance" "example_instance" {
+resource "aws_key_pair" "my_key_pair" {
+  key_name   = "my-key-pair"
+  public_key = local_file.public_key.content # Путь к вашему публичному ключу
+}
+
+
+resource "aws_internet_gateway" "walkman" {
+  vpc_id = aws_vpc.project_vpc.id
+}
+
+resource "aws_route_table" "walkman" {
+  vpc_id = aws_vpc.project_vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.walkman.id
+  }
+}
+
+resource "aws_route_table_association" "subnet-association" {
+  subnet_id      = aws_subnet.walkman_subnet.id
+  route_table_id = aws_route_table.walkman.id
+}
+
+resource "aws_instance" "walkman_instance" {
   ami             = var.ami
   instance_type   = var.instance_type
   subnet_id       = aws_subnet.walkman_subnet.id
-  security_groups = [aws_security_group.walkman_ssh.name]
+  security_groups = [aws_security_group.walkman_ssh.id]
 
   # Attaching public key to instance
-  key_name = "example_keypair"
+  key_name = "my-key-pair"
   tags = {
     Name = "walkman-instance"
   }
@@ -56,15 +97,17 @@ resource "aws_instance" "example_instance" {
   # Running user data script
   user_data = <<-EOF
               #!/bin/bash
-              sudo apt update;sudo apt install -y git mc 
+              sudo yum install -y git mc 
               git clone https://github.com/shakhor-shual/walkman ~/walkman
               chown -R ${var.ssh_user}:${var.ssh_user} ~/walkman
               mv ~/walkman /home/${var.ssh_user}/walkman
               /home/${var.ssh_user}/walkman/bin/cw4d.sh ${var.ssh_user}
               EOF
+
+  root_block_device {
+    volume_size = 25
+  }
+
+  associate_public_ip_address = true
 }
 
-# Outputting the generated public key
-output "public_key" {
-  value = tls_private_key.example_key.public_key_openssh
-}

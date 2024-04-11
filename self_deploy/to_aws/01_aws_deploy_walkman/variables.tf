@@ -21,7 +21,7 @@ variable "ami" {
 
 variable "ssh_user" {
   description = "SSH user"
-  default     = "walkman"
+  default     = "ec2-user"
 }
 
 variable "custom_key_public" {
