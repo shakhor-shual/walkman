@@ -622,10 +622,10 @@ git_clone_or_pull() {
     return 1
 }
 
-sync_remote_updates() {
-    local git
+update_from_git() {
     local branch
     local path
+    local url
     local packet_dir
     local updated=1
     local apply_it=1
@@ -633,18 +633,23 @@ sync_remote_updates() {
     while [ $updated -eq 1 ]; do
         updated=0
         for packet_path in $(find "$DIR_ALBUM_HOME" -maxdepth 2 -name "*.csh" | grep -v '\.meta\|\.git' | sort); do
-            echo "==============$packet_path=====!!!!!!!!!!!"
             cd "$DIR_ALBUM_HOME" || exit
             packet_dir=$(dirname "$packet_path")
-            git=$(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^git' | sed 's/^git=//;s/^git@@@=//' | head -n 1)
-            branch=$(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^branch' | sed 's/^branch=//;s/^branch@@@=//' | head -n 1)
-            path=$(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^path' | sed 's/^path=//;s/^path@@@=//' | head -n 1)
-            cd "$packet_dir" || exit
-            if [ -n "$git" ]; then
-                [ -z "$path" ] && path=$(echo "$git" | awk -F/ '{print $NF}' | sed 's/.git$//')
-                ! git_clone_or_pull "$path" "$git" && apply_it=0 && updated=1 && break
-                ! git_checkout "$path" "$branch" && apply_it=0 && updated=1 && break
-            fi
+            for git in $(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^git' | sed 's/^git=//;s/^git@@@=//; s/^git@@@//;'); do
+                url=$(echo "$git" | cut -d'>' -f 1 | cut -d'^' -f 1)
+                [[ $git =~ "^" ]] && branch=$(echo "$git" | cut -d'>' -f 1 | cut -d'^' -f 2)
+                path=$(echo "$git" | cut -d'>' -f 2)
+                cd "$packet_dir" || exit
+                if [ -n "$url" ]; then
+                    [ -z "$path" ] && path=$(echo "$url" | awk -F/ '{print $NF}' | sed 's/.git$//')
+                    ! git_clone_or_pull "$path" "$url" && apply_it=0 && updated=1 && break
+                    ! git_checkout "$path" "$branch" && apply_it=0 && updated=1 && break
+                    unset path
+                    unset url
+                    unset branch
+                fi
+            done
+            [ $updated -eq 1 ] && break
         done
     done
     cd "$DIR_ALBUM_HOME" || exit
@@ -757,7 +762,7 @@ case $RUN_MODE in
 
 "apply" | "init" | "plan" | "gitops")
     [ -f "$FLAG_LOCK" ] && exit
-    if ! sync_remote_updates; then
+    if ! update_from_git; then
         if [ "$RUN_MODE" = "gitops" ] && [ ! -f "$FLAG_ERR" ]; then
             echo "gitops: no changes, no crashes"
             exit
