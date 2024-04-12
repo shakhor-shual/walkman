@@ -1,4 +1,4 @@
-#!/usr/local/bin/cw4d gitops
+#!/usr/local/bin/cw4d plan
 ###########################################################################
 # Copyright The Vadym Yanik.
 #
@@ -14,5 +14,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #########################################################################
-git@@@=git@github.com:shakhor-shual/walkman-gitops-example.git
-path@@@=.
+git@@@ git@github.com:shakhor-shual/walkman-gitops-example.git > .

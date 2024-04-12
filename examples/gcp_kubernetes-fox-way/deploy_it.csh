@@ -16,7 +16,7 @@
 #########################################################################
 run@@@ = plan # possible here ( or|and in SHEBANG) are: plan, init, apply, destroy)
 debug@@@ = 2  # possible here are 0, 1, 2, 3
-git@@@=git@github.com:shakhor-shual/kubernetes-the-fox-way.git
+git@@@ git@github.com:shakhor-shual/kubernetes-the-fox-way.git ^main >00_deploy_kubernetes
 path@@@=00_deploy_kubernetes
 
 # ROOT variables
