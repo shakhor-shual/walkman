@@ -8,11 +8,10 @@ seems excessive to you, you can consider it a helper tool for automating the
 work of Terraform & Ansible for GitOps deployment methodology. If even this 
 seems too much, just think of Walkman as a dynamic inventory script that 
 gives Ansible automatic access to setting up the infrastructure deployed 
-and managed using Walkman via Terraform. Well, or just consider it a script 
-for the automatic installation of a set of basic DevOps tools on a fresh 
-Linux system (Debian/Ubuntu and CentOs/RHEL/Amazon Linux lines are supported)
-But in general, Walkman was conceived as a small Swiss-Army-Knife for protection 
-against DevOps routines. )
+and managed using with Walkman . Well, or just consider it a script for the 
+automatic installation of a set of basic DevOps tools on a fresh Linux system 
+(Debian/Ubuntu and CentOs/RHEL/Amazon Linux are supported). But in general, 
+Walkman was conceived as a small "Swiss-Army-Knife" for DevOps routines. )
 
 Quick Start:
 Before you proceed further, make sure that you have configured access to the cloud 
