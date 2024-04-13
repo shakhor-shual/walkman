@@ -21,7 +21,7 @@ create objects, availability of APIs to use, etc., etc.). The necessary list of
 settings for Terraform to work is determined by the type of cloud provider used.
 Also, read this README to the the end, to better understand your next steps
 
-For local Walkman usage (Linux only or WSL!):
+For local Walkman usage (Linux || WSL only!):
 - clone this repository to your machine
 - check&enable ability to run sudo command without password asking
 - cd to walkman/bin folder and run ./cw4.d.sh script
@@ -83,7 +83,7 @@ Each project deployment script uses a separate Terraform workspace, which
 allows you to use one IaC project code base for parallel management of 
 several environments (ака dev/test/prod, etc.)
 
-Working example projects and Walkman deployment scenarios are provided in the 
+Working example projects and Walkman deployment scripts are provided in the 
 examples section. The deployment scripting language is an extremely 
 simplified version of the Linux Shell languages. It will be intuitive to 
 anyone who is familiar with Linux Shell scripts. You don't have to learn it, 
