@@ -1,4 +1,4 @@
-# walkman
+# Walkman (Cloud Walkman For Devops)
 
 Walkman is a tool for configuring and orchestrating mixed IaC projects
 based on existing code-base for Terraform, Ansible, Helm, kubectl. To quickly 
@@ -13,7 +13,7 @@ automatic installation of a set of basic DevOps tools on a fresh Linux system
 (Debian/Ubuntu and CentOs/RHEL/Amazon Linux are supported). But in general, 
 Walkman was conceived as a small "Swiss-Army-Knife" for DevOps routines. )
 
-Quick Start:
+# Quick Start:
 Before you proceed further, make sure that you have configured access to the cloud 
 that you use to work with Terraform (authentication and authorization, rights to 
 create objects, availability of APIs to use, etc., etc.). The necessary list of 
@@ -42,7 +42,7 @@ For in-cloud Walkman usage:
 - run: mv tfvars.template terraform.tfvars; terraform init && terraform apply
 - connect to deployed VM via SSH for operate with in-cloud Walkman node
 
-Technical description:
+# Technical description:
 Walkman implemented as a single BASH script (cw4d.sh). After running this script,
 it will automatically self-compile itself into the ELF executable file - cw4d 
 ( i.e. an acronym for Cloud Walkman For Devops) and will install itself 
