@@ -5,7 +5,7 @@ based on existing code-base for Terraform, Ansible, Helm, kubectl. To quickly
 understand what it is and why it is, just think of Walkman as something 
 like "nano-Jenkins" designed exclusively for IaC operations. If this statement
 seems excessive to you, you can consider it a helper tool for automating the
-work of Terraform & Ansible for GitOps deployment methodology. If even this 
+collaboration of Terraform & Ansible bunch for GitOps-like style. If even this 
 seems too much, just think of Walkman as a dynamic inventory script that 
 gives Ansible automatic access to setting up the infrastructure deployed 
 and managed using with Walkman . Well, or just consider it a script for the 
