@@ -13,14 +13,14 @@ automatic installation of a set of basic DevOps tools on a fresh Linux system
 (Debian/Ubuntu and CentOs/RHEL/Amazon Linux are supported). But in general, 
 Walkman was conceived as a small "Swiss-Army-Knife" for DevOps routines. )
 
-# Quick Start:
+## Quick Start:
 Before you proceed further, make sure that you have configured access to the cloud 
 that you use to work with Terraform (authentication and authorization, rights to 
 create objects, availability of APIs to use, etc., etc.). The necessary list of 
 settings for Terraform to work is determined by the type of cloud provider used.
 Also, read this README to the the end, to better understand your next steps
 
-For local Walkman usage (Linux || WSL only!):
+### For local Walkman installation and usage (Linux OR WSL only):
 - clone this repository to your machine
 - check&enable ability to run sudo command without password asking
 - cd to walkman/bin folder and run ./cw4.d.sh script
@@ -29,18 +29,8 @@ For local Walkman usage (Linux || WSL only!):
  - run this deployment script with desired option, for example: 
    ./deploy_it.csh init (or/and ./deploy_it.csh plan  ...etc)
 
-For in-cloud Walkman usage:
-- clone this repository your machine with Terraform installed
--  on Linux you can install Walkman before and use it run cloud installers
-- on all OS-kind machine you can deploy Walkman for in-cloud with Terraform only
-- cd to walkman/self_deploy folder and choose installer for desired cloud
-- cd to chosen cloud-type installer folder
-- if Walkman installed locally, deploy installer to cloud via Walkman 
-- otherwise, you can deploy Walkman in the cloud using only Terraform 
-- find in installer folder Terraform package sub-folder and cd to it
-- modify tfvars.template file accordingly to you requirements and cloud settings
-- run: mv tfvars.template terraform.tfvars; terraform init && terraform apply
-- connect to deployed VM via SSH for operate with in-cloud Walkman node
+### For in-cloud Walkman installation and usage:
+ - [read and use this info](https://github.com/shakhor-shual/walkman/tree/main/self_deploy)
 
 Working example projects and Walkman deployment scripts are provided in the 
 examples section. The deployment scripting language is an extremely 
@@ -53,7 +43,7 @@ shell programming support in major code editors. A nice bonus will be working
 syntax highlighting and auto-formatting of code in VS Code etc. Have a fun ;)
 
 for more details about Walkman implementation [look this](https://github.com/shakhor-shual/walkman/tree/main/bin)
-for more details about Walkman examples [look this](https://github.com/shakhor-shual/walkman/tree/main/examples)
+for more details about Walkman syntax and examples [look this](https://github.com/shakhor-shual/walkman/tree/main/examples)
 
 
 
