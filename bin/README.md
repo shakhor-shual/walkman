@@ -1,11 +1,24 @@
-# Walkman in details 
+# Walkman HOW-TO
 ## Local installation
 For install Walkman locally (Linux || WSL only!):
 - clone this repository to your machine
 - check&enable ability to run sudo command without password asking
-- cd to walkman/bin folder and run ./cw4.d.sh script
+- cd to walkman/bin folder and execute script: ./cw4d.sh
 
-### Technical description:
+## Local usage
+Before you proceed further, make sure that you have configured access 
+to the cloud that you use to work with Terraform (authentication and 
+authorization, rights to create objects, availability of APIs to use etc). 
+The necessary list of settings for Terraform to work is determined by the 
+type of cloud provider used. Also, recommended to read Walkman READMEs,
+for better understanding each your next step.
+
+- choose any example project in  [walkman/examples](https://github.com/shakhor-shual/walkman/tree/main/examples) which you like
+- modify it deployment script accordingly to you cloud-access settings
+- run this deployment script with desired option, for example: 
+   ./deploy_it.csh init (or/and ./deploy_it.csh plan  ...etc)
+
+### Walkman implementation:
 Walkman implemented as a single BASH script (cw4d.sh). After running this script,
 it will automatically self-compile itself into the ELF executable file - cw4d 
 ( i.e. an acronym for Cloud Walkman For Devops) and will install itself 
@@ -46,7 +59,7 @@ allows you to use one IaC project code base for parallel management of
 several environments (ака dev/test/prod, etc.)
 
 
-###  Helpers
+### Walkman Helpers 
 The helpers (look like this: <<<name | value-1 ... | value-N) actually 
 are a syntactic wrapper for directly using the Walkman BASH-function 
 in deployment scripts. The  "name" of helper in deployment script must 

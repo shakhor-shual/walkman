@@ -21,19 +21,13 @@ settings for Terraform to work is determined by the type of cloud provider used.
 Also, read this README to the the end, to better understand your next steps
 
 ### For local Walkman installation and usage - Linux(or WSL) only:
-- clone this repository to your machine
-- check&enable ability to run sudo command without password asking
-- cd to walkman/bin folder and run ./cw4.d.sh script
-- choose any example project in  walkman/examples which you like
- - modify it deployment script accordingly to you cloud-access settings
- - run this deployment script with desired option, for example: 
-   ./deploy_it.csh init (or/and ./deploy_it.csh plan  ...etc)
+ - [use this](https://github.com/shakhor-shual/walkman/tree/main/bin)
 
 ### For in-cloud Walkman installation and usage (AWS/Azure/GCP):
- - [read and use this](https://github.com/shakhor-shual/walkman/tree/main/self_deploy)
+ - [use this](https://github.com/shakhor-shual/walkman/tree/main/self_deploy)
 
 Working example projects and Walkman deployment scripts are provided in the 
-examples section. The deployment scripting language is an extremely 
+ [look this](https://github.com/shakhor-shual/walkman/tree/main/examples). The deployment scripting language is an extremely 
 simplified version of the Linux Shell languages. It will be intuitive to 
 anyone who is familiar with Linux Shell scripts. You don't have to learn it, 
 just forget 98% of what you need to know for BASH scripting and feel free 
@@ -42,8 +36,6 @@ deployment scripts language syntax is as compatible as possible with existing
 shell programming support in major code editors. A nice bonus will be working 
 syntax highlighting and auto-formatting of code in VS Code etc. Have a fun ;)
 
-- for more details about Walkman implementation [look this](https://github.com/shakhor-shual/walkman/tree/main/bin)
-- for more details about Walkman syntax and examples [look this](https://github.com/shakhor-shual/walkman/tree/main/examples)
 
 
 
