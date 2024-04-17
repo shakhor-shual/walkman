@@ -52,8 +52,8 @@ deployment scripts language syntax is as compatible as possible with existing
 shell programming support in major code editors. A nice bonus will be working 
 syntax highlighting and auto-formatting of code in VS Code etc. Have a fun ;)
 
-for more details about Walkman implementation [look this] (https://github.com/shakhor-shual/walkman/tree/main/bin)
-for more details about Walkman examples [look this] (https://github.com/shakhor-shual/walkman/tree/main/examples)
+for more details about Walkman implementation [look this](https://github.com/shakhor-shual/walkman/tree/main/bin)
+for more details about Walkman examples [look this](https://github.com/shakhor-shual/walkman/tree/main/examples)
 
 
 
