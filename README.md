@@ -29,8 +29,8 @@ Also, read this README to the the end, to better understand your next steps
  - run this deployment script with desired option, for example: 
    ./deploy_it.csh init (or/and ./deploy_it.csh plan  ...etc)
 
-### For in-cloud Walkman installation and usage:
- - [read and use this info](https://github.com/shakhor-shual/walkman/tree/main/self_deploy)
+### For in-cloud Walkman installation and usage (AWS/Azure/GCP):
+ - [read and use this](https://github.com/shakhor-shual/walkman/tree/main/self_deploy)
 
 Working example projects and Walkman deployment scripts are provided in the 
 examples section. The deployment scripting language is an extremely 
