@@ -20,8 +20,8 @@ Walkman was conceived as a small "Swiss-Army-Knife" for DevOps routines. )
 ### For in-cloud Walkman installation and usage (AWS/Azure/GCP):
  - [use this](https://github.com/shakhor-shual/walkman/tree/main/self_deploy)
 
-Working example projects and Walkman deployment scripts are provided in the 
-[examples folder. The deployment scripting language] ](https://github.com/shakhor-shual/walkman/tree/main/examples) is an extremely 
+Working example projects with Walkman deployment scripts are provided in the 
+[examples folder. The deployment scripting language](https://github.com/shakhor-shual/walkman/tree/main/examples) is an extremely 
 simplified version of the Linux Shell languages. It will be intuitive to 
 anyone who is familiar with Linux Shell scripts. You don't have to learn it, 
 just forget 98% of what you need to know for BASH scripting and feel free 
