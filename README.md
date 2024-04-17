@@ -27,7 +27,7 @@ For local Walkman usage (Linux || WSL only!):
 - choose any example project in  walkman/examples which you like
  - modify it deployment script accordingly to you cloud-access settings
  - run this deployment script with desired option, for example: 
-   ./deploy_it.csh init
+   ./deploy_it.csh init (or/and ./deploy_it.csh plan  ...etc)
 
 For in-cloud Walkman usage:
 - clone this repository your machine with Terraform installed
