@@ -1,6 +1,11 @@
 # Walkman in details 
+## Local installation
+For install Walkman locally (Linux || WSL only!):
+- clone this repository to your machine
+- check&enable ability to run sudo command without password asking
+- cd to walkman/bin folder and run ./cw4.d.sh script
 
-# Technical description:
+### Technical description:
 Walkman implemented as a single BASH script (cw4d.sh). After running this script,
 it will automatically self-compile itself into the ELF executable file - cw4d 
 ( i.e. an acronym for Cloud Walkman For Devops) and will install itself 
