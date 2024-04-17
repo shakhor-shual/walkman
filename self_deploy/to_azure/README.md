@@ -18,7 +18,7 @@ Setup they first:
 - cd to folder: walkman/self_deploy/to_azure 
 - if Walkman already installed  locally, deploy installer to cloud via Walkman 
 - otherwise, you can deploy Walkman in the cloud using only Terraform (install it before)
-- find in installer folder Terraform package sub-folder and cd to it
+- cd to folder: 00_deploy_walkman 
 - modify tfvars.template file accordingly to you requirements and cloud settings
 - run: mv tfvars.template terraform.tfvars; terraform init && terraform apply
 - connect to deployed VM via SSH for operate with in-cloud Walkman node
