@@ -20,7 +20,7 @@ create objects, availability of APIs to use, etc., etc.). The necessary list of
 settings for Terraform to work is determined by the type of cloud provider used.
 Also, read this README to the the end, to better understand your next steps
 
-### For local Walkman installation and usage (Linux OR WSL only):
+### For local Walkman installation and usage - Linux(or WSL) only:
 - clone this repository to your machine
 - check&enable ability to run sudo command without password asking
 - cd to walkman/bin folder and run ./cw4.d.sh script
@@ -42,8 +42,8 @@ deployment scripts language syntax is as compatible as possible with existing
 shell programming support in major code editors. A nice bonus will be working 
 syntax highlighting and auto-formatting of code in VS Code etc. Have a fun ;)
 
-for more details about Walkman implementation [look this](https://github.com/shakhor-shual/walkman/tree/main/bin)
-for more details about Walkman syntax and examples [look this](https://github.com/shakhor-shual/walkman/tree/main/examples)
+- for more details about Walkman implementation [look this](https://github.com/shakhor-shual/walkman/tree/main/bin)
+- for more details about Walkman syntax and examples [look this](https://github.com/shakhor-shual/walkman/tree/main/examples)
 
 
 
