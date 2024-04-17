@@ -23,7 +23,7 @@ region="europe-west6"
 zone="$region-b"
 vpc_name="walkman-managed-vpc"
 
-~WALKMAN_SELF_SEED:
+~WALKMAN:
 project_id=@@last
 region=@@last
 vpc_name=@@last

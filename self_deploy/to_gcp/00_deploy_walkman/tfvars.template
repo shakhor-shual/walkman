@@ -1,0 +1,8 @@
+project_id="your-project-id"
+region="europe-west6"
+zone="europe-west6-b"
+vpc_name="walkman-managed-vpc"
+machine_type="n2-standard-2"
+ssh_user="walkman"
+auto_key_public="../.meta/public.key"
+auto_key_private="../.meta/private.key"

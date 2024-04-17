@@ -17,7 +17,7 @@
 run@@@ = apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ = 2   # possible here are 0, 1, 2, 3
 
-~WALKMAN_SELF_DEPLOY:
+~WALKMAN:
 region=eu-north-1
 vpc_name="walkman-vpc"
 auto_key_public=@@meta/public.key

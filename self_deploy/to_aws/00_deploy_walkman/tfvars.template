@@ -1,0 +1,7 @@
+#this a template for terraform.tfvars file
+region="eu-north-1"
+vpc_name="walkman-vpc"
+instance_type="t3.micro"
+ssh_user="ec2-user"
+auto_key_public="../.meta/public.key"
+auto_key_private="../.meta/private.key"
