@@ -1,15 +1,17 @@
 # Walkman installer for Azure:
-Before you proceed further, make sure that you have configured access to the cloud 
-that you use to work with Terraform (authentication and authorization, rights to 
-create objects, availability of APIs to use, etc., etc.). The necessary list of 
-settings for Terraform to work is determined by the type of cloud provider used.
-Also, read this README to the the end, to better understand your next steps
+Before use this installer you should have (or create&setup) in Azure a 'service 
+principal' with 'Contributor' rights, and take authentication credentials for it.
+(Read Azure cloud documentation to perform this step)
 
-ForWalkman in-cloud installation:
-- Before use this installer you should have (or create&setup) in Azure a 'service 
-  principal' with 'Contributor' rights, and take authentication credentials for it.
-  (Read Azure cloud documentation to perform this step)
-- This installer designed to use Azure authentication via [ENV variables](https://learn.microsoft.com/en-us/azure/developer/terraform/authenticate-to-azure?tabs=bash) (setup they first)
+This installer designed to use Azure authentication via [ENV variables](https://learn.microsoft.com/en-us/azure/developer/terraform/authenticate-to-azure?tabs=bash) 
+Setup they first:
+- export ARM_SUBSCRIPTION_ID="<azure_subscription_id>"
+- export ARM_TENANT_ID="<azure_subscription_tenant_id>"
+- export ARM_CLIENT_ID="<service_principal_appid>"
+- export ARM_CLIENT_SECRET="<service_principal_password>"
+
+
+## For Walkman in-Azure installation:
 - clone [repository](https://github.com/shakhor-shual/walkman/tree/main) to your machine 
 - on Linux machine you can install Walkman before and use it to run cloud installer
 - on all OS-kind machine you can deploy Walkman for in-cloud with Terraform only
