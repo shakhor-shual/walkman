@@ -14,12 +14,6 @@ automatic installation of a set of basic DevOps tools on a fresh Linux system
 Walkman was conceived as a small "Swiss-Army-Knife" for DevOps routines. )
 
 ## Quick Start:
-Before you proceed further, make sure that you have configured access to the cloud 
-that you use to work with Terraform (authentication and authorization, rights to 
-create objects, availability of APIs to use, etc., etc.). The necessary list of 
-settings for Terraform to work is determined by the type of cloud provider used.
-Also, read this README to the the end, to better understand your next steps
-
 ### For local Walkman installation and usage - Linux(or WSL) only:
  - [use this](https://github.com/shakhor-shual/walkman/tree/main/bin)
 
@@ -27,7 +21,7 @@ Also, read this README to the the end, to better understand your next steps
  - [use this](https://github.com/shakhor-shual/walkman/tree/main/self_deploy)
 
 Working example projects and Walkman deployment scripts are provided in the 
- [look this](https://github.com/shakhor-shual/walkman/tree/main/examples). The deployment scripting language is an extremely 
+[examples folder. The deployment scripting language] ](https://github.com/shakhor-shual/walkman/tree/main/examples) is an extremely 
 simplified version of the Linux Shell languages. It will be intuitive to 
 anyone who is familiar with Linux Shell scripts. You don't have to learn it, 
 just forget 98% of what you need to know for BASH scripting and feel free 
