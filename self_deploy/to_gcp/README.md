@@ -5,7 +5,7 @@ create objects, availability of APIs to use, etc., etc.). The necessary list of
 settings for Terraform to work is determined by the type of cloud provider used.
 Also, read this README to the the end, to better understand your next steps
 
-ForWalkman in-cloud installation:
+## For Walkman in-GCP installation:
 - This installer designed to use standard [ADC authorization](https://cloud.google.com/docs/authentication/provide-credentials-adc) in GCP (setup it first)
 - clone [repository](https://github.com/shakhor-shual/walkman/tree/main) to your machine 
 - on Linux machine you can install Walkman before and use it to run cloud installer

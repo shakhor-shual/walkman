@@ -8,7 +8,7 @@ Also, read this README to the the end, to better understand your next steps
 ### For Walkman in-cloud installation use cloud installers:
 - [Walkman installer for AWS](https://github.com/shakhor-shual/walkman/tree/main/self_deploy/to_aws)
 - [Walkman installer for Azure](https://github.com/shakhor-shual/walkman/tree/main/self_deploy/to_azure)
-- [Walkman installer for AWS](https://github.com/shakhor-shual/walkman/tree/main/self_deploy/to_gcp)
+- [Walkman installer for GCP](https://github.com/shakhor-shual/walkman/tree/main/self_deploy/to_gcp)
 
 
 
