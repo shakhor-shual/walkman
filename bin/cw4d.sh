@@ -146,6 +146,7 @@ increment_if_possible() {
 detect_terraform_provider() {
     [ -f "$1" ] && grep <"$1" -q "https://www.googleapis.com/compute/" && echo "GCP" && exit
     [ -f "$1" ] && grep <"$1" -q "registry.terraform.io/hashicorp/aws" && echo "AWS" && exit
+    [ -f "$1" ] && grep <"$1" -q "registry.terraform.io/hashicorp/azurerm" && echo "AZURE" && exit
     echo "NaN"
 }
 
@@ -153,10 +154,21 @@ extract_ip_from_state_file() {
     local provider
     local state_file
     local val='[]'
+    local ip_name=$1
     state_file=$(find "$PACK_HOME_FULL_PATH" -maxdepth 3 -type f -name terraform.tfstate | grep "/$WS_NAME/")
     provider=$(detect_terraform_provider "$state_file")
-    if [ "$provider" = "GCP" ] || [ "$provider" = "AWS" ]; then
-        [ -f "$state_file" ] && val="$(tr <"$state_file" -d ' ' | grep "$1" | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | tr '\n' ',' | sed 's/.$//')"
+    if [ "$1" = "IP" ] || [ "$1" = "IP-public" ] || [ "$1" = "IP_public" ]; then
+        [ "$provider" = "GCP" ] && ip_name="nat_ip"
+        [ "$provider" = "AWS" ] && ip_name="public_ip"
+        [ "$provider" = "AZURE" ] && ip_name="ip_address"
+    fi
+    if [ "$1" = "IP-private" ] || [ "$1" = "IP_private" ]; then
+        [ "$provider" = "GCP" ] && ip_name="private_ip"
+        [ "$provider" = "AWS" ] && ip_name="private_ip"
+        [ "$provider" = "AZURE" ] && ip_name="private_ip_address"
+    fi
+    if [ "$provider" = "GCP" ] || [ "$provider" = "AWS" ] || [ "$provider" = "AZURE" ]; then
+        [ -f "$state_file" ] && val="$(tr <"$state_file" -d ' ' | tr -d '"' | grep "^$ip_name" | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | sort -u | tr '\n' ',' | sed 's/.$//')"
         echo "[$val]"
         return
     fi

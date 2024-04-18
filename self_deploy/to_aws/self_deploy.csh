@@ -24,6 +24,4 @@ auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
 instance_type="t3.micro"
 ssh_user=ec2-user
-auto_key_public=@@meta/public.key
-auto_key_private=@@meta/private.key
 <<<SET_access_artefacts | public_ip | $ssh_user | $auto_key_private

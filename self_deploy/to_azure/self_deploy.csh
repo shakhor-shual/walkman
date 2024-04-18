@@ -17,21 +17,11 @@
 run@@@ = apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ = 2   # possible here are 0, 1, 2, 3
 
-# ROOT
-project_id="foxy-test-415019"
-region="europe-west6"
-zone="$region-b"
-vpc_name="walkman-managed-vpc"
-
 ~WALKMAN:
-project_id=@@last
-region=@@last
-vpc_name=@@last
+namespace=@@this
+location=@@
+vm_size = "Standard_B1ms"
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
-zone=@@last
-machine_type="n2-standard-2"
-ssh_user=walkman
-auto_key_public=@@meta/public.key
-auto_key_private=@@meta/private.key
-<<<SET_access_artefacts | nat_ip | $ssh_user | $auto_key_private
+admin_username=walkman
+<<<SET_access_artefacts | IP-public | $admin_username | $auto_key_private

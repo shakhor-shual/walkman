@@ -49,7 +49,6 @@ resource "aws_security_group" "walkman_ssh" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Разрешение исходящего трафика
   egress {
     from_port   = 0
     to_port     = 0
@@ -94,7 +93,6 @@ resource "aws_instance" "walkman_instance" {
     Name = "walkman-instance"
   }
 
-  # Running user data script
   user_data = <<-EOF
               #!/bin/bash
               sudo yum install -y git mc 
