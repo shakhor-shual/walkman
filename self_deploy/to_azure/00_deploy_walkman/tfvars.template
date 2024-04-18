@@ -1,0 +1,5 @@
+namespace="self-deploy"
+vm_size="Standard_B1ms"
+admin_username="walkman"
+auto_key_public="../.meta/public.key"
+auto_key_private="../.meta/private.key"
