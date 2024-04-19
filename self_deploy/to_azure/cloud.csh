@@ -14,14 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #########################################################################
-run@@@ = apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
-debug@@@ = 2   # possible here are 0, 1, 2, 3
+run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
+debug@@@ 1   # possible here are 0, 1, 2, 3
 
 ~WALKMAN:
-region=eu-north-1
-vpc_name="walkman-vpc"
+namespace=@@this
+location=@@
+vm_size = "Standard_B1ms"
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
-instance_type="t3.micro"
-ssh_user=ec2-user
-<<<SET_access_artefacts | public_ip | $ssh_user | $auto_key_private
+admin_username=walkman
+<<<SET_access_artefacts | IP-public | $admin_username | $auto_key_private

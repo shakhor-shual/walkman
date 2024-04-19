@@ -15,13 +15,13 @@
 # limitations under the License.
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
-debug@@@ 0   # possible here are 0, 1, 2, 3
+debug@@@ 1   # possible here are 0, 1, 2, 3
 
 ~WALKMAN:
-namespace=@@this
-location=@@
-vm_size = "Standard_B1ms"
+region=eu-north-1
+vpc_name="walkman-vpc"
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
-admin_username=walkman
-<<<SET_access_artefacts | IP-public | $admin_username | $auto_key_private
+instance_type="t3.micro"
+ssh_user=ec2-user
+<<<SET_access_artefacts | public_ip | $ssh_user | $auto_key_private
