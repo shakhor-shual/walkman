@@ -18,7 +18,7 @@ Setup they first:
 - cd to folder: walkman/self_deploy/to_azure 
 - if Walkman already installed  locally, deploy installer to cloud via Walkman 
 (in this case in .meta sub-folder of installer will be automatically generated
-artefact 'ssh-to-self-deploy-WALKMAN.sh' for simplify ssh access on deployed 
+artefact 'ssh-to-cloud-WALKMAN.sh' for simplify ssh access on deployed 
 Walkman-VM, just run it for connect to VM) 
 - otherwise, you can deploy Walkman in the cloud using only Terraform (install it before)
 - cd to folder: 00_deploy_walkman 
