@@ -189,6 +189,22 @@ resource "azurerm_virtual_machine" "walkman" {
   }
 }
 
+output "user_info_note" {
+  value = "----- run SSH command from wolkman_ssh for instatnt access to VM  ----------"
+}
+
+output "wolkman_ssh" {
+  value = "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i ${abspath(var.auto_key_private)} ${var.admin_username}@${aws_instance.walkman_instance.public_ip}"
+}
+
+output "ssh_user" {
+  value = var.admin_username
+}
+
+output "ssh_user_key" {
+  value = abspath(var.auto_key_private)
+}
+
 output "access_ip" {
   value = azurerm_public_ip.walkman_ip.ip_address
 }

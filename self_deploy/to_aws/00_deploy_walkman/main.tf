@@ -59,7 +59,7 @@ resource "aws_security_group" "walkman_ssh" {
 
 resource "aws_key_pair" "my_key_pair" {
   key_name   = "my-key-pair"
-  public_key = local_file.public_key.content # Путь к вашему публичному ключу
+  public_key = local_file.public_key.content
 }
 
 
@@ -109,3 +109,22 @@ resource "aws_instance" "walkman_instance" {
   associate_public_ip_address = true
 }
 
+output "user_info_note" {
+  value = "----- run SSH command from wolkman_ssh for instatnt access to VM  ----------"
+}
+
+output "wolkman_ssh" {
+  value = "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i ${abspath(var.auto_key_private)} ${var.ssh_user}@${aws_instance.walkman_instance.public_ip}"
+}
+
+output "ssh_user" {
+  value = var.ssh_user
+}
+
+output "ssh_user_key" {
+  value = abspath(var.auto_key_private)
+}
+
+output "access_ip" {
+  value = aws_instance.walkman_instance.public_ip
+}

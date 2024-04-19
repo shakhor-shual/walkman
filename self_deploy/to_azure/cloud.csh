@@ -15,7 +15,7 @@
 # limitations under the License.
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
-debug@@@ 1   # possible here are 0, 1, 2, 3
+debug@@@ 0   # possible here are 0, 1, 2, 3
 
 ~WALKMAN:
 namespace=@@this

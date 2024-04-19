@@ -90,6 +90,22 @@ mv ~/walkman /home/${var.ssh_user}/walkman
 EOT
 }
 
+output "user_info_note" {
+  value = "----- run SSH command from wolkman_ssh for instatnt access to VM  ----------"
+}
+
+output "wolkman_ssh" {
+  value = "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i ${abspath(var.auto_key_private)} ${var.ssh_user}@${google_compute_instance.my_instance.network_interface[0].access_config[0].nat_ip}"
+}
+
+output "ssh_user" {
+  value = var.ssh_user
+}
+
+output "ssh_user_key" {
+  value = abspath(var.auto_key_private)
+}
+
 output "access_ip" {
   value = google_compute_instance.my_instance.network_interface[0].access_config[0].nat_ip
 }
