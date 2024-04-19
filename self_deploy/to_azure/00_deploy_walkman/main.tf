@@ -194,7 +194,7 @@ output "user_info_note" {
 }
 
 output "wolkman_ssh" {
-  value = "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i ${abspath(var.auto_key_private)} ${var.admin_username}@${aws_instance.walkman_instance.public_ip}"
+  value = "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i ${abspath(var.auto_key_private)} ${var.admin_username}@${azurerm_public_ip.walkman_ip.ip_address}"
 }
 
 output "ssh_user" {
