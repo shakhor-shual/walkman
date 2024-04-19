@@ -596,9 +596,10 @@ print_help_info() {
 }
 
 perform_selfcompile() {
+
     echo "======================= CW4D self-compilation ================================"
     try_as_root /usr/bin/shc -vrf "$0" -o /usr/local/bin/cw4d
-    try_as_root rm ./cw4d.sh.x.c
+    try_as_root rm "$(dirname "$0")"/cw4d.sh.x.c
     echo "============================================================================="
     echo "========= CW4D now self-compiled to ELF-executable and ready to use ========="
     echo "========= try run: cw4d some_my_deploymet.sch                       ========="
@@ -706,9 +707,14 @@ destroy_deployment() {
 #start=$(date +%s.%N)
 
 if [[ $0 =~ /cw4d\.sh$ ]]; then
-    init_home_local_bin "$1"
-    perform_selfcompile
-    exit
+    if [ -z "$1" ] || getent passwd "$1" >/dev/null 2>&1; then
+        init_home_local_bin"$1"
+        perform_selfcompile "$0"
+        exit
+    else
+        ssh "$@" "sudo tee -a /usr/local/bin/cw4d.sh;sudo chmod 777 /usr/local/bin/cw4d.sh;/usr/local/bin/cw4d.sh " <"$0"
+        exit
+    fi
 fi
 
 if it_contains "$RUN_LIST" "$1"; then
