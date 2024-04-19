@@ -76,10 +76,10 @@ resource "azurerm_subnet_route_table_association" "walkman_rt_assoc" {
   subnet_id      = azurerm_subnet.walkman_subnet.id
 }
 
-data "azurerm_public_ip" "walkman_ip" {
-  resource_group_name = azurerm_resource_group.walkman_rg.name
-  name                = azurerm_public_ip.walkman_ip.name
-}
+#data "azurerm_public_ip" "walkman_ip" {
+#  resource_group_name = azurerm_resource_group.walkman_rg.name
+#  name                = azurerm_public_ip.walkman_ip.name
+#}
 
 # Public IP for Server
 resource "azurerm_public_ip" "walkman_ip" {
@@ -187,5 +187,8 @@ resource "azurerm_virtual_machine" "walkman" {
       path     = "/home/${var.admin_username}/.ssh/authorized_keys"
     }
   }
-  #depends_on = [azurerm_network_interface_security_group_association.walkman_nic_assoc]
+}
+
+output "access_ip" {
+  value = azurerm_public_ip.walkman_ip.ip_address
 }

@@ -124,6 +124,8 @@ helper_exists() { declare -F "$1" >/dev/null; }
 ############## LANG PROCESSING #################
 increment_if_possible() {
     local val=$1
+    local head
+    local tail
     echo "$val" | grep -vq '[0-9]' && printf "${1}" && return
 
     if [[ ${val} =~ ^(.*[^0-9])?([0-9]+)$ ]] && [[ ${#BASH_REMATCH[1]} -gt 0 ]]; then
@@ -332,7 +334,7 @@ show_run_parameters() {
 set_debug_mode() {
     local debug
     local re='^[0-9]+$'
-    debug="$(sed <"$ALBUM_SELF" 's/#.*$//;/^$/d' | grep 'debug@@@' | tr -d ' ' | awk -F= '{print $2}')"
+    debug="$(sed <"$ALBUM_SELF" 's/#.*$//;/^$/d' | grep 'debug@@@' | tr -d ' ' | sed 's/^debug@@@=//; s/^debug@@@//' | tail -n 1)"
     [[ $debug =~ $re ]] && DEBUG=$debug
 }
 
@@ -722,12 +724,14 @@ else
         # show_run_parameters $0 $1 $2 $3
         echo "$2" | grep -q '/' && SELF="$2" && init_album_home "$2"
         echo "$1" | grep -q '/' && SELF="$1" && init_album_home "$1"
-        RUN_MODE="$(sed <"$ALBUM_SELF" 's/#.*$//;/^$/d' | grep 'run@@@' | tr -d ' ' | awk -F= '{print $2}')"
+        RUN_MODE="$(sed <"$ALBUM_SELF" 's/#.*$//;/^$/d' | grep 'run@@@' | tr -d ' ' | sed 's/^run@@@=//; s/^run@@@//' | tail -n 1)"
+
     fi
 fi
 [ -n "$3" ] && it_contains "$RUN_LIST" "$3" && RUN_MODE=$3
 ! it_contains "$RUN_LIST" "$RUN_MODE" && echo "{ }" && exit
 export ANSIBLE_HOST_KEY_CHECKING=False
+#echo "************$RUN_MODE *******************"
 case $RUN_MODE in
 "--host")
     if [ -n "$3" ]; then
