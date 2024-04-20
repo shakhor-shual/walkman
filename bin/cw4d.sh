@@ -602,7 +602,7 @@ perform_selfcompile() {
     self_path=$(dirname "$self")
     echo "======================= CW4D self-compilation ================================"
     try_as_root /usr/bin/shc -vrf "$self" -o /usr/local/bin/cw4d
-    try_as_root rm "C"/cw4d.sh.x.c
+    try_as_root rm "$self_path/cw4d.sh.x.c"
     [ "$self_path" != "/usr/local/bin" ] && try_as_root cp -f "$self_path/cw4d.sh" "/usr/local/bin/cw4d.sh"
     [ -s "$self_path/cw4d.sh" ] && try_as_root chmod 777 "$self_path/cw4d.sh"
     echo "============================================================================="
