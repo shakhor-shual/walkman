@@ -22,8 +22,12 @@ The easiest and fastest way to install Walkman locally - use one-string command:
 The easiest and fastest way to install Walkman on a remote host is to use the 
 "teleport" feature available in Walkman. To do this, you just need to have 
 Walkman installed locally and run the command:
-- cw4d.sh SSH_PARAMS_LIST (e.g.: cw4d.sh user@host.example.com )
-in SSH_PARAMS_LIST possible use any valid options of ssh command
+- cw4d.sh SSH_PARAMS_LIST 
+
+in SSH_PARAMS_LIST possible use any valid options of ssh command e.g.:
+- cw4d.sh -oStrictHostKeyChecking=no -i ~/.ssh/private.key user@host.domain.net
+
+- 
 
 ### More for local Walkman installation and usage - Linux(or WSL) only:
  - [read and use this info](https://github.com/shakhor-shual/walkman/tree/main/bin)
