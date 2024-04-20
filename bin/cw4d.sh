@@ -601,6 +601,7 @@ perform_selfcompile() {
     echo "======================= CW4D self-compilation ================================"
     try_as_root /usr/bin/shc -vrf "$self" -o /usr/local/bin/cw4d
     try_as_root rm "$(dirname "$self")"/cw4d.sh.x.c
+    [ -s "$(dirname "$self")"/cw4d.sh ] && try_as_root chmod 777 "$(dirname "$self")"/cw4d.sh
     echo "============================================================================="
     echo "========= CW4D now self-compiled to ELF-executable and ready to use ========="
     echo "========= try run: cw4d some_my_deploymet.sch                       ========="
