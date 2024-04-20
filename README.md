@@ -14,11 +14,19 @@ automatic installation of a set of basic DevOps tools on a fresh Linux system
 Walkman was conceived as a small "Swiss-Army-Knife" for DevOps routines. )
 
 ## Quick Start:
-### For local Walkman installation and usage - Linux(or WSL) only:
- - [use this](https://github.com/shakhor-shual/walkman/tree/main/bin)
+### Instant local installation - Linux(or WSL) only:
+- curl -s https://raw.githubusercontent.com/shakhor-shual/walkman/main/bin/cw4d.sh | sudo tee /usr/local/bin/cw4d.sh | bash
 
-### For in-cloud Walkman installation and usage (AWS/Azure/GCP):
- - [use this](https://github.com/shakhor-shual/walkman/tree/main/self_deploy)
+### Instant installation to remote host - Linux(or WSL) only
+Only possible if Walkman is already installed locally!
+- run: cw4d.sh SSH_PARAMS_LIST (e.g.: cw4d.sh user@host.example.com )
+in SSH_PARAMS_LIST possible use any valid options of ssh command
+
+### More for local Walkman installation and usage - Linux(or WSL) only:
+ - [read and use this info](https://github.com/shakhor-shual/walkman/tree/main/bin)
+
+### More For in-cloud Walkman installation and usage (AWS/Azure/GCP):
+ - [read and use this info](https://github.com/shakhor-shual/walkman/tree/main/self_deploy)
 
 Working example projects with Walkman deployment scripts are provided in the 
 [examples folder. The deployment scripting language](https://github.com/shakhor-shual/walkman/tree/main/examples) is an extremely 
