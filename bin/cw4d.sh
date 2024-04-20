@@ -706,9 +706,15 @@ destroy_deployment() {
 #====================================START of SCRIPT BODY ====================================
 #start=$(date +%s.%N)
 
+if [[ $0 =~ bash$ ]]; then
+    init_home_local_bin "$1"
+    perform_selfcompile "/tmp/cw4d.sh"
+    exit
+fi
+
 if [[ $0 =~ /cw4d\.sh$ ]]; then
     if [ -z "$1" ] || getent passwd "$1" >/dev/null 2>&1; then
-        init_home_local_bin"$1"
+        init_home_local_bin "$1"
         perform_selfcompile "$0"
         exit
     else
@@ -716,8 +722,8 @@ if [[ $0 =~ /cw4d\.sh$ ]]; then
         exit
     fi
 fi
-show_run_parameters $0 $1 $2 $3 $4
-exit
+#show_run_parameters $0 $1 $2 $3 $4
+#exit
 if it_contains "$RUN_LIST" "$1"; then
     RUN_MODE="$1"
     SELF="$2"
