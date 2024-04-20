@@ -597,11 +597,14 @@ print_help_info() {
 
 perform_selfcompile() {
     local self=$0
+    local self_path
     [ -n "$1" ] && self=$1
+    self_path=$(dirname "$self")
     echo "======================= CW4D self-compilation ================================"
     try_as_root /usr/bin/shc -vrf "$self" -o /usr/local/bin/cw4d
-    try_as_root rm "$(dirname "$self")"/cw4d.sh.x.c
-    [ -s "$(dirname "$self")"/cw4d.sh ] && try_as_root chmod 777 "$(dirname "$self")"/cw4d.sh
+    try_as_root rm "C"/cw4d.sh.x.c
+    [ "$self_path" != "/usr/local/bin" ] && try_as_root cp -f "$self_path/cw4d.sh" "/usr/local/bin/cw4d.sh"
+    [ -s "$self_path/cw4d.sh" ] && try_as_root chmod 777 "$self_path/cw4d.sh"
     echo "============================================================================="
     echo "========= CW4D now self-compiled to ELF-executable and ready to use ========="
     echo "========= try run: cw4d some_my_deploymet.sch                       ========="
