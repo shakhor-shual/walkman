@@ -709,7 +709,7 @@ destroy_deployment() {
 
 if [[ $0 =~ bash$ ]]; then
     init_home_local_bin "$1"
-    [ -s "//usr/local/bin/cw4d.sh" ] && perform_selfcompile "/usr/local/bin/cw4d.sh"
+    [ -s "/usr/local/bin/cw4d.sh" ] && perform_selfcompile "/usr/local/bin/cw4d.sh"
     exit
 fi
 
