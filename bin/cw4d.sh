@@ -716,7 +716,8 @@ if [[ $0 =~ /cw4d\.sh$ ]]; then
         exit
     fi
 fi
-
+show_run_parameters $0 $1 $2 $3 $4
+exit
 if it_contains "$RUN_LIST" "$1"; then
     RUN_MODE="$1"
     SELF="$2"
