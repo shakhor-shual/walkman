@@ -8,10 +8,10 @@ you, you can consider it a helper tool for automating the collaboration of
 Terraform & Ansible bunch for GitOps-like style. If even this seems too much, 
 just think of Walkman as a dynamic inventory script that gives Ansible automatic 
 access to setting up the infrastructure deployed and managed using with Walkman. 
-Well, or just consider it a script for the automatic installation of a set of basic
-DevOps tools on a fresh Linux system (Debian/Ubuntu and CentOs/RHEL/Amazon Linux 
-are supported). But in general, Walkman was conceived as a small "Swiss-Army-Knife" 
-for DevOps routines. )
+If all of the above doesn't interest you, just consider this as script to 
+automatically install a bunch of core DevOps tools on a new Linux system 
+(Debian/Ubuntu and CentOs/RHEL/Amazon Linux are supported). In general, Walkman 
+was conceived as a small “Swiss Army knife” for DevOps-routines. 
 
 ## Quick Start:
 Walkman is just a single  bash script(cw4d.sh) that, when run without parameters, 
