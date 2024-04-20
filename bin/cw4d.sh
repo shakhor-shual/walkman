@@ -596,10 +596,11 @@ print_help_info() {
 }
 
 perform_selfcompile() {
-
+    local self=$0
+    [ -n "$1" ] && self=$1
     echo "======================= CW4D self-compilation ================================"
-    try_as_root /usr/bin/shc -vrf "$0" -o /usr/local/bin/cw4d
-    try_as_root rm "$(dirname "$0")"/cw4d.sh.x.c
+    try_as_root /usr/bin/shc -vrf "$self" -o /usr/local/bin/cw4d
+    try_as_root rm "$(dirname "$self")"/cw4d.sh.x.c
     echo "============================================================================="
     echo "========= CW4D now self-compiled to ELF-executable and ready to use ========="
     echo "========= try run: cw4d some_my_deploymet.sch                       ========="
