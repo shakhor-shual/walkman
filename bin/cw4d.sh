@@ -15,6 +15,7 @@
 # limitations under the License.
 #########################################################################
 TERRAFORM_v=1.7.5
+PODMAN_v=5.0.2
 ENV_PREFIX="CW4D_"
 START_POINT=$PWD
 DEBUG=0
@@ -473,7 +474,9 @@ system_pakages_install() {
 
 init_home_local_bin() {
     local user
+    local user_home_local
     local user_home_bin
+    local arch=amd64
 
     if [ -n "$1" ] && getent passwd "$1" >/dev/null 2>&1; then
         user=$1
@@ -483,8 +486,9 @@ init_home_local_bin() {
 
     system_pakages_install
 
-    user_home_bin=/home/$user/.local/bin
-    [ "$user" = "root" ] && user_home_bin=/root/.local/bin
+    user_home_local=/home/$user/.local
+    [ "$user" = "root" ] && user_home_local=/root/.local
+    user_home_bin=$user_home_local/bin
 
     if [ ! -d "$user_home_bin" ]; then
         try_as_root mkdir -p "$user_home_bin"
@@ -492,10 +496,18 @@ init_home_local_bin() {
     fi
     echo "$PATH" | grep -q "$user_home_bin" || export PATH=$user_home_bin:$PATH
 
+    if [ -z "$(which docker)" ] && [ -z "$(which podman)" ]; then
+        try_as_root curl -o "$user_home_bin"/podman-remote-static-linux_${arch}.tar.gz https://github.com/containers/podman/releases/download/v${PODMAN_v}/podman-remote-static-linux_${arch}.tar.gz
+        try_as_root tar -zxvf podman-remote-static-linux_${arch}.tar.gz -C "$user_home_local" bin/podman-remote-static-linux_${arch}
+        try_as_root mv "$user_home_bin/podman-remote-static-linux_${arch}" "$user_home_bin/podman"
+        try_as_root ln -s "$user_home_bin/podman" "$user_home_bin/docker"
+        fix_user_home "$user"
+    fi
+
     if [ -z "$(which terraform)" ]; then
-        try_as_root curl -o "$user_home_bin"/terraform_linux_amd64.zip https://releases.hashicorp.com/terraform/${TERRAFORM_v}/terraform_${TERRAFORM_v}_linux_amd64.zip
-        try_as_root unzip -o "$user_home_bin"/terraform_linux_amd64.zip -d "$user_home_bin"
-        try_as_root rm -f "$user_home_bin"/terraform_linux_amd64.zip
+        try_as_root curl -o "$user_home_bin/terraform_linux_${arch}.zip" https://releases.hashicorp.com/terraform/${TERRAFORM_v}/terraform_${TERRAFORM_v}_linux_${arch}.zip
+        try_as_root unzip -o "$user_home_bin/terraform_linux_${arch}.zip" -d "$user_home_bin"
+        try_as_root rm -f "$user_home_bin/terraform_linux_${arch}.zip"
         fix_user_home "$user"
     fi
 
@@ -513,7 +525,7 @@ init_home_local_bin() {
     fi
 
     if [ -z "$(which kubectl)" ]; then
-        try_as_root curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        try_as_root curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${arch}/kubectl"
         try_as_root chmod +x kubectl
         try_as_root mv ./kubectl "$user_home_bin"/kubectl
         fix_user_home "$user"
