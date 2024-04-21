@@ -498,7 +498,6 @@ init_home_local_bin() {
 
     if [ -z "$(which docker)" ] && [ -z "$(which podman)" ]; then
         try_as_root curl -Lo "$user_home_bin/podman-remote-static-linux_${arch}.tar.gz" https://github.com/containers/podman/releases/download/v${PODMAN_v}/podman-remote-static-linux_${arch}.tar.gz
-        # https://github.com/containers/podman/releases/download/v5.0.2/podman-remote-static-linux_amd64.tar.gz
         try_as_root tar -zxvf "$user_home_bin/podman-remote-static-linux_${arch}.tar.gz" -C "$user_home_local" bin/podman-remote-static-linux_${arch}
         [ -f "$user_home_bin/podman-remote-static-linux_${arch}.tar.gz" ] && try_as_root rm -f "$user_home_bin/podman-remote-static-linux_${arch}.tar.gz"
         try_as_root mv "$user_home_bin/podman-remote-static-linux_${arch}" "$user_home_bin/podman"
@@ -507,7 +506,7 @@ init_home_local_bin() {
     fi
 
     if [ -z "$(which terraform)" ]; then
-        try_as_root curl -o "$user_home_bin/terraform_linux_${arch}.zip" https://releases.hashicorp.com/terraform/${TERRAFORM_v}/terraform_${TERRAFORM_v}_linux_${arch}.zip
+        try_as_root curl -Lo "$user_home_bin/terraform_linux_${arch}.zip" https://releases.hashicorp.com/terraform/${TERRAFORM_v}/terraform_${TERRAFORM_v}_linux_${arch}.zip
         try_as_root unzip -o "$user_home_bin/terraform_linux_${arch}.zip" -d "$user_home_bin"
         try_as_root rm -f "$user_home_bin/terraform_linux_${arch}.zip"
         fix_user_home "$user"
