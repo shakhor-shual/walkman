@@ -497,7 +497,8 @@ init_home_local_bin() {
     echo "$PATH" | grep -q "$user_home_bin" || export PATH=$user_home_bin:$PATH
 
     if [ -z "$(which docker)" ] && [ -z "$(which podman)" ]; then
-        try_as_root curl -o "$user_home_bin/podman-remote-static-linux_${arch}.tar.gz" https://github.com/containers/podman/releases/download/v${PODMAN_v}/podman-remote-static-linux_${arch}.tar.gz
+        try_as_root curl -Lo "$user_home_bin/podman-remote-static-linux_${arch}.tar.gz" https://github.com/containers/podman/releases/download/v${PODMAN_v}/podman-remote-static-linux_${arch}.tar.gz
+        # https://github.com/containers/podman/releases/download/v5.0.2/podman-remote-static-linux_amd64.tar.gz
         try_as_root tar -zxvf "$user_home_bin/podman-remote-static-linux_${arch}.tar.gz" -C "$user_home_local" bin/podman-remote-static-linux_${arch}
         [ -f "$user_home_bin/podman-remote-static-linux_${arch}.tar.gz" ] && try_as_root rm -f "$user_home_bin/podman-remote-static-linux_${arch}.tar.gz"
         try_as_root mv "$user_home_bin/podman-remote-static-linux_${arch}" "$user_home_bin/podman"
