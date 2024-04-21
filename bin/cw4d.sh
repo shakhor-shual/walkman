@@ -497,9 +497,18 @@ init_home_local_bin() {
     echo "$PATH" | grep -q "$user_home_bin" || export PATH=$user_home_bin:$PATH
 
     if [ -z "$(which docker)" ] && [ -z "$(which podman)" ]; then
-        curl -fsSL https://get.docker.com -o get-docker.sh
-        try_as_root sh ./get-docker.sh
-        try_as_root systemctl enable /usr/lib/systemd/system/docker.service
+        if grep </etc/os-release -q "Amazon Linux"; then
+            if grep </etc/os-release -q "Amazon Linux 2023"; then
+                try_as_root yum install -y docker
+            else
+                try_as_root amazon-linux-extras install docker
+            fi
+            try_as_root service docker start
+        else
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            try_as_root sh ./get-docker.sh
+            try_as_root systemctl enable /usr/lib/systemd/system/docker.service
+        fi
         try_as_root usermod -aG docker "$user"
     fi
 
