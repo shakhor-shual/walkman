@@ -31,7 +31,7 @@ auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
 zone=@@last
 machine_type="n2-standard-2"
-ssh_user=walkman
+ssh_user=devops
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
 <<<SET_access_artefacts | nat_ip | $ssh_user | $auto_key_private
