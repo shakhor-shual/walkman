@@ -909,7 +909,6 @@ case $RUN_MODE in
 
             else
                 if [ "$RUN_MODE" = "apply" ] || [ "$RUN_MODE" = "gitops" ]; then
-
                     case $(test_exec_packet_home "$stage_path") in
                     "SH")
                         echo "This SHELL packet!!!"
@@ -929,7 +928,6 @@ case $RUN_MODE in
                         ;;
                     *) echo "This UNKNOWN packet!!!" ;;
                     esac
-
                     export_vars_to_env "$SINGLE_INIT_FILE"
                 fi
             fi
