@@ -15,7 +15,7 @@
 # limitations under the License.
 #########################################################################
 TERRAFORM_v=1.7.5
-PODMAN_v=5.0.2
+JQ_v=1.7.1
 ENV_PREFIX="CW4D_"
 START_POINT=$PWD
 DEBUG=0
@@ -510,6 +510,11 @@ init_home_local_bin() {
             try_as_root systemctl enable /usr/lib/systemd/system/docker.service
         fi
         try_as_root usermod -aG docker "$user"
+    fi
+
+    if [ -z "$(which jq)" ]; then
+        try_as_root curl -Lo "$user_home_bin/jq" https://github.com/jqlang/jq/releases/download/jq-${JQ_v}/jq-linux-${arch}
+        try_as_root chmod 777 "$user_home_bin/jq"
     fi
 
     if [ -z "$(which terraform)" ]; then
