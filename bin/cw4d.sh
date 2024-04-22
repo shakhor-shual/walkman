@@ -375,10 +375,23 @@ init_album_home() {
     fi
 }
 
+test_exec_packet_home() {
+    local pack_type="SH"
+    PACK_HOME=$(find "$1" -maxdepth 2 -name "*.sh" -exec dirname {} \; | sort -u | head -n 1)
+    if [ -z "$PACK_HOME" ]; then
+        PACK_HOME=$(find "$1" -maxdepth 2 -name "*.yaml" -exec dirname {} \; | sort -u | head -n 1)
+        [ -z "$PACK_HOME" ] && PACK_HOME=$(find "$1" -maxdepth 2 -name "*.yml" -exec dirname {} \; | sort -u | head -n 1)
+        [ -z "$PACK_HOME" ] && echo "NaN" && return
+        pack_type="YAML"
+    fi
+    cd "$PACK_HOME" || exit
+    PACK_HOME_FULL_PATH=$PWD
+    echo $pack_type
+}
+
 get_in_tf_packet_home() {
-    PACK_HOME=$(find "$1" -maxdepth 2 -name main.tf)
+    PACK_HOME=$(find "$1" -maxdepth 2 -name "*.tf" -exec dirname {} \; | sort -u | head -n 1)
     [ -z "$PACK_HOME" ] && return 1
-    PACK_HOME=$(dirname "$PACK_HOME")
     TF_VARS="$PACK_HOME/terraform.tfvars"
     VARS_TF="$PACK_HOME/variables.tf"
     cd "$PACK_HOME" || exit
@@ -548,9 +561,24 @@ init_home_local_bin() {
 
 stage_kind_detect() {
     case $1 in
-    *"variables.tf") echo "TF" ;;
-    *".yaml") echo "ANS" ;;
-    *"RUN") echo "RUN" ;;
+    *".tf")
+        echo "TF"
+        return
+        ;;
+    *".yaml")
+        [ "$(grep <"$1" "kind\|spec\|apiVersion" | tr -d ' ' | cut -d ':' -f 1 | sort -u | wc -l)" -ge 3 ] && echo "K8S" && return
+        echo "ANS"
+        return
+        ;;
+    *".yml")
+        [ "$(grep <"$1" "kind\|spec\|apiVersion" | tr -d ' ' | cut -d ':' -f 1 | sort -u | wc -l)" -ge 3 ] && echo "K8S" && return
+        echo "ANS"
+        return
+        ;;
+    *".sh")
+        echo "SH"
+        return
+        ;;
     *"LOAD") echo "LOAD" ;;
     *) echo "UNKNOWN" ;;
     esac
@@ -700,19 +728,6 @@ update_from_git() {
     done
     cd "$DIR_ALBUM_HOME" || exit
     return $apply_it
-}
-
-accept_inlines() {
-    local stage_count=1
-    for stage_path in $(
-        find "$DIR_ALBUM_HOME" -maxdepth 1 -type d | sort | grep -v '\.meta\|\.git' | tail -n +2
-    ); do
-
-        if get_in_tf_packet_home "$stage_path"; then
-            cat $stage_path/*.sch
-        fi
-        ((stage_count++))
-    done
 }
 
 destroy_deployment() {
@@ -894,7 +909,27 @@ case $RUN_MODE in
 
             else
                 if [ "$RUN_MODE" = "apply" ] || [ "$RUN_MODE" = "gitops" ]; then
-                    echo "This not TF packet!!!"
+
+                    case $(test_exec_packet_home "$stage_path") in
+                    "SH")
+                        echo "This SHELL packet!!!"
+                        cd "$DIR_ALBUM_HOME" || exit
+                        ;;
+                    "ANS")
+                        echo "This ANSIBLE packet!!!"
+                        cd "$DIR_ALBUM_HOME" || exit
+                        ;;
+                    "K8S")
+                        echo "This KUBECTL packet!!!"
+                        cd "$DIR_ALBUM_HOME" || exit
+                        ;;
+                    "HELM")
+                        echo "This HELM packet!!!"
+                        cd "$DIR_ALBUM_HOME" || exit
+                        ;;
+                    *) echo "This UNKNOWN packet!!!" ;;
+                    esac
+
                     export_vars_to_env "$SINGLE_INIT_FILE"
                 fi
             fi
