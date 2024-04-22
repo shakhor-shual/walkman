@@ -447,26 +447,28 @@ fix_user_home() {
     [ -d "/home/$1" ] && try_as_root chown -R "$1":"$1" "/home/$1"
 }
 
-no_which() {
-    [ -z "$(which "$1")" ] && return 0
+not_installed() {
+    for item in "$@"; do
+        [ -z "$(which "$item")" ] && return 0
+    done
     return 1
 }
 
 system_pakages_install() {
-    if no_which curl || no_which pip3 || no_which unzip || no_which shc || no_which rsync; then
+    if not_installed wget curl pip3 unzip shc rsync csplit; then
         if [ -n "$(which apt-get)" ]; then
             try_as_root apt update
-            try_as_root apt -y install curl unzip shc rsync python3-pip
+            try_as_root apt -y install wget curl unzip shc rsync python3-pip coreutils
             return
         fi
         if [ -n "$(which yum)" ]; then
             try_as_root yum install epel-release
-            try_as_root yum install curl unzip shc rsync python-pip
+            try_as_root yum install wget curl unzip shc rsync python-pip coreutils
             return
         fi
         if [ -n "$(which dnf)" ]; then
             try_as_root dnf install epel-release
-            try_as_root dnf install curl unzip shc rsync python-pip
+            try_as_root dnf install wget curl unzip shc rsync python-pip coreutils
             return
         fi
     fi
@@ -496,7 +498,7 @@ init_home_local_bin() {
     fi
     echo "$PATH" | grep -q "$user_home_bin" || export PATH=$user_home_bin:$PATH
 
-    if [ -z "$(which docker)" ] && [ -z "$(which podman)" ]; then
+    if not_installed docker podman; then
         if grep </etc/os-release -q "Amazon Linux"; then
             if grep </etc/os-release -q "Amazon Linux 2023"; then
                 try_as_root yum install -y docker
@@ -512,18 +514,18 @@ init_home_local_bin() {
         try_as_root usermod -aG docker "$user"
     fi
 
-    if [ -z "$(which jq)" ]; then
+    if not_installed jq; then
         try_as_root curl -Lo "$user_home_bin/jq" https://github.com/jqlang/jq/releases/download/jq-${JQ_v}/jq-linux-${arch}
         try_as_root chmod 777 "$user_home_bin/jq"
     fi
 
-    if [ -z "$(which terraform)" ]; then
+    if not_installed terraform; then
         try_as_root curl -Lo "$user_home_bin/terraform_linux_${arch}.zip" https://releases.hashicorp.com/terraform/${TERRAFORM_v}/terraform_${TERRAFORM_v}_linux_${arch}.zip
         try_as_root unzip -o "$user_home_bin/terraform_linux_${arch}.zip" -d "$user_home_bin"
         try_as_root rm -f "$user_home_bin/terraform_linux_${arch}.zip"
     fi
 
-    if [ -z "$(which ansible)" ]; then
+    if not_installed ansible; then
         if [ "$user" = "$(whoami)" ]; then
             python3 -m pip install --user ansible-core
         else
@@ -532,11 +534,11 @@ init_home_local_bin() {
         fi
     fi
 
-    if [ -z "$(which helm)" ]; then
+    if not_installed helm; then
         try_as_root curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
     fi
 
-    if [ -z "$(which kubectl)" ]; then
+    if not_installed kubectl; then
         try_as_root curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${arch}/kubectl"
         try_as_root chmod +x kubectl
         try_as_root mv ./kubectl "$user_home_bin"/kubectl
