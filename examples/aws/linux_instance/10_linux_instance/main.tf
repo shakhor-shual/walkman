@@ -31,7 +31,7 @@ resource "aws_vpc" "project_vpc" {
 
 resource "aws_subnet" "my_project_subnet" {
   vpc_id     = aws_vpc.project_vpc.id
-  cidr_block = subnet_cidr_block
+  cidr_block = var.subnet_cidr_block
 }
 
 resource "aws_security_group" "my_project_ssh" {
@@ -100,7 +100,7 @@ resource "aws_instance" "my_project_instance" {
   user_data = fileexists(var.user_data_file) ? file(var.user_data_file) : ""
 
   root_block_device {
-    volume_size = 25
+    volume_size = var.volume_size
   }
 
   associate_public_ip_address = true

@@ -24,6 +24,11 @@ variable "instance_type" {
   default     = "t3.micro"
 }
 
+variable "volume_size" {
+  description = "OS Disk size"
+  default     = 25
+}
+
 variable "ami" {
   description = "AMI for the instance !!!default-> AmazonLinux 2 Linux AMI in Stockholm, replace with the appropriate one for your region"
   default     = "ami-0f0ec0d37d04440e3"
