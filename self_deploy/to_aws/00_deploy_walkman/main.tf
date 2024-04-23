@@ -2,22 +2,26 @@ provider "aws" {
   region = var.region
 }
 
+locals {
+  ssh_user = "ec2-user"
+}
+
 # Generating SSH key pair
-resource "tls_private_key" "my_vm_access" {
+resource "tls_private_key" "walkman_vm_access" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
 resource "local_file" "public_key" {
   filename        = var.auto_key_public
-  content         = trimspace(tls_private_key.my_vm_access.public_key_openssh)
+  content         = trimspace(tls_private_key.walkman_vm_access.public_key_openssh)
   file_permission = "0400"
 }
 
 resource "local_sensitive_file" "private_key" {
   filename = var.auto_key_private
   # IMPORTANT: Newline is required at end of open SSH private key file
-  content         = tls_private_key.my_vm_access.private_key_openssh
+  content         = tls_private_key.walkman_vm_access.private_key_openssh
   file_permission = "0400"
 }
 
@@ -32,7 +36,7 @@ resource "aws_subnet" "walkman_subnet" {
 
 resource "aws_security_group" "walkman_ssh" {
   vpc_id      = aws_vpc.project_vpc.id
-  name        = "my-security-group"
+  name        = "walkman-security-group"
   description = "Allow SSH and ICMP traffic"
 
   ingress {
@@ -57,8 +61,8 @@ resource "aws_security_group" "walkman_ssh" {
   }
 }
 
-resource "aws_key_pair" "my_key_pair" {
-  key_name   = "my-key-pair"
+resource "aws_key_pair" "walkman_key_pair" {
+  key_name   = "walkman-key-pair"
   public_key = local_file.public_key.content
 }
 
@@ -88,7 +92,7 @@ resource "aws_instance" "walkman_instance" {
   security_groups = [aws_security_group.walkman_ssh.id]
 
   # Attaching public key to instance
-  key_name = "my-key-pair"
+  key_name = "walkman-key-pair"
   tags = {
     Name = "walkman-instance"
   }
@@ -97,28 +101,28 @@ resource "aws_instance" "walkman_instance" {
               #!/bin/bash
               sudo yum install -y git mc 
               git clone https://github.com/shakhor-shual/walkman ~/walkman
-              chown -R ${var.ssh_user}:${var.ssh_user} ~/walkman
-              mv ~/walkman /home/${var.ssh_user}/walkman
-              /home/${var.ssh_user}/walkman/bin/cw4d.sh ${var.ssh_user}
+              chown -R ${local.ssh_user}:${local.ssh_user} ~/walkman
+              mv ~/walkman /home/${local.ssh_user}/walkman
+              /home/${local.ssh_user}/walkman/bin/cw4d.sh ${local.ssh_user}
               EOF
 
   root_block_device {
-    volume_size = 25
+    volume_size = var.volume_size
   }
 
   associate_public_ip_address = true
 }
 
 output "user_info_note" {
-  value = "----- run SSH command from wolkman_ssh for instatnt access to VM  ----------"
+  value = "<<<<<<<< run SSH command from wolkman_ssh for instatnt access to VM  >>>>>>>>"
 }
 
 output "wolkman_ssh" {
-  value = "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i ${abspath(var.auto_key_private)} ${var.ssh_user}@${aws_instance.walkman_instance.public_ip}"
+  value = "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i ${abspath(var.auto_key_private)} ${local.ssh_user}@${aws_instance.walkman_instance.public_ip}"
 }
 
 output "ssh_user" {
-  value = var.ssh_user
+  value = local.ssh_user
 }
 
 output "ssh_user_key" {

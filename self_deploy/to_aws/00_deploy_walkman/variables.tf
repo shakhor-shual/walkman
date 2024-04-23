@@ -19,9 +19,9 @@ variable "ami" {
   default     = "ami-0f0ec0d37d04440e3"
 }
 
-variable "ssh_user" {
-  description = "SSH user"
-  default     = "ec2-user"
+variable "volume_size" {
+  description = "OS disk size"
+  default     = 25
 }
 
 variable "custom_key_public" {

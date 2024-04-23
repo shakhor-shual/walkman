@@ -19,9 +19,9 @@ debug@@@ 1   # possible here are 0, 1, 2, 3
 
 ~WALKMAN:
 region=eu-north-1
-vpc_name="walkman-vpc"
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
-instance_type="t3.micro"
-ssh_user=ec2-user
-<<<SET_access_artefacts | public_ip | $ssh_user | $auto_key_private
+instance_type=@@
+ami=@@
+volume_size=@@
+<<<SET_access_artefacts | public_ip | "ec2-user" | $auto_key_private
