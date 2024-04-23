@@ -471,18 +471,18 @@ not_installed() {
 system_pakages_install() {
     if not_installed wget curl pip3 unzip shc rsync csplit; then
         if [ -n "$(which apt-get)" ]; then
-            try_as_root apt update
-            try_as_root apt -y install wget curl unzip shc rsync python3-pip coreutils tig
+            try_as_root apt -qq update
+            try_as_root apt -qq -y install wget curl unzip shc rsync python3-pip coreutils tig mc
             return
         fi
         if [ -n "$(which yum)" ]; then
             try_as_root yum install epel-release
-            try_as_root yum install wget curl unzip shc rsync python-pip coreutils
+            try_as_root yum install wget curl unzip shc rsync python-pip coreutils tig mc
             return
         fi
         if [ -n "$(which dnf)" ]; then
             try_as_root dnf install epel-release
-            try_as_root dnf install wget curl unzip shc rsync python-pip coreutils
+            try_as_root dnf install wget curl unzip shc rsync python-pip coreutils tig mc
             return
         fi
     fi
@@ -512,7 +512,7 @@ init_home_local_bin() {
     fi
     echo "$PATH" | grep -q "$user_home_bin" || export PATH=$user_home_bin:$PATH
 
-    if not_installed docker podman; then
+    if not_installed docker && not_installed podman; then
         if grep </etc/os-release -q "Amazon Linux"; then
             if grep </etc/os-release -q "Amazon Linux 2023"; then
                 try_as_root yum install -y docker
@@ -559,8 +559,9 @@ init_home_local_bin() {
         fix_user_home "$user"
     fi
 
-    if not_installed kubectl; then
+    if not_installed k9s; then
         try_as_root curl -s -L https://github.com/derailed/k9s/releases/download/v${K9S_v}/k9s_Linux_${arch}.tar.gz | try_as_root tar xvz -C "$user_home_bin"
+        try_as_root rm "$user_home_bin/README.md" "$user_home_bin/LICENSE"
         try_as_root chmod +x "$user_home_bin/k9s"
         fix_user_home "$user"
     fi
@@ -771,7 +772,7 @@ if [[ $0 =~ /cw4d\.sh$ ]]; then
         perform_selfcompile "$0"
         exit
     else
-        ssh "$@" "sudo tee -a /usr/local/bin/cw4d.sh;sudo chmod 777 /usr/local/bin/cw4d.sh;/usr/local/bin/cw4d.sh " <"$0"
+        ssh "$@" "sudo tee /usr/local/bin/cw4d.sh;sudo chmod 777 /usr/local/bin/cw4d.sh;/usr/local/bin/cw4d.sh " <"$0"
         exit
     fi
 fi

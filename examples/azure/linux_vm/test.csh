@@ -15,13 +15,20 @@
 # limitations under the License.
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
-debug@@@ 0   # possible here are 0, 1, 2, 3
+debug@@@ 1   # possible here are 0, 1, 2, 3
 
-~WALKMAN:
+~AZURE_VM:
 namespace=@@this
 location=@@
 vm_size = "Standard_B1ms"
+disk_size_gb= 30
+disk_type="Standard_LRS"
+image_publisher="Canonical"
+image_version ="latest"
+image_offer= "0001-com-ubuntu-server-focal"
+image_sku = "20_04-lts-gen2"
+admin_username=devops
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
-admin_username=devops
+custom_data_file= "@@meta/custom_data.sh"
 <<<SET_access_artefacts | IP-public | $admin_username | $auto_key_private
