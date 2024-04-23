@@ -29,11 +29,6 @@ variable "ami" {
   default     = "ami-0f0ec0d37d04440e3"
 }
 
-variable "ssh_user" {
-  description = "SSH user"
-  default     = "ec2-user"
-}
-
 variable "custom_key_public" {
   description = "Path-to-my existing user-defined SSH public key (my use for simplify ssh access to VM) "
   default     = ""
