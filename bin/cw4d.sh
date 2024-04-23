@@ -469,20 +469,20 @@ not_installed() {
 }
 
 system_pakages_install() {
-    if not_installed wget curl pip3 unzip shc rsync csplit; then
+    if not_installed wget curl pip3 unzip shc rsync csplit git mc; then
         if [ -n "$(which apt-get)" ]; then
             try_as_root apt -qq update
-            try_as_root apt -qq -y install wget curl unzip shc rsync python3-pip coreutils tig mc
+            try_as_root apt -qq -y install wget curl unzip shc rsync python3-pip coreutils git tig mc
             return
         fi
         if [ -n "$(which yum)" ]; then
             try_as_root yum install epel-release
-            try_as_root yum install wget curl unzip shc rsync python-pip coreutils tig mc
+            try_as_root yum install wget curl unzip shc rsync python-pip coreutils git tig mc
             return
         fi
         if [ -n "$(which dnf)" ]; then
             try_as_root dnf install epel-release
-            try_as_root dnf install wget curl unzip shc rsync python-pip coreutils tig mc
+            try_as_root dnf install wget curl unzip shc rsync python-pip coreutils git tig mc
             return
         fi
     fi
