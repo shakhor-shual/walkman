@@ -114,10 +114,10 @@ resource "aws_instance" "walkman_instance" {
 }
 
 output "user_info_note" {
-  value = "<<<<<<<< run SSH command from wolkman_ssh for instatnt access to VM  >>>>>>>>"
+  value = "<<<<<<<< run SSH command from walkman_ssh for instatnt access to VM  >>>>>>>>"
 }
 
-output "wolkman_ssh" {
+output "walkman_ssh" {
   value = "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i ${abspath(var.auto_key_private)} ${local.ssh_user}@${aws_instance.walkman_instance.public_ip}"
 }
 

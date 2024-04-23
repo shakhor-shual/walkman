@@ -91,10 +91,10 @@ EOT
 }
 
 output "user_info_note" {
-  value = "----- run SSH command from wolkman_ssh for instatnt access to VM  ----------"
+  value = "<<<<<<<<< run SSH command from walkman_ssh for instatnt access to VM  >>>>>>>>>>>"
 }
 
-output "wolkman_ssh" {
+output "walkman_ssh" {
   value = "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i ${abspath(var.auto_key_private)} ${var.ssh_user}@${google_compute_instance.my_instance.network_interface[0].access_config[0].nat_ip}"
 }
 
