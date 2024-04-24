@@ -468,30 +468,48 @@ not_installed() {
     return 1
 }
 
+build_shc() {
+    not_installed shc || return
+    git clone https://github.com/neurobin/shc.git
+    cd shc || exit
+    ./configure
+    make
+    sudo make install
+    cd ..
+    rm -rf ./shc
+}
+
 apt_packages_install() {
+    not_installed apt && return
     try_as_root apt -qq update
     try_as_root apt -qq -y install "$@"
 }
 
 yum_packages_install() {
-
-    if grep </etc/os-release -v "2023" | grep -q "Amazon Linux"; then
+    not_installed yum && return
+    local command
+    if grep </etc/os-release -v "2023\|NAME" | grep -q "Amazon Linux"; then
         try_as_root amazon-linux-extras install epel -y # Amazon Linux 2
-        try_as_root yum install -y "$@"
     fi
 
     if grep </etc/os-release -q "RHEL"; then
         try_as_root yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm #RHEL-7
-        try_as_root yum install -y "$@"
+
     fi
 
     if grep </etc/os-release -q "CENTOS"; then
         try_as_root yum -y install epel-release # CENTOS-7
-        try_as_root yum install -y "$@"
     fi
+    for pkg in "$@"; do
+        command=$pkg
+        [ "$pkg" = "coreutils" ] && command="csplit"
+        [ "$pkg" = "python3-pip" ] && command=""
+        not_installed "$command" && try_as_root yum install -y "$pkg"
+    done
 }
 
 dnf_packages_install() {
+    not_installed dnf && return
 
     if grep </etc/os-release -q "CENTOS"; then
         try_as_root sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
@@ -499,26 +517,25 @@ dnf_packages_install() {
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y
         try_as_root dnf config-manager --set-enabled PowerTools
     fi
-    if grep </etc/os-release -q "RHEL"; then
+    if grep </etc/os-release -q "RHEL-8"; then
+        try_as_root dnf update -y
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y #RHEL-8
     fi
+    if grep </etc/os-release -q "RHEL-9"; then
+        try_as_root dnf update -y
+        try_as_root subscription-manager repos --enable "codeready-builder-for-rhel-9-$(arch)-rpms"
+        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y #RHEL-9
+    fi
+
     try_as_root dnf install -y "$@"
 }
 
 system_pakages_install() {
     if not_installed wget curl pip3 unzip cc shc rsync csplit git mc nano; then
-        if ! not_installed apt-get; then
-            apt_packages_install wget curl unzip gcc shc rsync python3-pip coreutils git tig mc nano
-            return
-        fi
-        if ! not_installed yum; then
-            yum_packages_install wget curl unzip gcc shc rsync python3-pip coreutils git tig mc nano
-            return
-        fi
-        if ! not_installed dnf; then
-            dnf_packages_install wget curl unzip gcc shc rsync python-pip coreutils git tig mc nano
-            return
-        fi
+        apt_packages_install wget curl unzip gcc shc rsync python3-pip coreutils git tig mc nano
+        yum_packages_install wget curl unzip gcc shc rsync python3-pip coreutils git tig mc nano
+        dnf_packages_install wget curl unzip gcc shc rsync python-pip coreutils git tig mc nano
+        build_shc
     fi
 }
 
@@ -692,23 +709,31 @@ print_help_info() {
 }
 
 perform_selfcompile() {
-    local self=$0
-    local self_path
-    [ -n "$1" ] && self=$1
-    self_path=$(dirname "$self")
-    echo "======================= CW4D self-compilation ================================"
-    try_as_root /usr/bin/shc -vrf "$self" -o /usr/local/bin/cw4d
-    try_as_root rm "$self_path/cw4d.sh.x.c"
-    [ "$self_path" != "/usr/local/bin" ] && try_as_root cp -f "$self_path/cw4d.sh" "/usr/local/bin/cw4d.sh"
-    [ -s "$self_path/cw4d.sh" ] && try_as_root chmod 777 "$self_path/cw4d.sh"
-    echo "============================================================================="
-    echo "========= CW4D now self-compiled to ELF-executable and ready to use ========="
-    echo "========= try run: cw4d some_my_deploymet.sch                       ========="
-    echo "========= OR just: /path-to-deployment-script/any_deploymet.sch     ========="
-    echo "============================================================================="
-    echo " WARNING: the second one will only work if your deployment-script "
-    echo " has SHEBANG look like this: #!/usr/local/bin/cw4d"
-    echo "============================================================================="
+    if not_installed shc; then
+        echo "======================================================================"
+        echo "!!!!!!!!!!!!!!!!!! CW4D self-compilation not possible !!!!!!!!!!!!!!!!"
+        echo "             SHC compiller not found installation ABORTED"
+        echo "======================================================================"
+        exit
+    else
+        local self=$0
+        local self_path
+        [ -n "$1" ] && self=$1
+        self_path=$(dirname "$self")
+        echo "======================= CW4D self-compilation ================================"
+        try_as_root shc -vrf "$self" -o /usr/local/bin/cw4d
+        try_as_root rm "$self_path/cw4d.sh.x.c"
+        [ "$self_path" != "/usr/local/bin" ] && try_as_root cp -f "$self_path/cw4d.sh" "/usr/local/bin/cw4d.sh"
+        [ -s "$self_path/cw4d.sh" ] && try_as_root chmod 777 "$self_path/cw4d.sh"
+        echo "============================================================================="
+        echo "========= CW4D now self-compiled to ELF-executable and ready to use ========="
+        echo "========= try run: cw4d some_my_deploymet.sch                       ========="
+        echo "========= OR just: /path-to-deployment-script/any_deploymet.sch     ========="
+        echo "============================================================================="
+        echo " WARNING: the second one will only work if your deployment-script "
+        echo " has SHEBANG look like this: #!/usr/local/bin/cw4d"
+        echo "============================================================================="
+    fi
 }
 
 git_checkout() {
