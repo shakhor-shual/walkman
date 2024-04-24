@@ -27,10 +27,10 @@ resource "local_sensitive_file" "private_key" {
 }
 
 
-resource "google_compute_firewall" "walkman_ssh" {
-  name          = "walkman-allow-ssh"
+resource "google_compute_firewall" "vm_ssh" {
+  name          = "${var.host}-allow-ssh"
   network       = google_compute_network.project_vpc.self_link
-  target_tags   = ["walkman-ssh"]
+  target_tags   = ["${var.host}-ssh"]
   source_ranges = ["0.0.0.0/0"]
 
   allow {
@@ -43,14 +43,14 @@ resource "google_compute_firewall" "walkman_ssh" {
   }
 }
 
-resource "google_compute_address" "walkman_ip_address" {
-  name = "external-ip-walkman"
+resource "google_compute_address" "vm_ip_address" {
+  name = "external-ip-${var.host}"
 }
 
 resource "google_compute_instance" "my_instance" {
-  name                      = "walkman-devops-node"
-  hostname                  = "devops.walkman.example.com"
-  description               = "Walkman Node"
+  name                      = "${var.host}-node"
+  hostname                  = "${var.host}.test.example.com"
+  description               = "Linux Node"
   machine_type              = var.machine_type
   zone                      = var.zone
   allow_stopping_for_update = true
@@ -61,8 +61,9 @@ resource "google_compute_instance" "my_instance" {
     mode        = "READ_WRITE"
     auto_delete = true
     initialize_params {
-      image = var.image
-      type  = "pd-balanced"
+      image = var.boot_image
+      type  = var.boot_disk_type
+      size  = var.boot_disk_size
     }
   }
 
@@ -70,31 +71,25 @@ resource "google_compute_instance" "my_instance" {
     network = google_compute_network.project_vpc.self_link
     access_config {
       network_tier = "PREMIUM"
-      nat_ip       = google_compute_address.walkman_ip_address.address
+      nat_ip       = google_compute_address.vm_ip_address.address
     }
   }
 
-  tags = ["walkman-ssh"]
+  tags = ["${var.host}-ssh"]
 
   metadata = {
     ssh-keys               = "${var.ssh_user}:${local_file.public_key.content}"
     block-project-ssh-keys = true
   }
 
-  metadata_startup_script = <<-EOT
-sudo apt update;sudo apt install -y git mc 
-git clone https://github.com/shakhor-shual/walkman ~/walkman
-chown -R ${var.ssh_user}:${var.ssh_user} ~/walkman
-mv ~/walkman /home/${var.ssh_user}/walkman
-/home/${var.ssh_user}/walkman/bin/cw4d.sh ${var.ssh_user}
-EOT
+  metadata_startup_script = fileexists(var.startup_script_file) ? file(var.startup_script_file) : ""
 }
 
 output "user_info_note" {
-  value = "----- run SSH command from wolkman_ssh for instatnt access to VM  ----------"
+  value = "<<<<<<<<<< run SSH command from user_ssh_command for instatnt access to VM >>>>>>>>>>>>>>>"
 }
 
-output "wolkman_ssh" {
+output "user_ssh_command" {
   value = "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i ${abspath(var.auto_key_private)} ${var.ssh_user}@${google_compute_instance.my_instance.network_interface[0].access_config[0].nat_ip}"
 }
 
@@ -109,3 +104,4 @@ output "ssh_user_key" {
 output "access_ip" {
   value = google_compute_instance.my_instance.network_interface[0].access_config[0].nat_ip
 }
+

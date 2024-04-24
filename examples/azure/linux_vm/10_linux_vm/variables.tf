@@ -1,24 +1,3 @@
-/*variable "bastion" {
-  description = "Map of project names to configuration."
-  type        = map(any)
-  default = {
-    cloud_init_file_prefix = "metadata/clouds-apt/ubuntu-k8s-bastion_"
-    image_version          = "latest",
-    image_sku              = "20_04-lts-gen2",
-    image_offer            = "0001-com-ubuntu-server-focal",
-    image_publisher        = "Canonical",
-    disk_type              = "Standard_LRS",
-    disk_size_gb           = 30,
-    vm_size                = "Standard_B1ms",
-    location               = "uksouth",
-    hostname               = "bastion",
-    vnet_addr              = "10.0.0.0/16",
-    subnet_addr            = "10.0.200.0/24",
-    peer_vnet_addr         = "10.1.0.0/16"
-  }
-}
-*/
-
 variable "location" {
   default     = "ukwest"
   description = "The Azure location where all resources in this example should be created"

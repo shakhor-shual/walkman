@@ -60,7 +60,7 @@ resource "aws_security_group" "my_project_ssh" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"] # Разрешить доступ в любую сеть
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 

@@ -21,17 +21,19 @@ debug@@@ 0   # possible here are 0, 1, 2, 3
 project_id="foxy-test-415019"
 region="europe-west6"
 zone="$region-b"
-vpc_name="walkman-managed-vpc"
+vpc_name="@@this-vpc"
+host=@@this
 
-~WALKMAN:
+~GCP_VM:
 project_id=@@last
 region=@@last
 vpc_name=@@last
-auto_key_public=@@meta/public.key
-auto_key_private=@@meta/private.key
 zone=@@last
 machine_type="n2-standard-2"
-ssh_user=devops
+boot_disk_size=30
+boot_disk_type=@@
+ssh_user=admin
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
-<<<SET_access_artefacts | nat_ip | $ssh_user | $auto_key_private
+startup_script_file=@@
+<<<SET_access_artefacts | IP-public | $ssh_user | $auto_key_private

@@ -14,6 +14,10 @@ variable "zone" {
   default     = "us-central1-c"
 }
 
+variable "host" {
+  default = "one"
+}
+
 variable "vpc_name" {
   description = "VPC name"
   default     = "some-vpc"
@@ -21,17 +25,27 @@ variable "vpc_name" {
 
 variable "machine_type" {
   description = "Machine type for the Compute Engine instance"
-  default     = "n1-standard-1"
+  default     = "n2-standard-2"
 }
 
-variable "image" {
-  description = "Operating system image for the instance !!!Only Ubuntu/Debian dsitros are supported NOW"
+variable "boot_disk_size" {
+  description = "Operating system disk size GB"
+  default     = 50
+}
+
+variable "boot_disk_type" {
+  description = "Operating system disk type"
+  default     = "pd-balanced"
+}
+
+variable "boot_image" {
+  description = "Operating system image for the instance "
   default     = "ubuntu-os-cloud/ubuntu-2004-lts"
 }
 
 variable "ssh_user" {
   description = "SSH user"
-  default     = "walkman"
+  default     = "admin"
 }
 
 variable "custom_key_public" {
@@ -49,5 +63,8 @@ variable "auto_key_private" {
   default     = "../.meta/private.key"
 }
 
-
+variable "startup_script_file" {
+  description = "File with user startup script"
+  default     = "../.meta/user_data.sh"
+}
 
