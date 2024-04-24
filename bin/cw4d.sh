@@ -482,8 +482,14 @@ build_shc() {
 
 apt_packages_install() {
     not_installed apt && return
+    local command
     try_as_root apt -qq update
-    try_as_root apt -qq -y install "$@"
+    for pkg in "$@"; do
+        command=$pkg
+        [ "$pkg" = "coreutils" ] && command="csplit"
+        [ "$pkg" = "python3-pip" ] && command="pip3"
+        not_installed "$command" && try_as_root apt -qq -y install "$pkg"
+    done
 }
 
 yum_packages_install() {
@@ -511,7 +517,7 @@ yum_packages_install() {
 
 dnf_packages_install() {
     not_installed dnf && return
-
+    local command
     if grep </etc/os-release -q "CENTOS"; then
         try_as_root sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
         try_as_root sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
@@ -537,8 +543,8 @@ dnf_packages_install() {
 
 system_pakages_install() {
     if not_installed wget curl pip3 unzip cc shc rsync csplit git mc nano; then
-        apt_packages_install wget curl unzip gcc shc rsync python3-pip coreutils git tig mc nano
-        yum_packages_install wget curl unzip gcc shc rsync python3-pip coreutils git tig mc nano
+        apt_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano
+        yum_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano
         dnf_packages_install wget curl unzip gcc automake shc rsync python-pip coreutils git tig mc nano podman
         build_shc
     fi

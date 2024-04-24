@@ -3,7 +3,7 @@ provider "aws" {
 }
 
 locals {
-  ssh_user = "ec2-user"
+  ssh_user = var.ami == "ami-0506d6d51f1916a96" ? "admin" : var.ami == "ami-0914547665e6a707c" || var.ami == "ami-010b74bc1a8b29122" ? "ubuntu" : "ec2-user"
 }
 
 # Generating SSH key pair
