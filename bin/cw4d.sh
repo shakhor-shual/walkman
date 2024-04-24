@@ -506,17 +506,17 @@ dnf_packages_install() {
 }
 
 system_pakages_install() {
-    if not_installed wget curl pip3 unzip cc shc rsync csplit git mc; then
+    if not_installed wget curl pip3 unzip cc shc rsync csplit git mc nano; then
         if ! not_installed apt-get; then
-            apt_packages_install wget curl unzip gcc shc rsync python3-pip coreutils git tig mc
+            apt_packages_install wget curl unzip gcc shc rsync python3-pip coreutils git tig mc nano
             return
         fi
         if ! not_installed yum; then
-            yum_packages_install wget curl unzip gcc shc rsync python3-pip coreutils git tig mc
+            yum_packages_install wget curl unzip gcc shc rsync python3-pip coreutils git tig mc nano
             return
         fi
         if ! not_installed dnf; then
-            dnf_packages_install wget curl unzip gcc shc rsync python-pip coreutils git tig mc
+            dnf_packages_install wget curl unzip gcc shc rsync python-pip coreutils git tig mc nano
             return
         fi
     fi
