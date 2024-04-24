@@ -488,7 +488,10 @@ apt_packages_install() {
         command=$pkg
         [ "$pkg" = "coreutils" ] && command="csplit"
         [ "$pkg" = "python3-pip" ] && command="pip3"
-        not_installed "$command" && try_as_root apt -qq -y install "$pkg"
+        if not_installed "$command"; then
+            echo "installinh pkg: $pkg"
+            try_as_root apt -qq -y install "$pkg" >/dev/null
+        fi
     done
 }
 

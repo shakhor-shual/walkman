@@ -82,7 +82,7 @@ resource "google_compute_instance" "my_instance" {
     block-project-ssh-keys = true
   }
 
-  metadata_startup_script = fileexists(var.startup_script_file) ? file(var.startup_script_file) : ""
+  # metadata_startup_script = fileexists(var.startup_script_file) ? file(var.startup_script_file) : ""
 }
 
 output "user_info_note" {
