@@ -496,12 +496,11 @@ yum_packages_install() {
     not_installed yum && return
     local command
     if grep </etc/os-release -v "2023\|NAME" | grep -q "Amazon Linux"; then
-        try_as_root amazon-linux-extras install epel -y # Amazon Linux 2
+        try_as_root amazon-linux-extras install epel -y #for Amazon Linux 2
     fi
 
     if grep </etc/os-release -q "RHEL"; then
         try_as_root yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm #RHEL-7
-
     fi
 
     if grep </etc/os-release -q "CENTOS"; then
@@ -581,20 +580,24 @@ init_home_local_bin() {
     fi
     echo "$PATH" | grep -q "$user_home_bin" || export PATH=$user_home_bin:$PATH
 
-    if not_installed docker && not_installed podman; then
-        if grep </etc/os-release -q "Amazon Linux"; then
-            if grep </etc/os-release -q "Amazon Linux 2023"; then
-                try_as_root yum install -y docker
+    if not_installed docker; then
+        if not_installed podman; then
+            if grep </etc/os-release -q "Amazon Linux"; then
+                if grep </etc/os-release -q "Amazon Linux 2023"; then
+                    try_as_root yum install -y docker
+                else
+                    try_as_root amazon-linux-extras install docker
+                fi
+                try_as_root service docker start
             else
-                try_as_root amazon-linux-extras install docker
+                curl -fsSL https://get.docker.com -o get-docker.sh
+                try_as_root sh ./get-docker.sh
+                try_as_root systemctl enable /usr/lib/systemd/system/docker.service
             fi
-            try_as_root service docker start
-        else
-            curl -fsSL https://get.docker.com -o get-docker.sh
-            try_as_root sh ./get-docker.sh
-            try_as_root systemctl enable /usr/lib/systemd/system/docker.service
+            try_as_root usermod -aG docker "$user"
         fi
-        try_as_root usermod -aG docker "$user"
+    else
+        ln -s "$(which podman)" "$user_home_bin/docker"
     fi
 
     if not_installed jq; then
@@ -634,6 +637,7 @@ init_home_local_bin() {
         try_as_root chmod +x "$user_home_bin/k9s"
         fix_user_home "$user"
     fi
+
 }
 
 stage_kind_detect() {
