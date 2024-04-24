@@ -107,10 +107,10 @@ resource "aws_instance" "my_project_instance" {
 }
 
 output "user_info_note" {
-  value = "<<<<<<<<<<< run SSH command from my_project_ssh for instatnt access to VM  >>>>>>>>>"
+  value = "<<<<<<<<<<< run SSH command from user_project_ssh for instatnt access to VM  >>>>>>>>>"
 }
 
-output "my_project_ssh" {
+output "user_project_ssh" {
   value = "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i ${abspath(var.auto_key_private)} ${local.ssh_user}@${aws_instance.my_project_instance.public_ip}"
 }
 

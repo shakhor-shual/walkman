@@ -463,26 +463,60 @@ fix_user_home() {
 
 not_installed() {
     for item in "$@"; do
-        [ -z "$(which "$item")" ] && return 0
+        [ -z "$(which "$item" 2>/dev/null)" ] && return 0
     done
     return 1
 }
 
+apt_packages_install() {
+    try_as_root apt -qq update
+    try_as_root apt -qq -y install "$@"
+}
+
+yum_packages_install() {
+
+    if grep </etc/os-release -v "2023" | grep -q "Amazon Linux"; then
+        try_as_root amazon-linux-extras install epel -y # Amazon Linux 2
+        try_as_root yum install -y "$@"
+    fi
+
+    if grep </etc/os-release -q "RHEL"; then
+        try_as_root yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm #RHEL-7
+        try_as_root yum install -y "$@"
+    fi
+
+    if grep </etc/os-release -q "CENTOS"; then
+        try_as_root yum -y install epel-release # CENTOS-7
+        try_as_root yum install -y "$@"
+    fi
+}
+
+dnf_packages_install() {
+
+    if grep </etc/os-release -q "CENTOS"; then
+        try_as_root sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+        try_as_root sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y
+        try_as_root dnf config-manager --set-enabled PowerTools
+    fi
+    if grep </etc/os-release -q "RHEL"; then
+        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y #RHEL-8
+    fi
+    try_as_root dnf install -y "$@"
+}
+
 system_pakages_install() {
-    if not_installed wget curl pip3 unzip shc rsync csplit git mc; then
-        if [ -n "$(which apt-get)" ]; then
-            try_as_root apt -qq update
-            try_as_root apt -qq -y install wget curl unzip shc rsync python3-pip coreutils git tig mc
+    if not_installed wget curl pip3 unzip cc shc rsync csplit git mc; then
+        if ! not_installed apt-get; then
+            apt_packages_install wget curl unzip gcc shc rsync python3-pip coreutils git tig mc
             return
         fi
-        if [ -n "$(which yum)" ]; then
-            try_as_root yum install epel-release
-            try_as_root yum install wget curl unzip shc rsync python-pip coreutils git tig mc
+        if ! not_installed yum; then
+            yum_packages_install wget curl unzip gcc shc rsync python3-pip coreutils git tig mc
             return
         fi
-        if [ -n "$(which dnf)" ]; then
-            try_as_root dnf install epel-release
-            try_as_root dnf install wget curl unzip shc rsync python-pip coreutils git tig mc
+        if ! not_installed dnf; then
+            dnf_packages_install wget curl unzip gcc shc rsync python-pip coreutils git tig mc
             return
         fi
     fi
