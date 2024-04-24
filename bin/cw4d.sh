@@ -483,14 +483,14 @@ build_shc() {
 apt_packages_install() {
     not_installed apt && return
     local command
-    try_as_root apt -qq update
+    try_as_root apt-get update -qq >/dev/null
     for pkg in "$@"; do
         command=$pkg
         [ "$pkg" = "coreutils" ] && command="csplit"
         [ "$pkg" = "python3-pip" ] && command="pip3"
         if not_installed "$command"; then
-            echo "installinh pkg: $pkg"
-            try_as_root apt -qq -y install "$pkg" >/dev/null
+            echo "install pkg: $pkg"
+            try_as_root apt-get install -y -qq "$pkg" >/dev/null
         fi
     done
 }
