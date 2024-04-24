@@ -17,11 +17,20 @@
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ 1   # possible here are 0, 1, 2, 3
 
+#ROOT
+SSH_user="ec2-user"
+
 ~WALKMAN:
 region=eu-north-1
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
 instance_type=@@
-ami=@@
+#ami="ami-0506d6d51f1916a96" #Debian 12            SSH_user="admin"
+#ami="ami-010b74bc1a8b29122" #Ubuntu 20-04         SSH_user="ubunt"
+#ami="ami-0914547665e6a707c" #Ubuntu 22-04         SSH_user="ubuntu"
+#ami="ami-02c621fe0333f4afb" #SUSE SLES-15         SSH_user="ec2-user"
+#ami="ami-03035978b5aeb1274" #RHEL-9               SSH_user="ec2-user"
+#ami="ami-029e4db491be76287" #Amazon Linux 2023    SSH_user="ec2-user"
+ami="ami-0f0ec0d37d04440e3" # Amazon Linux 2       SSH_user="ec2-user"
 volume_size=@@
-<<<SET_access_artefacts | public_ip | "ec2-user" | $auto_key_private
+<<<SET_access_artefacts | public_ip | $SSH_user | $auto_key_private

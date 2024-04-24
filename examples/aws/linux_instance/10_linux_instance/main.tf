@@ -3,7 +3,10 @@ provider "aws" {
 }
 
 locals {
-  ssh_user = var.ami == "ami-0506d6d51f1916a96" ? "admin" : var.ami == "ami-0914547665e6a707c" || var.ami == "ami-010b74bc1a8b29122" ? "ubuntu" : "ec2-user"
+  debian_ami   = "ami-0506d6d51f1916a96" # Debian 12
+  ubuntu20_ami = "ami-010b74bc1a8b29122" #Ubuntu 20-04
+  ubuntu22_ami = "ami-0914547665e6a707c" #Ubuntu 22-04
+  ssh_user     = var.ami == local.debian_ami ? "admin" : var.ami == local.ubuntu20_ami || var.ami == local.ubuntu22_ami ? "ubuntu" : "ec2-user"
 }
 
 # Generating SSH key pair
@@ -92,7 +95,7 @@ resource "aws_instance" "my_project_instance" {
   security_groups = [aws_security_group.my_project_ssh.id]
 
   # Attaching public key to instance
-  key_name = "$(var.namespace)-key-pair"
+  key_name = aws_key_pair.my_key_pair.key_name
   tags = {
     Name = "my_project-instance"
   }
