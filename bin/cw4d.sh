@@ -483,6 +483,7 @@ build_shc() {
 apt_packages_install() {
     not_installed apt && return
     local command
+    echo "update repositories list"
     try_as_root DEBIAN_FRONTEND=noninteractive apt-get update -qq >/dev/null
     for pkg in "$@"; do
         command=$pkg
