@@ -474,7 +474,8 @@ build_shc() {
     cd shc || exit
     ./configure
     make
-    sudo make install
+    try_as_root make install
+    try_as_root mv /usr/local/bin/shc /usr/bin/shc
     cd ..
     rm -rf ./shc
 }
@@ -503,7 +504,7 @@ yum_packages_install() {
     for pkg in "$@"; do
         command=$pkg
         [ "$pkg" = "coreutils" ] && command="csplit"
-        [ "$pkg" = "python3-pip" ] && command=""
+        [ "$pkg" = "python3-pip" ] && command="pip3"
         not_installed "$command" && try_as_root yum install -y "$pkg"
     done
 }
@@ -526,15 +527,19 @@ dnf_packages_install() {
         try_as_root subscription-manager repos --enable "codeready-builder-for-rhel-9-$(arch)-rpms"
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y #RHEL-9
     fi
-
-    try_as_root dnf install -y "$@"
+    for pkg in "$@"; do
+        command=$pkg
+        [ "$pkg" = "coreutils" ] && command="csplit"
+        [ "$pkg" = "python3-pip" ] && command="pip3"
+        not_installed "$command" && try_as_root dnf install -y "$pkg"
+    done
 }
 
 system_pakages_install() {
     if not_installed wget curl pip3 unzip cc shc rsync csplit git mc nano; then
         apt_packages_install wget curl unzip gcc shc rsync python3-pip coreutils git tig mc nano
         yum_packages_install wget curl unzip gcc shc rsync python3-pip coreutils git tig mc nano
-        dnf_packages_install wget curl unzip gcc shc rsync python-pip coreutils git tig mc nano
+        dnf_packages_install wget curl unzip gcc automake shc rsync python-pip coreutils git tig mc nano podman
         build_shc
     fi
 }
