@@ -194,8 +194,14 @@ get_output_value() {
 }
 
 init_bash_inline_vars() {
-    echo "#!/bin/bash" >"$WS_INLINE_VARS"
-    export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" >>"$WS_INLINE_VARS"
+    echo "#!/bin/bash" >"$BASH_INLINE"
+    # shellcheck disable=SC2016
+    echo 'set_before=$( set -o posix; set | sed -e "/^_=*/d" )' >>"$BASH_INLINE"
+    chmod +x "$BASH_INLINE"
+    export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" | grep -v "NaN" >>"$BASH_INLINE"
+
+    echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+    export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" | grep -v "NaN"
 }
 
 inlines_engine() {
@@ -205,8 +211,20 @@ inlines_engine() {
         IN_BASH=1
         init_bash_inline_vars
     fi
-    [[ $1 =~ ^\*\/ ]] && IN_BASH=3
-    [ "$IN_BASH" -eq 2 ] && echo "$1" >>"$WS_INLINE_VARS"
+    if [[ $1 =~ ^\*\/ ]]; then
+        IN_BASH=3
+        # shellcheck disable=SC2016
+        {
+            echo 'set_after=$( set -o posix; unset set_before; set | sed -e "/^_=/d" )'
+            echo 'diff  <(echo "$set_before") <(echo "$set_after") | sed -e "s/^> //" -e "/^[[:digit:]].*/d" | sed "s/^/CW4D_/" > /tmp/walkman_bash_export.tmp'
+        } >>"$BASH_INLINE"
+        echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+        /bin/bash "$BASH_INLINE"
+        # shellcheck source=/dev/null
+        . /tmp/walkman_bash_export.tmp
+        echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+    fi
+    [ "$IN_BASH" -eq 2 ] && echo "$1" >>"$BASH_INLINE"
     #   [ "$IN_BASH" -ge 1 ] && echo "----$IN_BASH------------> $1"
 }
 
@@ -401,7 +419,7 @@ init_album_home() {
         ALBUM_SELF="$DIR_ALBUM_HOME/$album_name"
         DIR_ALBUM_META="$DIR_ALBUM_HOME/.meta"
         DIR_WS_TMP="$DIR_ALBUM_META/$WS_NAME/tmp"
-        WS_INLINE_VARS="$DIR_WS_TMP/inline_vars"
+        BASH_INLINE="$DIR_WS_TMP/bash_inline.sh"
         mkdir -p "$DIR_WS_TMP"
         FLAG_LOCK="$DIR_ALBUM_HOME/.album.lock"
         FLAG_ERR="$DIR_ALBUM_HOME/.album.err"

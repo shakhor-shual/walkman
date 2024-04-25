@@ -41,8 +41,10 @@ walkman_install=@@self/walkman_install
 <<<SET_access_artefacts | IP-public | $ssh_user | $auto_key_private
 
 /*bash
-[ -z "$walkman_install" ] && echo "Hello World"
+
+[ -n "$walkman_install" ] && echo "Hello World"
 zero="ss"
 
 vero="sd"
+ssh_user=new_user
 */
