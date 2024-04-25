@@ -25,26 +25,37 @@ vpc_name="@@this-vpc"
 host=@@this
 boot_disk_size=40
 
+######### DEPLOY GCP VM STAGE #################
 ~GCP_VM:
 project_id=@@last
 region=@@last
 vpc_name=@@last
 zone=@@last
 machine_type="n2-standard-2"
+
 /* #inlined BASH
 ((boot_disk_size++))
 */
+
 boot_disk_size=@@last
 boot_disk_type=@@
 boot_image="ubuntu-os-cloud/ubuntu-2004-lts"
-ssh_user=devops
+#inlined BASH
+/*
+if [[ $boot_image =~ "ubuntu" ]]; then
+    ssh_user="ubuntu"
+else
+    ssh_user="devops"
+fi
+*/
+ssh_user=@@last
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
 startup_script_file=@@
 walkman_install=@@self/walkman_install
 <<<SET_access_artefacts | IP-public | $ssh_user | $auto_key_private
 
-/*
+/* #inlined BASH
 if [ -n "$walkman_install" ]; then
     echo "Hello ALL World"
     zero="ssddfff EU UA"
