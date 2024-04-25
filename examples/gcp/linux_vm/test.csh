@@ -23,6 +23,7 @@ region="europe-west6"
 zone="$region-b"
 vpc_name="@@this-vpc"
 host=@@this
+boot_disk_size=40
 
 ~GCP_VM:
 project_id=@@last
@@ -30,7 +31,10 @@ region=@@last
 vpc_name=@@last
 zone=@@last
 machine_type="n2-standard-2"
-boot_disk_size=30
+/*
+((boot_disk_size++))
+*/
+boot_disk_size=@@last
 boot_disk_type=@@
 boot_image="ubuntu-os-cloud/ubuntu-2004-lts"
 ssh_user=devops
@@ -40,11 +44,13 @@ startup_script_file=@@
 walkman_install=@@self/walkman_install
 <<<SET_access_artefacts | IP-public | $ssh_user | $auto_key_private
 
-/*bash
-
-[ -n "$walkman_install" ] && echo "Hello World"
-zero="ss"
-
-vero="sd"
-ssh_user=new_user
+/*
+if [ -n "$walkman_install" ]; then
+    echo "Hello ALL World"
+    zero="ssddfff EU UA"
+    ssh_user=old_user
+else
+    zero="sd"
+    ssh_user=new_user
+fi
 */

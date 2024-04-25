@@ -198,10 +198,7 @@ init_bash_inline_vars() {
     # shellcheck disable=SC2016
     echo 'set_before=$( set -o posix; set | sed -e "/^_=*/d" )' >>"$BASH_INLINE"
     chmod +x "$BASH_INLINE"
-    export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" | grep -v "NaN" >>"$BASH_INLINE"
-
-    echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-    export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" | grep -v "NaN"
+    export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" | grep -v "NaN" | grep -v '""' >>"$BASH_INLINE"
 }
 
 inlines_engine() {
@@ -218,14 +215,13 @@ inlines_engine() {
             echo 'set_after=$( set -o posix; unset set_before; set | sed -e "/^_=/d" )'
             echo 'diff  <(echo "$set_before") <(echo "$set_after") | sed -e "s/^> //" -e "/^[[:digit:]].*/d" | sed "s/^/CW4D_/" > /tmp/walkman_bash_export.tmp'
         } >>"$BASH_INLINE"
-        echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+        echo "<<<<<<<<<<<<<<<<<< RUN BASH INLINED CODE >>>>>>>>>>>>>>>>>>>>>>>>>"
         /bin/bash "$BASH_INLINE"
         # shellcheck source=/dev/null
         . /tmp/walkman_bash_export.tmp
-        echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+        echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
     fi
     [ "$IN_BASH" -eq 2 ] && echo "$1" >>"$BASH_INLINE"
-    #   [ "$IN_BASH" -ge 1 ] && echo "----$IN_BASH------------> $1"
 }
 
 bashcl_translator() {
