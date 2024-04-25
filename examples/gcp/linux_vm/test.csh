@@ -15,7 +15,7 @@
 # limitations under the License.
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
-debug@@@ 0   # possible here are 0, 1, 2, 3
+debug@@@ 3   # possible here are 0, 1, 2, 3
 
 # ROOT
 project_id="foxy-test-415019"
@@ -37,4 +37,12 @@ ssh_user=devops
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
 startup_script_file=@@
+walkman_install=@@self/walkman_install
 <<<SET_access_artefacts | IP-public | $ssh_user | $auto_key_private
+
+/*bash
+[ -z "$walkman_install" ] && echo "Hello World"
+zero="ss"
+
+vero="sd"
+*/
