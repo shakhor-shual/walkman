@@ -195,7 +195,7 @@ get_output_value() {
 
 init_bash_inline_vars() {
     echo "#!/bin/bash" >"$WS_INLINE_VARS"
-    export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" >"$WS_INLINE_VARS"
+    export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" >>"$WS_INLINE_VARS"
 }
 
 inlines_engine() {
