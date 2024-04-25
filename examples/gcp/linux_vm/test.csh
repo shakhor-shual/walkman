@@ -31,7 +31,7 @@ region=@@last
 vpc_name=@@last
 zone=@@last
 machine_type="n2-standard-2"
-/*
+/* #inlined BASH
 ((boot_disk_size++))
 */
 boot_disk_size=@@last
