@@ -194,14 +194,11 @@ get_output_value() {
 }
 
 init_bash_inline_vars() {
-    #echo "#!/bin/bash" >$WS_INLINE_VARS
+    echo "#!/bin/bash" >"$WS_INLINE_VARS"
     export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" >"$WS_INLINE_VARS"
-    echo "-------------------------------SSSSSSSSSSSSSSSSSS-----------------------------------------------"
-    cat "$WS_INLINE_VARS"
 }
 
-bash_inlines_engine() {
-    echo "---------$IN_BASH--------------------> $1"
+inlines_engine() {
     [ "$IN_BASH" -eq 3 ] && IN_BASH=0
     [ "$IN_BASH" -eq 1 ] && IN_BASH=2
     if [[ $1 =~ ^\/\* ]]; then
@@ -210,11 +207,11 @@ bash_inlines_engine() {
     fi
     [[ $1 =~ ^\*\/ ]] && IN_BASH=3
     [ "$IN_BASH" -eq 2 ] && echo "$1" >>"$WS_INLINE_VARS"
-    [ "$IN_BASH" -ge 1 ] && echo "-----+++++++++++++++-----$IN_BASH--------------------> $1"
+    #   [ "$IN_BASH" -ge 1 ] && echo "----$IN_BASH------------> $1"
 }
 
 bashcl_translator() {
-    bash_inlines_engine "$1"
+    inlines_engine "$1"
     [ "$IN_BASH" -ge 1 ] && return
 
     local key_val
@@ -285,12 +282,12 @@ add_or_replace_var() {
 }
 
 export_vars_to_env() {
-    if [ -n "$2" ]; then #fast - vars only>> grep '=' |
+    if [ -n "$2" ]; then #fast - vars only
         while IFS= read -r key_val; do
             bashcl_translator "$key_val" "env"
         done < <(sed <"$1" 's/#.*$//;/^$/d' | grep -Ev '^~|<<<')
 
-    else #full-  vars & helpers>>  grep -E '=|<<<' |
+    else #full-  vars & helpers
         while IFS= read -r key_val; do
             bashcl_translator "$key_val" "env"
         done < <(sed <"$1" 's/#.*$//;/^$/d' | grep -v '^~')
@@ -311,8 +308,6 @@ tune_tfvars_for_workflow() {
     # create template-based part of dynamic tfvar (just exclude all macro-defined variables and extract only inline-defined )
     [ "$DEBUG" -ge 1 ] && echo "======== in ENV vars BEFORE stage tune:=========" && export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" && echo -e
     while IFS= read -r key_val; do
-        # for key_val in $(grep <"$1" '^[[:lower:]]'); do
-        echo "%%%%%%%%%%$1%%%%%%%%%%%%%%%%%%$key_val%%%%%%%%%%%%%%%"
         bashcl_translator "$key_val"
     done < <(sed <"$1" 's/#.*$//;/^$/d' | grep -Ev '^~|<<<') #<(grep <"$1" '^[[:lower:]]')
 
