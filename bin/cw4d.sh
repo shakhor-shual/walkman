@@ -52,18 +52,18 @@ GET_from_state_by_type() {
             fi
         fi
     done
-    echo "NULL"
+    #echo "NULL"
     cd "$stored_path" || exit
     return 1
 }
 
-SET_ansible_ready() {
-    if [ -f "$INVENTORY_HOST" ] && [ -f "$INVENTORY_LIST_TAIL" ] && [ -f "$INVENTORY_LIST_HEAD" ]; then
-        check_ansible_connection "$1" "$2" | grep ': \[' | tr -d '[' | tr -d ']' | tr '\n' ',' | tr -d ' ' | sed 's/.$//' | sed 's/^/"{/; s/$/}"/'
-    else
-        echo "{}"
-    fi
-}
+#SET_ansible_ready() {
+#    if [ -f "$INVENTORY_HOST" ] && [ -f "$INVENTORY_LIST_TAIL" ] && [ -f "$INVENTORY_LIST_HEAD" ]; then
+#        check_ansible_connection "$1" "$2" | grep ': \[' | tr -d '[' | tr -d ']' | tr '\n' ',' | tr -d ' ' | sed 's/.$//' | sed 's/^/"{/; s/$/}"/'
+#    else
+#        echo "{}"
+#    fi
+#}
 
 SET_access_artefacts() {
     [ -z "$SINGLE_LABEL" ] && return
@@ -85,20 +85,15 @@ SET_access_artefacts() {
     fi
 
     print_hosts_for_list_request "$ips" "$user" "$secret": >>"$INVENTORY_LIST_HEAD"
-    # ips=$(echo "$ips" | sed 's/,/ /;s/\[//;s/\]//')
 
     for ip in $(echo "$ips" | sed 's/,/ /;s/\[//;s/\]//'); do
-        # echo "ssh-keygen -f ~/.ssh/known_hosts -R $ip " >>$SINGLE_ECHO_FILE
-        #echo 'ssh  -o IdentitiesOnly=yes -i $KEY_FILE '$2'@'$ip >>$SINGLE_ECHO_FILE
+        # shellcheck disable=SC2016
         echo 'ssh  -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i $KEY_FILE '"$user"'@'"$ip" >>"$SINGLE_ECHO_FILE"
         print_hostvars_for_host_request "$ip" "$user" "$secret" >>"$INVENTORY_HOST"
         print_hostvars_for_list_request "$ip" "$user" "$secret" >>"$INVENTORY_LIST_TAIL"
     done
 
-    #  cat "$SINGLE_ECHO_FILE" >"$IN_SINGLE_ECHO_FILE"
     chmod 777 "$SINGLE_ECHO_FILE"
-    #  chmod 777 "$IN_SINGLE_ECHO_FILE"
-
     echo "$ips"
 }
 
@@ -107,11 +102,16 @@ run_helper_by_name() {
     local helper_call_string
     local val
     local helper_name
-    helper_call_string="$(echo "$2" | sed 's/<<<//g; s/|/ /g;')"
+    if [[ $2 =~ '(' ]]; then
+        helper_call_string="$(echo "$2" | cut -d'(' -f 2 | cut -d ')' -f 1)"
+    else
+        helper_call_string="$(echo "$2" | tr -d ' ' | sed 's/<<<//; s/|/ /g;')"
+    fi
     helper_name="$(echo "$helper_call_string" | awk '{print $1}')"
 
     if helper_exists "$helper_name"; then
         val="$(eval "$helper_call_string $1")"
+
         if [ "$3" = "env" ]; then
             export CW4D_"$1"="$(eval echo "$val")" #$val
         else
@@ -180,17 +180,18 @@ extract_ip_from_state_file() {
     echo "[]"
 }
 
-var_not_exported() {
-    export | grep -q "$ENV_PREFIX$1" && return 1
-    return 0
+get_if_exported() {
+    export | grep -q "$ENV_PREFIX$1" && echo "" && return
+    # shellcheck disable=SC2005
+    echo "$(eval echo '$'"$ENV_PREFIX$1")"
 }
 
-get_output_value() {
+get_terraform_output_value() {
     local output
     output=$(echo "$1" | cut -d '/' -f 2)
     output=$(terraform output -raw -compact-warnings "$output" 2>/dev/null | awk '/Warnings/ {exit} {print}')
     [ -n "$output" ] && echo "$output" && return
-    echo "NaN"
+    echo ""
 }
 
 init_bash_inline_vars() {
@@ -231,11 +232,17 @@ bashcl_translator() {
     local key_val
     local key
     local val
-    key_val=$(echo "$1" | tr -d ' ' | grep -v '""' | sed 's/=~/=/;s/,~/,/;s/@@all/all/g' | tr '$' '\0' | sed "s/\o0[A-Za-z]/$ENV_PREFIX&/g" | sed "s/$ENV_PREFIX\o0/\o0$ENV_PREFIX/g" | tr '\0' '$' | tr -d '"')
+    local last
+    local self
+    local meta
+
+    key_val=$(echo "$1" | grep -v '""' | sed 's/=~/=/;s/,~/,/;s/@@all/all/g' | tr '$' '\0' | sed "s/\o0[A-Za-z]/$ENV_PREFIX&/g" | sed "s/$ENV_PREFIX\o0/\o0$ENV_PREFIX/g" | tr '\0' '$' | tr -d '"')
     [ -z "$key_val" ] && return
 
-    if echo "$key_val" | grep -q '^<<<'; then
-        key=$(echo "$key_val" | cut -d '|' -f 1 | sed 's/^<<<//')
+    #   if echo "$key_val" | grep -q '^<<<'; then
+    if [[ $key_val =~ ^\<\<\<* ]] || [[ $key_val =~ ^\$\(* ]]; then
+        [[ $key_val =~ ^\<\<\<* ]] && key=$(echo "$key_val" | cut -d '|' -f 1 | tr -d ' ' | sed 's/^<<<//')
+        [[ $key_val =~ ^\$\(* ]] && key=$(echo "$key_val" | cut -d '(' -f 2 | awk '{print $1}')
         val=$key_val
     else
         key=$(echo "$key_val" | sed 's/=/\o0/' | cut -d $'\000' -f 1)
@@ -243,42 +250,79 @@ bashcl_translator() {
     fi
     echo "$val" | grep -q ':' || val=$(echo "$val" | sed 's/^{/[/; s/}$/]/;') # set correct type brakets for list type
 
-    if echo "$val" | grep -q '@@last$'; then
-        var_not_exported "$key" && return
-        #val='$'"$ENV_PREFIX$key"
-        val=$(echo "$val" | tr '$' '\0' | sed "s/@@last/\o0$ENV_PREFIX$key/g" | tr '\0' '$')
-    fi
-    if echo "$val" | grep -q '++last$'; then
-        var_not_exported "$key" && return
-        val=$(increment_if_possible "$(eval echo '$'"$ENV_PREFIX$key")")
-        # echo "=======$(eval echo '$'"$ENV_PREFIX$key")=============$val==========="
-    fi
-
-    if [ -n "$SINGLE_LABEL" ]; then
-        echo "$val" | grep -q '@@meta' && val="$(echo "$val" | sed 's/@@meta/..\/.meta/')"
-    else
-        echo "$val" | grep -q '@@meta' && val="$DIR_ALBUM_HOME$(echo "$val" | sed 's/@@meta/\/.meta/')"
-    fi
-
-    if echo "$val" | grep -q '@@self'; then
-        val=$(get_output_value "$val")
-        export CW4D_"$key"="$val"
-        return
-    fi
-
-    if echo "$val" | grep -q '<<'; then # DO for HELPERS
-        run_helper_by_name "$key" "$val" "$2"
-    else # DO for VARIABLES
-        val="$(eval echo "$val")"
-        [ -z "$val" ] && return
-        val=$(echo "$val" | sed 's/^/"/;  s/$/"/; ')
-        if [ "$2" = "env" ]; then
-            export CW4D_"$key"="$(eval echo "$val")"
-            [ "$DEBUG" -ge 3 ] && echo "EVAL:==$key=$val=====>$key=$(eval echo "$val")=="
+    last=$(get_if_exported "$key")
+    case $val in
+    *"@@self"*)
+        self=$(get_terraform_output_value "$key")
+        # export CW4D_"$key"="$val"
+        val=${val//@@self/$self}
+        ;&
+    *"@@last"*)
+        val=${val//@@last/$last}
+        ;&
+    *"++last"*)
+        [ -n "$last" ] && last=$(increment_if_possible "$last")
+        val=${val//++last/$last}
+        ;&
+    *"@@meta"*)
+        meta="../.meta"
+        [ -z "$SINGLE_LABEL" ] && meta=$DIR_ALBUM_HOME/.meta
+        val=${val//@@meta/$meta}
+        ;&
+    *)
+        # shellcheck disable=SC2076 disable=SC2016
+        if [[ $val =~ '<<' ]] || [[ $val =~ '(' ]]; then
+            run_helper_by_name "$key" "$val" "$2"
         else
-            add_or_replace_var "$key" "$val"
+            val="$(eval echo "$val")"
+            [ -z "$val" ] && return
+            val=$(echo "$val" | sed 's/^/"/;  s/$/"/; ')
+            if [ "$2" = "env" ]; then
+                export CW4D_"$key"="$(eval echo "$val")"
+                [ "$DEBUG" -ge 3 ] && echo "EVAL:==$key=$val=====>$key=$(eval echo "$val")=="
+            else
+                add_or_replace_var "$key" "$val"
+            fi
         fi
-    fi
+        ;;
+    esac
+
+    # ============================OLD BASHCL TRANSLATOR======================================
+    #    if echo "$val" | grep -q '@@last$'; then
+    #        get_if_exported "$key" && return
+    #        val=$(echo "$val" | tr '$' '\0' | sed "s/@@last/\o0$ENV_PREFIX$key/g" | tr '\0' '$')
+    #    fi
+    #    if echo "$val" | grep -q '++last$'; then
+    #        get_if_exported "$key" && return
+    #        val=$(increment_if_possible "$(eval echo '$'"$ENV_PREFIX$key")")
+    #        # echo "=======$(eval echo '$'"$ENV_PREFIX$key")=============$val==========="
+    #    fi
+    #
+    #    if [ -n "$SINGLE_LABEL" ]; then
+    #        echo "$val" | grep -q '@@meta' && val="$(echo "$val" | sed 's/@@meta/..\/.meta/')"
+    #    else
+    #        echo "$val" | grep -q '@@meta' && val="$DIR_ALBUM_HOME$(echo "$val" | sed 's/@@meta/\/.meta/')"
+    #    fi
+
+    #    if echo "$val" | grep -q '@@self'; then
+    #        val=$(get_terraform_output_value "$val")
+    #        export CW4D_"$key"="$val"
+    #        return
+    #    fi
+
+    #  if echo "$val" | grep -q '<<'; then # DO for HELPERS
+    #      run_helper_by_name "$key" "$val" "$2"
+    #  else # DO for VARIABLES
+    #      val="$(eval echo "$val")"
+    #      [ -z "$val" ] && return
+    #      val=$(echo "$val" | sed 's/^/"/;  s/$/"/; ')
+    #      if [ "$2" = "env" ]; then
+    #          export CW4D_"$key"="$(eval echo "$val")"
+    #          [ "$DEBUG" -ge 3 ] && echo "EVAL:==$key=$val=====>$key=$(eval echo "$val")=="
+    #      else
+    #          add_or_replace_var "$key" "$val"
+    #      fi
+    #  fi
 }
 
 ############# VARs PROCESSING #################
@@ -323,7 +367,7 @@ tune_tfvars_for_workflow() {
     [ "$DEBUG" -ge 1 ] && echo "======== in ENV vars BEFORE stage tune:=========" && export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" && echo -e
     while IFS= read -r key_val; do
         bashcl_translator "$key_val"
-    done < <(sed <"$1" 's/#.*$//;/^$/d' | grep -Ev '^~|<<<') #<(grep <"$1" '^[[:lower:]]')
+    done < <(sed <"$1" 's/#.*$//;/^$/d' | grep -Ev '^~|^<<<|@@self|^\$') #<(grep <"$1" '^[[:alpha:]]')
 
     [ "$IN_BASH" -ge 1 ] && IN_BASH=0
     [ "$DEBUG" -ge 1 ] && echo "================ TUNED tvfars: ===================" && cat "$TF_VARS" && echo -e

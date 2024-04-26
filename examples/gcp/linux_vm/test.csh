@@ -52,8 +52,9 @@ ssh_user=@@last
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
 startup_script_file=@@
-walkman_install=@@self/walkman_install
-<<<SET_access_artefacts | IP-public | $ssh_user | $auto_key_private
+walkman_install=@@self
+$(SET_access_artefacts IP-public $ssh_user $auto_key_private)
+#<<<SET_access_artefacts | IP-public | $ssh_user | $auto_key_private
 
 /* #inlined BASH
 if [ -n "$walkman_install" ]; then
