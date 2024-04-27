@@ -199,13 +199,12 @@ init_bash_inline_vars() {
 
 run_bash_inlined_part() {
     echo "<<$1<<<<<<<<<<<<<<<< RUN BASH INLINED CODE >>>>>>>>>>>>>>>>>>>>>>>>>"
-    echo "mode:$2"
+    # echo "mode:$2"
     /bin/bash "$BASH_INLINE"
     set -o allexport
     # shellcheck source=/dev/null
     . /tmp/walkman_bash_export.tmp
     set +o allexport
-    echo "<<$1<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
 }
 
 inlines_engine() {
