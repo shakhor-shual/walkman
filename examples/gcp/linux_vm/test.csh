@@ -18,7 +18,7 @@ run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, de
 debug@@@ 2   # possible here are 0, 1, 2, 3
 
 # ROOT
-/*
+/* #Example of inlined BASH usage
 ext_size=30
 ((ext_size++))
 */
@@ -28,7 +28,7 @@ zone="$region-b"
 vpc_name="@@this-vpc"
 host=@@this
 boot_disk_size=$ext_size
-/* #inlined BASH
+/* # #Example of inlined BASH usage
 ((boot_disk_size++))
 */
 
@@ -40,7 +40,7 @@ vpc_name=@@last
 zone=@@last
 machine_type="n2-standard-2"
 
-/* #inlined BASH
+/* #Example of inlined BASH usage
 ((boot_disk_size++))
 echo $boot_disk_size
 */
@@ -66,11 +66,9 @@ $(SET_access_artefacts IP-public $ssh_user $auto_key_private)
 
 /* #inlined BASH
 if [ -n "$walkman_install" ]; then
-    echo "Hello ALL World"
-    eval
+    echo "Install Walkman on deployed VM"
+    eval $walkman_install
 else
-    echo "Hello JUST World"
-    zero="sd"
-    ssh_user=new_user
+    echo "Can't Install Walkman"
 fi
 */

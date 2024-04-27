@@ -94,6 +94,7 @@ run_helper_by_name() {
     local helper_call_string
     local val
     local helper_name
+    # shellcheck disable=SC2076
     if [[ $2 =~ '(' ]]; then
         helper_call_string="$(echo "$2" | cut -d'(' -f 2 | cut -d ')' -f 1)"
     else
@@ -104,7 +105,7 @@ run_helper_by_name() {
     if helper_exists "$helper_name"; then
         val="$(eval "$helper_call_string $1")"
         [[ "$3" =~ "env" ]] && export CW4D_"$1"="$(eval echo "$val")" #$val
-        [[ "$3" =~ "file" ]] && [[ "$1" != "$helper_name" ]] && add_or_replace_var "$1" "$val"
+        [[ "$1" != "$helper_name" ]] && [[ "$3" =~ "file" ]] && add_or_replace_var "$1" "$val"
     else
         finish_grace "err_helper" "$helper_name" "$ALBUM_SELF"
     fi
@@ -241,18 +242,14 @@ bashcl_translator() {
     local last
     local self
     local meta
-    local filter
 
     key_val=$(echo "$2" | grep -v '""' | sed 's/=~/=/;s/,~/,/;s/@@all/all/g' | tr '$' '\0' | sed "s/\o0[A-Za-z]/$ENV_PREFIX&/g" | sed "s/$ENV_PREFIX\o0/\o0$ENV_PREFIX/g" | tr '\0' '$' | tr -d '"')
     [ -z "$key_val" ] && return
-
-    [[ $key_val =~ "@@self" ]] && filter=1
 
     if [[ $key_val =~ ^\<\<\<* ]] || [[ $key_val =~ ^\$\(* ]]; then
         [[ $key_val =~ ^\<\<\<* ]] && key=$(echo "$key_val" | cut -d '|' -f 1 | tr -d ' ' | sed 's/^<<<//')
         [[ $key_val =~ ^\$\(* ]] && key=$(echo "$key_val" | cut -d '(' -f 2 | awk '{print $1}')
         val=$key_val
-        # file_filter=1
     else
         key=$(echo "$key_val" | sed 's/=/\o0/' | cut -d $'\000' -f 1)
         val=$(echo "$key_val" | sed 's/=/\o0/' | cut -d $'\000' -f 2)
@@ -263,7 +260,6 @@ bashcl_translator() {
     case $val in
     *"@@self"*)
         self=$(get_terraform_output_value "$key")
-        # export CW4D_"$key"="$val"
         val=${val//@@self/$self}
         ;&
     *"@@last"*)
@@ -286,9 +282,9 @@ bashcl_translator() {
             val="$(eval echo "$val")"
             [ -z "$val" ] && return
             val=$(echo "$val" | sed 's/^/"/;  s/$/"/; ')
-            [[ "$3" =~ "env" ]] && export CW4D_"$key"="$(eval echo "$val")"
 
-            [ -z "$filter" ] && [[ "$3" =~ "file" ]] && add_or_replace_var "$key" "$val"
+            [[ "$3" =~ "env" ]] && export CW4D_"$key"="$(eval echo "$val")"
+            [[ $key_val =~ "@@self" ]] || [[ "$3" =~ "file" ]] && add_or_replace_var "$key" "$val"
         fi
         ;;
     esac
@@ -1007,17 +1003,15 @@ case $RUN_MODE in
         STAGE_COUNT=0
         SINGLE_INIT_FILE="$DIR_WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
         SINGLE_LABEL="&root&"
-        echo "1  %%%%%%%%%%%%%$SINGLE_INIT_FILE%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
         update_variables_state "$SINGLE_INIT_FILE" "env_all"
-        ((STAGE_COUNT++))
 
+        STAGE_COUNT=1
         for stage_path in $(
             find "$DIR_ALBUM_HOME" -maxdepth 1 -type d | sort | grep -v '\.meta\|\.git' | tail -n +2
         ); do
             SINGLE_INIT_FILE="$DIR_WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
             SINGLE_LABEL=$(head <"$SINGLE_INIT_FILE" -n 1 | sed 's/#//g;s/ //g;s/://g;s/~//g;')
             SINGLE_ECHO_FILE=$DIR_ALBUM_META/ssh-to-$WS_NAME-$SINGLE_LABEL.sh
-            #  IN_SINGLE_ECHO_FILE=$DIR_META/.$SINGLE_LABEL.sh
 
             echo
             echo "############################## Stage-$STAGE_COUNT ################################"
@@ -1028,7 +1022,6 @@ case $RUN_MODE in
             if get_in_tf_packet_home "$stage_path"; then #get in packet dir
                 mkdir -p "$DIR_META"
                 draft_tfvars_from_packet_variables
-                echo "2  %%%%%%%%%%%%%%$SINGLE_INIT_FILE%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
                 update_variables_state "$SINGLE_INIT_FILE" "env_file"
 
                 terraform workspace select -or-create "$WS_NAME"
@@ -1052,7 +1045,6 @@ case $RUN_MODE in
                         terraform apply -auto-approve
                         TF_EC=$?
                         [ "$TF_EC" -eq 1 ] && finish_grace "err_tf" "$STAGE_COUNT" "$stage_path"
-                        echo "3  %%%%%%%%%%%$SINGLE_INIT_FILE%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
                         update_variables_state "$SINGLE_INIT_FILE" "env_after"
                     fi
                     ;;
