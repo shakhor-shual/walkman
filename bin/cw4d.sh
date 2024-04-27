@@ -240,8 +240,7 @@ bashcl_translator() {
     local key
     local val
     local last
-    local self
-    local meta
+    local tmp
 
     key_val=$(echo "$2" | grep -v '""' | sed 's/=~/=/;s/,~/,/;s/@@all/all/g' | tr '$' '\0' | sed "s/\o0[A-Za-z]/$ENV_PREFIX&/g" | sed "s/$ENV_PREFIX\o0/\o0$ENV_PREFIX/g" | tr '\0' '$' | tr -d '"')
     [ -z "$key_val" ] && return
@@ -259,8 +258,12 @@ bashcl_translator() {
     last=$(get_if_exported "$key")
     case $val in
     *"@@self"*)
-        self=$(get_terraform_output_value "$key")
-        val=${val//@@self/$self}
+        tmp=$(get_terraform_output_value "$key")
+        val=${val//@@self/$tmp}
+        ;&
+    *"@@")
+        tmp=$(grep <"$VARS_TF" "variable\|default" | sed ':a;N;$!ba;s/{\n/#/g' | tr -d ' ' | sed 's/variable"//;s/"//g' | grep "^$key" | sed 's/=/\o0/' | cut -d $'\000' -f 2)
+        val=${val//@@/$tmp}
         ;&
     *"@@last"*)
         val=${val//@@last/$last}
@@ -270,9 +273,9 @@ bashcl_translator() {
         val=${val//++last/$last}
         ;&
     *"@@meta"*)
-        meta="../.meta"
-        [ -z "$SINGLE_LABEL" ] && meta=$DIR_ALBUM_HOME/.meta
-        val=${val//@@meta/$meta}
+        tmp="../.meta"
+        [ -z "$SINGLE_LABEL" ] && tmp=$DIR_ALBUM_HOME/.meta
+        val=${val//@@meta/$tmp}
         ;&
     *)
         # shellcheck disable=SC2076 disable=SC2016
@@ -996,7 +999,7 @@ case $RUN_MODE in
         reset_album_tmp
         set_debug_mode
 
-        grep <"$ALBUM_SELF" -v '@@@' | sed 's/#.*$//;/^$/d' | sed "s/@@this/$WS_NAME/g;/=@@$/d" >"$ALBUM_VARS_DRAFT"
+        grep <"$ALBUM_SELF" -v '@@@' | sed 's/#.*$//;/^$/d' | sed "s/@@this/$WS_NAME/g" >"$ALBUM_VARS_DRAFT"
 
         sed <"$ALBUM_VARS_DRAFT" 's/^~/###~/' | csplit - -s '/^###~/' '{*}' -f "$DIR_WS_TMP/$WS_NAME" -b "%02d_vars.draft"
 
