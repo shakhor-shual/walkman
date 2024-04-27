@@ -67,10 +67,9 @@ $(SET_access_artefacts IP-public $ssh_user $auto_key_private)
 /* #inlined BASH
 if [ -n "$walkman_install" ]; then
     echo "Hello ALL World"
-    zero="ssddfff EU UA"
-    ssh_user=old_user
+    eval
 else
-    echo "Hello FUCKED World"
+    echo "Hello JUST World"
     zero="sd"
     ssh_user=new_user
 fi
