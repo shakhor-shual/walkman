@@ -28,11 +28,14 @@ check_ansible_connection() {
     local group=${1:-"all"}
     local delay=${2:-"30"}
     echo "- hosts: $group" >"$ANSIBLE_CHECKER"
-    echo "  gather_facts: no" >>"$ANSIBLE_CHECKER"
-    echo "  tasks:" >>"$ANSIBLE_CHECKER"
-    echo "  - name: Wait for hosts become reachable" >>"$ANSIBLE_CHECKER"
-    echo "    ansible.builtin.wait_for_connection:" >>"$ANSIBLE_CHECKER"
-    echo "      timeout: $delay" >>"$ANSIBLE_CHECKER"
+    {
+        echo "  gather_facts: no"
+        echo "  tasks:"
+        echo "  - name: Wait for hosts become reachable"
+        echo "    ansible.builtin.wait_for_connection:"
+        echo "      timeout: $delay"
+    } >>"$ANSIBLE_CHECKER"
+
     ansible-playbook -i "$ALBUM_SELF" "$ANSIBLE_CHECKER"
 }
 
@@ -125,8 +128,10 @@ increment_if_possible() {
             printf "%0${#BASH_REMATCH[2]}d" "$((10#${BASH_REMATCH[2]} + 1))" ||
             printf "${val}"
     else
-        tail=$(echo $val | sed 's/.*[0-9]//g')
-        head=$(echo $val | sed "s/$tail//")
+        # shellcheck disable=SC2001
+        tail=$(echo "$val" | sed 's/.*[0-9]//g')
+        # shellcheck disable=SC2001
+        head=$(echo "$val" | sed "s/$tail//")
 
         [[ ${head} =~ ^(.*[^0-9])?([0-9]+)$ ]] && [[ ${#BASH_REMATCH[1]} -gt 0 ]] &&
             printf "%s%0${#BASH_REMATCH[2]}d" "${BASH_REMATCH[1]}" "$((10#${BASH_REMATCH[2]} + 1))" ||
