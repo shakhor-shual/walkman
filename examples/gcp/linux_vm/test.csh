@@ -66,7 +66,7 @@ $(SET_access_artefacts IP-public $ssh_user $auto_key_private)
 
 /* #inlined BASH
 if [ -n "$walkman_install" ]; then
-    echo "Install Walkman on deployed VM"
+    echo "Wait 30 sec before Install Walkman on deployed VM"
     sleep 30
     eval $walkman_install
 else
