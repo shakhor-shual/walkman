@@ -15,15 +15,22 @@
 # limitations under the License.
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
-debug@@@ 3   # possible here are 0, 1, 2, 3
+debug@@@ 2   # possible here are 0, 1, 2, 3
 
 # ROOT
+/*
+ext_size=30
+((ext_size++))
+*/
 project_id="foxy-test-415019"
 region="europe-west6"
 zone="$region-b"
 vpc_name="@@this-vpc"
 host=@@this
-boot_disk_size=40
+boot_disk_size=$ext_size
+/* #inlined BASH
+((boot_disk_size++))
+*/
 
 ######### DEPLOY GCP VM STAGE #################
 ~GCP_VM:
@@ -35,6 +42,7 @@ machine_type="n2-standard-2"
 
 /* #inlined BASH
 ((boot_disk_size++))
+echo $boot_disk_size
 */
 
 boot_disk_size=@@last
@@ -62,6 +70,7 @@ if [ -n "$walkman_install" ]; then
     zero="ssddfff EU UA"
     ssh_user=old_user
 else
+    echo "Hello FUCKED World"
     zero="sd"
     ssh_user=new_user
 fi

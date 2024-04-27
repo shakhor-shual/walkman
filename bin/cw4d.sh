@@ -57,14 +57,6 @@ GET_from_state_by_type() {
     return 1
 }
 
-#SET_ansible_ready() {
-#    if [ -f "$INVENTORY_HOST" ] && [ -f "$INVENTORY_LIST_TAIL" ] && [ -f "$INVENTORY_LIST_HEAD" ]; then
-#        check_ansible_connection "$1" "$2" | grep ': \[' | tr -d '[' | tr -d ']' | tr '\n' ',' | tr -d ' ' | sed 's/.$//' | sed 's/^/"{/; s/$/}"/'
-#    else
-#        echo "{}"
-#    fi
-#}
-
 SET_access_artefacts() {
     [ -z "$SINGLE_LABEL" ] && return
     local ips='[]'
@@ -111,12 +103,8 @@ run_helper_by_name() {
 
     if helper_exists "$helper_name"; then
         val="$(eval "$helper_call_string $1")"
-
-        if [ "$3" = "env" ]; then
-            export CW4D_"$1"="$(eval echo "$val")" #$val
-        else
-            add_or_replace_var "$1" "$val"
-        fi
+        [[ "$3" =~ "env" ]] && export CW4D_"$1"="$(eval echo "$val")" #$val
+        [[ "$3" =~ "file" ]] && [[ "$1" != "$helper_name" ]] && add_or_replace_var "$1" "$val"
     else
         finish_grace "err_helper" "$helper_name" "$ALBUM_SELF"
     fi
@@ -181,9 +169,10 @@ extract_ip_from_state_file() {
 }
 
 get_if_exported() {
-    export | grep -q "$ENV_PREFIX$1" && echo "" && return
-    # shellcheck disable=SC2005
-    echo "$(eval echo '$'"$ENV_PREFIX$1")"
+    if export | grep -q "$ENV_PREFIX$1"; then
+        # shellcheck disable=SC2005
+        echo "$(eval echo '$'"$ENV_PREFIX$1")"
+    fi
 }
 
 get_terraform_output_value() {
@@ -202,31 +191,48 @@ init_bash_inline_vars() {
     export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" | grep -v "NaN" | grep -v '""' >>"$BASH_INLINE"
 }
 
+run_bash_inlined_part() {
+    echo "<<$1<<<<<<<<<<<<<<<< RUN BASH INLINED CODE >>>>>>>>>>>>>>>>>>>>>>>>>"
+    echo "mode:$2"
+    /bin/bash "$BASH_INLINE"
+    set -o allexport
+    # shellcheck source=/dev/null
+    . /tmp/walkman_bash_export.tmp
+    set +o allexport
+    echo "<<$1<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+}
+
 inlines_engine() {
     [ "$IN_BASH" -eq 3 ] && IN_BASH=0
     [ "$IN_BASH" -eq 1 ] && IN_BASH=2
-    if [[ $1 =~ ^\/\* ]]; then
+    if [[ $2 =~ ^\/\* ]]; then
         IN_BASH=1
         init_bash_inline_vars
     fi
-    if [[ $1 =~ ^\*\/ ]]; then
+    if [[ $2 =~ ^\*\/ ]]; then
         IN_BASH=3
         # shellcheck disable=SC2016
         {
             echo 'set_after=$( set -o posix; unset set_before; set | sed -e "/^_=/d" )'
             echo 'diff  <(echo "$set_before") <(echo "$set_after") | sed -e "s/^> //" -e "/^[[:digit:]].*/d" | sed "s/^/CW4D_/" > /tmp/walkman_bash_export.tmp'
         } >>"$BASH_INLINE"
-        echo "<<<<<<<<<<<<<<<<<< RUN BASH INLINED CODE >>>>>>>>>>>>>>>>>>>>>>>>>"
-        /bin/bash "$BASH_INLINE"
-        # shellcheck source=/dev/null
-        . /tmp/walkman_bash_export.tmp
-        echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+
+        if [ "$1" -ge 2 ]; then
+            if [ "$3" = "env_all" ] || [ "$3" = "env_file" ]; then
+                run_bash_inlined_part "$1" "$3"
+            fi
+        else
+            if [ "$3" = "env_all" ] || [ "$3" = "env_after" ]; then
+                run_bash_inlined_part "$1" "$3"
+            fi
+        fi
+        [ "$DEBUG" -ge 3 ] && echo "======== in ENV vars AFTER inlines:=========" && export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" && echo -e
     fi
-    [ "$IN_BASH" -eq 2 ] && echo "$1" >>"$BASH_INLINE"
+    [ "$IN_BASH" -eq 2 ] && echo "$2" >>"$BASH_INLINE"
 }
 
 bashcl_translator() {
-    inlines_engine "$1"
+    inlines_engine "$@"
     [ "$IN_BASH" -ge 1 ] && return
 
     local key_val
@@ -235,15 +241,18 @@ bashcl_translator() {
     local last
     local self
     local meta
+    local filter
 
-    key_val=$(echo "$1" | grep -v '""' | sed 's/=~/=/;s/,~/,/;s/@@all/all/g' | tr '$' '\0' | sed "s/\o0[A-Za-z]/$ENV_PREFIX&/g" | sed "s/$ENV_PREFIX\o0/\o0$ENV_PREFIX/g" | tr '\0' '$' | tr -d '"')
+    key_val=$(echo "$2" | grep -v '""' | sed 's/=~/=/;s/,~/,/;s/@@all/all/g' | tr '$' '\0' | sed "s/\o0[A-Za-z]/$ENV_PREFIX&/g" | sed "s/$ENV_PREFIX\o0/\o0$ENV_PREFIX/g" | tr '\0' '$' | tr -d '"')
     [ -z "$key_val" ] && return
 
-    #   if echo "$key_val" | grep -q '^<<<'; then
+    [[ $key_val =~ "@@self" ]] && filter=1
+
     if [[ $key_val =~ ^\<\<\<* ]] || [[ $key_val =~ ^\$\(* ]]; then
         [[ $key_val =~ ^\<\<\<* ]] && key=$(echo "$key_val" | cut -d '|' -f 1 | tr -d ' ' | sed 's/^<<<//')
         [[ $key_val =~ ^\$\(* ]] && key=$(echo "$key_val" | cut -d '(' -f 2 | awk '{print $1}')
         val=$key_val
+        # file_filter=1
     else
         key=$(echo "$key_val" | sed 's/=/\o0/' | cut -d $'\000' -f 1)
         val=$(echo "$key_val" | sed 's/=/\o0/' | cut -d $'\000' -f 2)
@@ -261,7 +270,7 @@ bashcl_translator() {
         val=${val//@@last/$last}
         ;&
     *"++last"*)
-        [ -n "$last" ] && last=$(increment_if_possible "$last")
+        # [ -n "$last" ] && last=$(increment_if_possible "$last")
         val=${val//++last/$last}
         ;&
     *"@@meta"*)
@@ -272,57 +281,17 @@ bashcl_translator() {
     *)
         # shellcheck disable=SC2076 disable=SC2016
         if [[ $val =~ '<<' ]] || [[ $val =~ '(' ]]; then
-            run_helper_by_name "$key" "$val" "$2"
+            run_helper_by_name "$key" "$val" "$3"
         else
             val="$(eval echo "$val")"
             [ -z "$val" ] && return
             val=$(echo "$val" | sed 's/^/"/;  s/$/"/; ')
-            if [ "$2" = "env" ]; then
-                export CW4D_"$key"="$(eval echo "$val")"
-                [ "$DEBUG" -ge 3 ] && echo "EVAL:==$key=$val=====>$key=$(eval echo "$val")=="
-            else
-                add_or_replace_var "$key" "$val"
-            fi
+            [[ "$3" =~ "env" ]] && export CW4D_"$key"="$(eval echo "$val")"
+
+            [ -z "$filter" ] && [[ "$3" =~ "file" ]] && add_or_replace_var "$key" "$val"
         fi
         ;;
     esac
-
-    # ============================OLD BASHCL TRANSLATOR======================================
-    #    if echo "$val" | grep -q '@@last$'; then
-    #        get_if_exported "$key" && return
-    #        val=$(echo "$val" | tr '$' '\0' | sed "s/@@last/\o0$ENV_PREFIX$key/g" | tr '\0' '$')
-    #    fi
-    #    if echo "$val" | grep -q '++last$'; then
-    #        get_if_exported "$key" && return
-    #        val=$(increment_if_possible "$(eval echo '$'"$ENV_PREFIX$key")")
-    #        # echo "=======$(eval echo '$'"$ENV_PREFIX$key")=============$val==========="
-    #    fi
-    #
-    #    if [ -n "$SINGLE_LABEL" ]; then
-    #        echo "$val" | grep -q '@@meta' && val="$(echo "$val" | sed 's/@@meta/..\/.meta/')"
-    #    else
-    #        echo "$val" | grep -q '@@meta' && val="$DIR_ALBUM_HOME$(echo "$val" | sed 's/@@meta/\/.meta/')"
-    #    fi
-
-    #    if echo "$val" | grep -q '@@self'; then
-    #        val=$(get_terraform_output_value "$val")
-    #        export CW4D_"$key"="$val"
-    #        return
-    #    fi
-
-    #  if echo "$val" | grep -q '<<'; then # DO for HELPERS
-    #      run_helper_by_name "$key" "$val" "$2"
-    #  else # DO for VARIABLES
-    #      val="$(eval echo "$val")"
-    #      [ -z "$val" ] && return
-    #      val=$(echo "$val" | sed 's/^/"/;  s/$/"/; ')
-    #      if [ "$2" = "env" ]; then
-    #          export CW4D_"$key"="$(eval echo "$val")"
-    #          [ "$DEBUG" -ge 3 ] && echo "EVAL:==$key=$val=====>$key=$(eval echo "$val")=="
-    #      else
-    #          add_or_replace_var "$key" "$val"
-    #      fi
-    #  fi
 }
 
 ############# VARs PROCESSING #################
@@ -339,38 +308,24 @@ add_or_replace_var() {
     sed -i 's/\,/"\,"/g; s/\:/"\:"/g; s/""/"/g; s/"\:"\/\//\:\/\//g' "$TF_VARS"
 }
 
-export_vars_to_env() {
-    if [ -n "$2" ]; then #fast - vars only
-        while IFS= read -r key_val; do
-            bashcl_translator "$key_val" "env"
-        done < <(sed <"$1" 's/#.*$//;/^$/d' | grep -Ev '^~|<<<')
-
-    else #full-  vars & helpers
-        while IFS= read -r key_val; do
-            bashcl_translator "$key_val" "env"
-        done < <(sed <"$1" 's/#.*$//;/^$/d' | grep -v '^~')
-    fi
+update_variables_state() {
+    local rest
+    [ "$DEBUG" -ge 2 ] && echo "======== in ENV vars BEFORE stage tune:=========" && export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" && echo -e
+    rest=$(wc -l < <(sed <"$1" 's/#.*$//;/^$/d' | grep -v '^~'))
+    while IFS= read -r key_val; do
+        bashcl_translator "$rest" "$key_val" "$2"
+        ((rest--))
+    done < <(sed <"$1" 's/#.*$//;/^$/d' | grep -v '^~')
 
     [ "$IN_BASH" -ge 1 ] && IN_BASH=0
-    [ "$DEBUG" -ge 2 ] && echo "======== in ENV vars AFTER stage tune:=========" && export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" && echo -e
-    #init_bash_inline_vars
+    [ "$DEBUG" -ge 2 ] && [ -n "$2" ] && echo "======== in ENV vars AFTER stage tune:=========" && export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" && echo -e
+    [ "$DEBUG" -ge 2 ] && [ -z "$2" ] && echo "================ TUNED tvfars: ================" && cat "$TF_VARS" && echo -e
 }
 
 draft_tfvars_from_packet_variables() {
     #  create ENV-based part of dynamic tfvars (lookup in packet variables.tf for each variable and assign its value from corresponding ENV var)
     grep <"$VARS_TF" '{' | grep variable | sed 's/"//g' | awk -v val="$ENV_PREFIX" '{print "echo " $2 "=$" val $2  }' | bash | sed 's/=/="/g' | sed 's/$/"/' | grep -v '""' >"$TF_VARS"
-    [ "$DEBUG" -ge 1 ] && echo "================ DRAFTED tvfars: ===================" && cat "$TF_VARS" && echo -e
-}
-
-tune_tfvars_for_workflow() {
-    # create template-based part of dynamic tfvar (just exclude all macro-defined variables and extract only inline-defined )
-    [ "$DEBUG" -ge 1 ] && echo "======== in ENV vars BEFORE stage tune:=========" && export | grep $ENV_PREFIX | sed "s/^declare -x //;s/$ENV_PREFIX//" && echo -e
-    while IFS= read -r key_val; do
-        bashcl_translator "$key_val"
-    done < <(sed <"$1" 's/#.*$//;/^$/d' | grep -Ev '^~|^<<<|@@self|^\$') #<(grep <"$1" '^[[:alpha:]]')
-
-    [ "$IN_BASH" -ge 1 ] && IN_BASH=0
-    [ "$DEBUG" -ge 1 ] && echo "================ TUNED tvfars: ===================" && cat "$TF_VARS" && echo -e
+    [ "$DEBUG" -ge 1 ] && echo "=============== DRAFTED tvfars: ===================" && cat "$TF_VARS" && echo -e
 }
 
 ################ DYNAMIC INVENTORY ####################
@@ -1046,10 +1001,16 @@ case $RUN_MODE in
         set_debug_mode
 
         grep <"$ALBUM_SELF" -v '@@@' | sed 's/#.*$//;/^$/d' | sed "s/@@this/$WS_NAME/g;/=@@$/d" >"$ALBUM_VARS_DRAFT"
-        export_vars_to_env "$ALBUM_VARS_DRAFT" "fast"
+
         sed <"$ALBUM_VARS_DRAFT" 's/^~/###~/' | csplit - -s '/^###~/' '{*}' -f "$DIR_WS_TMP/$WS_NAME" -b "%02d_vars.draft"
 
-        STAGE_COUNT=1
+        STAGE_COUNT=0
+        SINGLE_INIT_FILE="$DIR_WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
+        SINGLE_LABEL="&root&"
+        echo "1  %%%%%%%%%%%%%$SINGLE_INIT_FILE%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+        update_variables_state "$SINGLE_INIT_FILE" "env_all"
+        ((STAGE_COUNT++))
+
         for stage_path in $(
             find "$DIR_ALBUM_HOME" -maxdepth 1 -type d | sort | grep -v '\.meta\|\.git' | tail -n +2
         ); do
@@ -1066,10 +1027,9 @@ case $RUN_MODE in
 
             if get_in_tf_packet_home "$stage_path"; then #get in packet dir
                 mkdir -p "$DIR_META"
-                #   echo "#~""$SINGLE_LABEL" >"$IN_SINGLE_ECHO_FILE"
                 draft_tfvars_from_packet_variables
-                tune_tfvars_for_workflow "$SINGLE_INIT_FILE"
-                export_vars_to_env "$TF_VARS" # export_vars_to_env "$TF_VARS"
+                echo "2  %%%%%%%%%%%%%%$SINGLE_INIT_FILE%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+                update_variables_state "$SINGLE_INIT_FILE" "env_file"
 
                 terraform workspace select -or-create "$WS_NAME"
                 case $RUN_MODE in
@@ -1092,7 +1052,8 @@ case $RUN_MODE in
                         terraform apply -auto-approve
                         TF_EC=$?
                         [ "$TF_EC" -eq 1 ] && finish_grace "err_tf" "$STAGE_COUNT" "$stage_path"
-                        export_vars_to_env "$SINGLE_INIT_FILE"
+                        echo "3  %%%%%%%%%%%$SINGLE_INIT_FILE%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+                        update_variables_state "$SINGLE_INIT_FILE" "env_after"
                     fi
                     ;;
                 esac
@@ -1120,7 +1081,8 @@ case $RUN_MODE in
                         ;;
                     *) echo "This UNKNOWN packet!!!" ;;
                     esac
-                    export_vars_to_env "$SINGLE_INIT_FILE"
+                    echo "4  %%%%%%%%%%%%%%$SINGLE_INIT_FILE%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+                    update_variables_state "$SINGLE_INIT_FILE"
                 fi
             fi
             ((STAGE_COUNT++))
