@@ -1073,8 +1073,7 @@ case $RUN_MODE in
                         ;;
                     *) echo "This UNKNOWN packet!!!" ;;
                     esac
-                    echo "4  %%%%%%%%%%%%%%$SINGLE_INIT_FILE%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
-                    update_variables_state "$SINGLE_INIT_FILE"
+                    update_variables_state "$SINGLE_INIT_FILE" "env_all"
                 fi
             fi
             ((STAGE_COUNT++))
