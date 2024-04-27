@@ -284,7 +284,7 @@ bashcl_translator() {
             val=$(echo "$val" | sed 's/^/"/;  s/$/"/; ')
 
             [[ "$3" =~ "env" ]] && export CW4D_"$key"="$(eval echo "$val")"
-            [[ $key_val =~ "@@self" ]] || [[ "$3" =~ "file" ]] && add_or_replace_var "$key" "$val"
+            [[ ! $key_val =~ "@@self" ]] && [[ "$3" =~ "file" ]] && add_or_replace_var "$key" "$val"
         fi
         ;;
     esac
