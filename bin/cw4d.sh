@@ -564,7 +564,8 @@ yum_packages_install() {
         try_as_root yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm #RHEL-7
     fi
 
-    if grep </etc/os-release -q "CENTOS"; then
+    if grep </etc/os-release -q "CentOS"; then
+        export LC_CTYPE="en_US.UTF-8"
         try_as_root yum -y install epel-release # CENTOS-7
     fi
     for pkg in "$@"; do
@@ -578,7 +579,7 @@ yum_packages_install() {
 dnf_packages_install() {
     not_installed dnf && return
     local command
-    if grep </etc/os-release -q "CENTOS"; then
+    if grep </etc/os-release -q "CentOS"; then
         try_as_root sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
         try_as_root sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y
@@ -673,10 +674,12 @@ init_home_local_bin() {
     fi
 
     if not_installed ansible; then
+        try_as_root pip3 install --upgrade pip
+
         if [ "$user" = "$(whoami)" ]; then
             python3 -m pip install --user ansible-core
         else
-            sudo -H -u "$user" python3 -m pip install --user ansible-core
+            try_as_root -H -u "$user" python3 -m pip install --user ansible-core
             fix_user_home "$user"
         fi
     fi

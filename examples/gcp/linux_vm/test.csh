@@ -47,7 +47,10 @@ echo $boot_disk_size
 
 boot_disk_size=@@last
 boot_disk_type=@@
-boot_image="ubuntu-os-cloud/ubuntu-2004-lts"
+boot_image="centos-cloud/centos-7"
+#boot_image="centos-cloud/centos-stream-8"
+#boot_image="centos-cloud/centos-stream-9"
+#boot_image="ubuntu-os-cloud/ubuntu-2004-lts"
 #inlined BASH
 /*
 if [[ $boot_image =~ "ubuntu" ]]; then
