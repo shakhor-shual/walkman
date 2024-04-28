@@ -565,6 +565,7 @@ yum_packages_install() {
     fi
 
     if grep </etc/os-release -q "CentOS"; then
+        export LANG="en_US.UTF-8"
         export LC_CTYPE="en_US.UTF-8"
         try_as_root yum -y install epel-release # CENTOS-7
     fi
@@ -603,10 +604,10 @@ dnf_packages_install() {
 }
 
 system_pakages_install() {
-    if not_installed wget curl pip3 unzip cc shc rsync csplit git mc nano; then
-        apt_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano
-        yum_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano
-        dnf_packages_install wget curl unzip gcc automake shc rsync python-pip coreutils git tig mc nano podman
+    if not_installed wget curl pip3 unzip cc shc rsync csplit git mc nano openssl; then
+        apt_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano openssl
+        yum_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano openssl
+        dnf_packages_install wget curl unzip gcc automake shc rsync python-pip coreutils git tig mc nano podman openssl
         build_shc
     fi
 }
@@ -655,6 +656,7 @@ init_home_local_bin() {
                 curl -fsSL https://get.docker.com -o get-docker.sh
                 try_as_root sh ./get-docker.sh
                 try_as_root systemctl enable /usr/lib/systemd/system/docker.service
+                try_as_root systemctl start docker.service
             fi
             try_as_root usermod -aG docker "$user"
         fi
