@@ -581,12 +581,7 @@ dnf_packages_install() {
     not_installed dnf && return
     local command
     if grep </etc/os-release -q "CentOS"; then
-        try_as_root sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
-        try_as_root sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
-        # shellcheck disable=SC2076 disable=SC2016
-        try_as_root sed -i 's|$basearch/os|Source|g' /etc/yum.repos.d/CentOS-*
-        # shellcheck disable=SC2076 disable=SC2016
-        try_as_root sed -i 's|$basearch|Source|g' /etc/yum.repos.d/CentOS-*
+
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y
         try_as_root dnf config-manager --set-enabled PowerTools
     fi
@@ -611,7 +606,7 @@ system_pakages_install() {
     if not_installed wget curl pip3 unzip cc shc rsync csplit git mc nano openssl; then
         apt_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano openssl
         yum_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano openssl
-        dnf_packages_install wget curl unzip gcc automake shc rsync python-pip coreutils git tig mc nano podman openssl
+        dnf_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano podman podman-compose openssl
         build_shc
     fi
 }
@@ -663,9 +658,10 @@ init_home_local_bin() {
                 try_as_root systemctl start docker.service
             fi
             try_as_root usermod -aG docker "$user"
+        else
+            ln -s "$(which podman)" "$user_home_bin/docker"
+            ln -s "$(which podman-compose)" "$user_home_bin/docker-compose"
         fi
-    else
-        ln -s "$(which podman)" "$user_home_bin/docker"
     fi
 
     if not_installed jq; then
