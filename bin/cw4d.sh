@@ -581,7 +581,6 @@ dnf_packages_install() {
     not_installed dnf && return
     local command
     if grep </etc/os-release -q "CentOS"; then
-
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y
         try_as_root dnf config-manager --set-enabled PowerTools
     fi
