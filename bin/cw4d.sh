@@ -538,13 +538,15 @@ build_shc() {
 }
 
 os_detect() {
-    grep </etc/os-release -q "RHEL-9" && echo "RHEL-9" && return
-    grep </etc/os-release -q "RHEL-8" && echo "RHEL-8" && return
-    grep </etc/os-release -q "Red Hat Enterprise Linux Server 7" && echo "RHEL-7" && return
-
+    if grep </etc/os-release -q "Red Hat"; then
+        grep </etc/os-release -q "Linux 9" && echo "RHEL-9" && return
+        grep </etc/os-release -q "Linux 8" && echo "RHEL-8" && return
+        grep </etc/os-release -q "Linux Server 7" && echo "RHEL-7" && return
+    fi
     if grep </etc/os-release -q "CentOS"; then
         grep </etc/os-release -q "Stream 9" && echo "CENTOS-9" && return
         grep </etc/os-release -q "Stream 8" && echo "CENTOS-8" && return
+        grep </etc/os-release -q "Linux 7" && echo "CENTOS-7" && return
     fi
     if grep </etc/os-release -q "Amazon Linux"; then
         grep </etc/os-release -q "2023" && echo "AMAZON-2023" && return

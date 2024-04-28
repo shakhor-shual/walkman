@@ -117,6 +117,10 @@ output "user_project_ssh" {
   value = "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i ${abspath(var.auto_key_private)} ${local.ssh_user}@${aws_instance.my_project_instance.public_ip}"
 }
 
+output "walkman_install" {
+  value = "cw4d.sh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i ${abspath(var.auto_key_private)} ${local.ssh_user}@${aws_instance.my_project_instance.public_ip}"
+}
+
 output "ssh_user" {
   value = local.ssh_user
 }

@@ -49,16 +49,16 @@ boot_disk_size=@@last
 boot_disk_type=@@
 #boot_image="suse-cloud/sles-12"
 #boot_image="suse-cloud/sles-15"
-boot_image="rhel-cloud/rhel-7"
-#boot_image="rhel-cloud/rhel-8"                          #checked
-#boot_image="rhel-cloud/rhel-9"
-#boot_image="centos-cloud/centos-7"                      #checked
-#boot_image="centos-cloud/centos-stream-8"               #checked
-#boot_image="centos-cloud/centos-stream-9"               #checked
+#boot_image="rhel-cloud/rhel-7" #checked
+#boot_image="rhel-cloud/rhel-8" #checked
+boot_image="rhel-cloud/rhel-9" #checked
+#boot_image="centos-cloud/centos-7" #checked
+#boot_image="centos-cloud/centos-stream-8"  #checked
+#boot_image="centos-cloud/centos-stream-9"  #checked
 #boot_image="fedora-coreos-cloud/fedora-coreos-stable"
 #boot_image="rocky-linux-cloud/rocky-linux-8"
 #boot_image="rocky-linux-cloud/rocky-linux-9"
-#boot_image="ubuntu-os-cloud/ubuntu-2004-lts"           #checked
+#boot_image="ubuntu-os-cloud/ubuntu-2004-lts" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2204-lts"
 #boot_image="ubuntu-os-cloud/ubuntu-2404-lts"
 #boot_image="debian-cloud/debian-10"
@@ -77,6 +77,8 @@ ssh_user=@@last
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
 startup_script_file=@@
+
+#returned parameters
 walkman_install=@@self
 $(SET_access_artefacts IP-public $ssh_user $auto_key_private)
 #<<<SET_access_artefacts | IP-public | $ssh_user | $auto_key_private
@@ -86,6 +88,7 @@ if [ -n "$walkman_install" ]; then
     echo "Wait 30 sec before Install Walkman on deployed VM"
     sleep 30
     eval $walkman_install
+    echo $walkman_install
 else
     echo "Can't Install Walkman"
 fi
