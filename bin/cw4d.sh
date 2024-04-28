@@ -581,8 +581,14 @@ dnf_packages_install() {
     not_installed dnf && return
     local command
     if grep </etc/os-release -q "CentOS"; then
-        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y
-        try_as_root dnf config-manager --set-enabled PowerTools
+
+        if grep </etc/os-release -q "Stream 9"; then
+            try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y #CentOS-9
+            try_as_root dnf config-manager --set-enabled PowerTools
+        else
+            try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y #CentOS-8
+            try_as_root dnf config-manager --set-enabled PowerTools
+        fi
     fi
     if grep </etc/os-release -q "RHEL-8"; then
         try_as_root dnf update -y
