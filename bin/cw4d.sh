@@ -537,7 +537,23 @@ build_shc() {
     rm -rf ./shc
 }
 
+os_detect() {
+    grep </etc/os-release -q "RHEL-9" && echo "RHEL-9" && return
+    grep </etc/os-release -q "RHEL-8" && echo "RHEL-8" && return
+    grep </etc/os-release -q "Red Hat Enterprise Linux Server 7" && echo "RHEL-7" && return
+
+    if grep </etc/os-release -q "CentOS"; then
+        grep </etc/os-release -q "Stream 9" && echo "CENTOS-9" && return
+        grep </etc/os-release -q "Stream 8" && echo "CENTOS-8" && return
+    fi
+    if grep </etc/os-release -q "Amazon Linux"; then
+        grep </etc/os-release -q "2023" && echo "AMAZON-2023" && return
+        echo "AMAZON-2" && return
+    fi
+}
+
 apt_packages_install() {
+
     not_installed apt && return
     local command
     echo "update repositories list"
@@ -556,19 +572,24 @@ apt_packages_install() {
 yum_packages_install() {
     not_installed yum && return
     local command
-    if grep </etc/os-release -v "2023\|NAME" | grep -q "Amazon Linux"; then
-        try_as_root amazon-linux-extras install epel -y #for Amazon Linux 2
-    fi
 
-    if grep </etc/os-release -q "RHEL"; then
-        try_as_root yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm #RHEL-7
-    fi
-
-    if grep </etc/os-release -q "CentOS"; then
+    case $(os_detect) in
+    "CENTOS-7")
         export LANG="en_US.UTF-8"
         export LC_CTYPE="en_US.UTF-8"
         try_as_root yum -y install epel-release # CENTOS-7
-    fi
+        ;;
+    "RHEL-7")
+        export LANG="en_US.UTF-8"
+        export LC_CTYPE="en_US.UTF-8"
+        try_as_root yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm 2>/dev/null #RHEL-7
+        ;;
+    "AMAZON-2")
+        try_as_root amazon-linux-extras install epel -y #for Amazon Linux 2
+        ;;
+    "AMAZON-2023") ;;
+    esac
+
     for pkg in "$@"; do
         command=$pkg
         [ "$pkg" = "coreutils" ] && command="csplit"
@@ -580,25 +601,27 @@ yum_packages_install() {
 dnf_packages_install() {
     not_installed dnf && return
     local command
-    if grep </etc/os-release -q "CentOS"; then
 
-        if grep </etc/os-release -q "Stream 9"; then
-            try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y #CentOS-9
-            try_as_root dnf config-manager --set-enabled PowerTools
-        else
-            try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y #CentOS-8
-            try_as_root dnf config-manager --set-enabled PowerTools
-        fi
-    fi
-    if grep </etc/os-release -q "RHEL-8"; then
+    case $(os_detect) in
+    "CENTOS-8")
+        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y 2>/dev/null #CentOS-8
+        try_as_root dnf config-manager --set-enabled PowerTools
+        ;;
+    "CENTOS-9")
+        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y 2>/dev/null #CentOS-9
+        try_as_root dnf config-manager --set-enabled PowerTools
+        ;;
+    "RHEL-8")
         try_as_root dnf update -y
-        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y #RHEL-8
-    fi
-    if grep </etc/os-release -q "RHEL-9"; then
+        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y 2>/dev/null #RHEL-8
+        ;;
+    "RHEL-9")
         try_as_root dnf update -y
         try_as_root subscription-manager repos --enable "codeready-builder-for-rhel-9-$(arch)-rpms"
-        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y #RHEL-9
-    fi
+        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y 2>/dev/null #RHEL-9
+        ;;
+    esac
+
     for pkg in "$@"; do
         command=$pkg
         [ "$pkg" = "coreutils" ] && command="csplit"
@@ -610,8 +633,11 @@ dnf_packages_install() {
 system_pakages_install() {
     if not_installed wget curl pip3 unzip cc shc rsync csplit git mc nano openssl; then
         apt_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano openssl
+
         yum_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano openssl
-        dnf_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano podman podman-compose openssl
+        [ "$(os_detect)" = "RHEL-7" ] && yum_packages_install podman podman-compose
+
+        dnf_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano podman openssl
         build_shc
     fi
 }
@@ -664,8 +690,13 @@ init_home_local_bin() {
             fi
             try_as_root usermod -aG docker "$user"
         else
-            ln -s "$(which podman)" "$user_home_bin/docker"
-            ln -s "$(which podman-compose)" "$user_home_bin/docker-compose"
+            try_as_root ln -s "$(which podman)" "$user_home_bin/docker"
+
+            if not_installed podman-compose; then
+                try_as_root -H -u "$user" python3 -m pip install --user podman-compose
+                try_as_root ln -s "$(which podman-compose)" "$user_home_bin/docker-compose"
+            fi
+            fix_user_home "$user"
         fi
     fi
 
