@@ -347,7 +347,7 @@ print_hostvars_for_list_request() {
 
 print_hosts_for_list_request() { #head
     local hosts
-    hosts=${1//\"/} #$(echo "$1" | sed 's/"//g;')
+    hosts=${1//\"/}
     [ "$hosts" = "[]" ] && return
     hosts=$(echo "$hosts" | sed 's/\[/\["/;s/\]/"\]/; s/,/","/g')
     echo -n "\"$SINGLE_LABEL\":{"
@@ -583,6 +583,10 @@ dnf_packages_install() {
     if grep </etc/os-release -q "CentOS"; then
         try_as_root sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
         try_as_root sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+        # shellcheck disable=SC2076 disable=SC2016
+        try_as_root sed -i 's|$basearch/os|Source|g' /etc/yum.repos.d/CentOS-*
+        # shellcheck disable=SC2076 disable=SC2016
+        try_as_root sed -i 's|$basearch|Source|g' /etc/yum.repos.d/CentOS-*
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y
         try_as_root dnf config-manager --set-enabled PowerTools
     fi
