@@ -578,11 +578,15 @@ yum_packages_install() {
         export LANG="en_US.UTF-8"
         export LC_CTYPE="en_US.UTF-8"
         try_as_root yum -y install epel-release # CENTOS-7
+        echo "user.max_user_namespaces=10000" | try_as_root tee /etc/sysctl.d/42-rootless.conf
+        try_as_root sysctl --system
         ;;
     "RHEL-7")
         export LANG="en_US.UTF-8"
         export LC_CTYPE="en_US.UTF-8"
         try_as_root yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm 2>/dev/null #RHEL-7
+        echo "user.max_user_namespaces=10000" | try_as_root tee /etc/sysctl.d/42-rootless.conf
+        try_as_root sysctl --system
         ;;
     "AMAZON-2")
         try_as_root amazon-linux-extras install epel -y #for Amazon Linux 2
