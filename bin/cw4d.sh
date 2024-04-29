@@ -583,20 +583,15 @@ apt_packages_install() {
 }
 
 zypper_packages_install() {
-
     not_installed zypper && return
     local command
-    #  echo "update repositories list"
-    #  try_as_root DEBIAN_FRONTEND=noninteractive apt-get update -qq >/dev/null
-    # shellcheck disable=SC2046
-    #  not_installed pipx && try_as_root apt-get install -y pipx >/dev/null 2>&1
     for pkg in "$@"; do
         command=$pkg
         [ "$pkg" = "coreutils" ] && command="csplit"
         [ "$pkg" = "python3-pip" ] && command="pip3"
         if not_installed "$command"; then
             echo "install pkg: $pkg"
-            try_as_root zypper install -y "$pkg"
+            try_as_root zypper install -y "$pkg" >/dev/null 2>&1
         fi
     done
 }
