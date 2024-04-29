@@ -704,7 +704,7 @@ system_pakages_install() {
 
         dnf_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano podman openssl
 
-        zypper_packages_install wget curl unzip gcc make automake rsync python3-pip coreutils git tig mc nano podman openssl
+        zypper_packages_install wget curl unzip gcc make automake rsync python3-pip coreutils git tig mc nano openssl
         build_shc
     fi
 }
@@ -752,19 +752,24 @@ init_home_local_bin() {
 
     if not_installed docker; then
         if not_installed podman; then
-            if grep </etc/os-release -q "Amazon Linux"; then
-                if grep </etc/os-release -q "Amazon Linux 2023"; then
-                    try_as_root yum install -y docker
-                else
-                    try_as_root amazon-linux-extras install docker
-                fi
+            case $(os_detect) in
+            "AMAZON-2")
+                try_as_root amazon-linux-extras install docker
                 try_as_root service docker start
-            else
+                ;;
+            "AMAZON-2023")
+                try_as_root yum install -y docker
+                try_as_root service docker start
+                ;;
+            *)
                 curl -fsSL https://get.docker.com -o get-docker.sh
                 try_as_root sh ./get-docker.sh
                 try_as_root systemctl enable /usr/lib/systemd/system/docker.service
                 try_as_root systemctl start docker.service
-            fi
+                ;;
+            esac
+
+            try_as_root systemctl enable /usr/lib/systemd/system/docker.service
             try_as_root usermod -aG docker "$user"
         else
             try_as_root ln -s "$(which podman)" "$user_home_bin/docker"
@@ -775,6 +780,10 @@ init_home_local_bin() {
             fi
             fix_user_home "$user"
         fi
+    else
+        try_as_root systemctl enable /usr/lib/systemd/system/docker.service
+        try_as_root systemctl start docker.service
+        try_as_root usermod -aG docker "$user"
     fi
 
     if not_installed jq; then
