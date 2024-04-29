@@ -513,9 +513,11 @@ try_as_root() {
 }
 
 fix_user_home() {
+    local grp=$1
     [ -z "$1" ] && return
     [ "$1" = "root" ] && return
-    [ -d "/home/$1" ] && try_as_root chown -R "$1":"$1" "/home/$1"
+    not_installed zypper || grp="users"
+    [ -d "/home/$1" ] && try_as_root chown -R "$1":"$grp" "/home/$1"
 }
 
 not_installed() {
@@ -576,6 +578,25 @@ apt_packages_install() {
         if not_installed "$command"; then
             echo "install pkg: $pkg"
             try_as_root DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$pkg" >/dev/null
+        fi
+    done
+}
+
+zypper_packages_install() {
+
+    not_installed zypper && return
+    local command
+    #  echo "update repositories list"
+    #  try_as_root DEBIAN_FRONTEND=noninteractive apt-get update -qq >/dev/null
+    # shellcheck disable=SC2046
+    #  not_installed pipx && try_as_root apt-get install -y pipx >/dev/null 2>&1
+    for pkg in "$@"; do
+        command=$pkg
+        [ "$pkg" = "coreutils" ] && command="csplit"
+        [ "$pkg" = "python3-pip" ] && command="pip3"
+        if not_installed "$command"; then
+            echo "install pkg: $pkg"
+            try_as_root zypper install -y "$pkg"
         fi
     done
 }
@@ -682,6 +703,8 @@ system_pakages_install() {
         [ "$(os_detect)" = "RHEL-7" ] && yum_packages_install podman podman-compose
 
         dnf_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano podman openssl
+
+        zypper_packages_install wget curl unzip gcc make automake rsync python3-pip coreutils git tig mc nano podman openssl
         build_shc
     fi
 }
@@ -766,7 +789,7 @@ init_home_local_bin() {
     fi
 
     if not_installed ansible; then
-        sudo pip3 install --upgrade pip >/dev/null 2>&1
+        try_as_root pip3 install --upgrade pip >/dev/null 2>&1
 
         if not_installed pipx; then
             if [ "$user" = "$(whoami)" ]; then
