@@ -538,11 +538,18 @@ build_shc() {
 }
 
 os_detect() {
-    if grep </etc/os-release -q "Red Hat" || grep </etc/os-release -q "Rocky Linux"; then
+    if grep </etc/os-release -q "Red Hat"; then
         grep </etc/os-release -q "Linux 9" && echo "RHEL-9" && return
         grep </etc/os-release -q "Linux 8" && echo "RHEL-8" && return
         grep </etc/os-release -q "Linux Server 7" && echo "RHEL-7" && return
     fi
+
+    if grep </etc/os-release -q "Rocky Linux"; then
+        grep </etc/os-release -q "Linux 9" && echo "ROCKY-9" && return
+        grep </etc/os-release -q "Linux 8" && echo "ROCKY-8" && return
+        grep </etc/os-release -q "Linux 7" && echo "ROCKY-7" && return
+    fi
+
     if grep </etc/os-release -q "CentOS"; then
         grep </etc/os-release -q "Stream 9" && echo "CENTOS-9" && return
         grep </etc/os-release -q "Stream 8" && echo "CENTOS-8" && return
@@ -576,13 +583,11 @@ yum_packages_install() {
     local command
 
     case $(os_detect) in
-    "CENTOS-7")
-        export LANG="en_US.UTF-8"
-        export LC_CTYPE="en_US.UTF-8"
-        try_as_root yum -y install epel-release # CENTOS-7
-        echo "user.max_user_namespaces=10000" | try_as_root tee /etc/sysctl.d/42-rootless.conf
-        try_as_root sysctl --system
+
+    "AMAZON-2")
+        try_as_root amazon-linux-extras install epel -y #for Amazon Linux 2
         ;;
+    "AMAZON-2023") ;;
     "RHEL-7")
         export LANG="en_US.UTF-8"
         export LC_CTYPE="en_US.UTF-8"
@@ -590,10 +595,21 @@ yum_packages_install() {
         echo "user.max_user_namespaces=10000" | try_as_root tee /etc/sysctl.d/42-rootless.conf
         try_as_root sysctl --system
         ;;
-    "AMAZON-2")
-        try_as_root amazon-linux-extras install epel -y #for Amazon Linux 2
+    "CENTOS-7")
+        export LANG="en_US.UTF-8"
+        export LC_CTYPE="en_US.UTF-8"
+        try_as_root yum -y install epel-release # CENTOS-7
+        #echo "user.max_user_namespaces=10000" | try_as_root tee /etc/sysctl.d/42-rootless.conf
+        try_as_root sysctl --system
         ;;
-    "AMAZON-2023") ;;
+    *)
+        export LANG="en_US.UTF-8"
+        export LC_CTYPE="en_US.UTF-8"
+        try_as_root yum -y install epel-release # CENTOS-7
+        #echo "user.max_user_namespaces=10000" | try_as_root tee /etc/sysctl.d/42-rootless.conf
+        try_as_root sysctl --system
+        ;;
+
     esac
 
     for pkg in "$@"; do
@@ -617,7 +633,7 @@ dnf_packages_install() {
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y 2>/dev/null #CentOS-9
         try_as_root dnf config-manager --set-enabled PowerTools
         ;;
-    "RHEL-8")
+    "RHEL-8" | "ROCKY-8")
         try_as_root dnf update -y
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y 2>/dev/null #RHEL-8
         ;;
@@ -626,9 +642,13 @@ dnf_packages_install() {
         try_as_root subscription-manager repos --enable "codeready-builder-for-rhel-9-$(arch)-rpms"
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y 2>/dev/null #RHEL-9
         ;;
+    "ROCKY-9")
+        try_as_root dnf update -y
+        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y 2>/dev/null #RHEL-9
+        ;;
+
     *)
         try_as_root dnf update -y
-        # try_as_root subscription-manager repos --enable "codeready-builder-for-rhel-9-$(arch)-rpms"
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y 2>/dev/null #RHEL-9
         ;;
     esac
