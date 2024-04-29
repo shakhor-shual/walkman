@@ -4,6 +4,7 @@ Walkman is a tool for configuring and orchestrating mixed IaC projects based on
 existing code-base for Terraform, Ansible, Helm etc.  In general, Walkman 
 was conceived as a small “Swiss Army knife” for DevOps-routines. 
 
+
 ## Quick Start:
 Walkman is just a single  bash script(cw4d.sh) that, when run without parameters, 
 self-compiles itself into a Linux executable form (to ELF-file: /usr/local/bin/cw4d).
@@ -58,7 +59,8 @@ they are not present on the system):
 
 - (for IaC): Terraform, Ansible-core
 - (for K8S): Helm, kubectl, k9s
-- (common system): docker(or podman), git(+ tig), rsync, curl, wget, nano, mc
+- (common system): docker(or podman), git(+ tig), rsync, curl, wget, mc, nano 
+- (base development): pip3, automake, gcc 
 
 Working example projects with Walkman deployment scripts are provided in the 
 [examples folder. The deployment scripting language](https://github.com/shakhor-shual/walkman/tree/main/examples) is an extremely 

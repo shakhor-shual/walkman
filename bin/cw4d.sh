@@ -593,7 +593,7 @@ yum_packages_install() {
     "RHEL-7")
         export LANG="en_US.UTF-8"
         export LC_CTYPE="en_US.UTF-8"
-        try_as_root yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm 2>/dev/null #RHEL-7
+        try_as_root yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm >/dev/null 2>&1 #RHEL-7
         echo "user.max_user_namespaces=10000" | try_as_root tee /etc/sysctl.d/42-rootless.conf
         try_as_root sysctl --system
         ;;
@@ -631,30 +631,32 @@ dnf_packages_install() {
 
     case $(os_detect) in
     "CENTOS-8")
-        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y 2>/dev/null #CentOS-8
+        try_as_root dnf update -y
+        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y >/dev/null 2>&1 #CentOS-8
         try_as_root dnf config-manager --set-enabled PowerTools
         ;;
     "CENTOS-9")
-        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y 2>/dev/null #CentOS-9
+        try_as_root dnf update -y
+        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y >/dev/null 2>&1 #CentOS-9
         try_as_root dnf config-manager --set-enabled PowerTools
         ;;
     "RHEL-8" | "ROCKY-8")
         try_as_root dnf update -y
-        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y 2>/dev/null #RHEL-8
+        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y >/dev/null 2>&1 #RHEL-8
         ;;
     "RHEL-9")
         try_as_root dnf update -y
         try_as_root subscription-manager repos --enable "codeready-builder-for-rhel-9-$(arch)-rpms"
-        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y 2>/dev/null #RHEL-9
+        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y >/dev/null 2>&1 #RHEL-9
         ;;
     "ROCKY-9")
         try_as_root dnf update -y
-        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y 2>/dev/null #RHEL-9
+        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y >/dev/null 2>&1 #ROCKY-9
         ;;
 
     *)
         try_as_root dnf update -y
-        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y 2>/dev/null #RHEL-9
+        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y >/dev/null 2>&1 #all other
         ;;
     esac
 

@@ -59,14 +59,14 @@ boot_disk_type=@@
 #boot_image="fedora-cloud/fedora-cloud-34"
 #boot_image="fedora-cloud/fedora-cloud-37"
 #boot_image="fedora-cloud/fedora-cloud-38"
-#boot_image="fedora-cloud/fedora-cloud-39"
+boot_image="fedora-cloud/fedora-cloud-39"
 #boot_image="rocky-linux-cloud/rocky-linux-8" #checked
 #boot_image="rocky-linux-cloud/rocky-linux-9" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2004-lts" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2204-lts" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2404-lts"
 #boot_image="debian-cloud/debian-10" #checked
-boot_image="debian-cloud/debian-11" #checked
+#boot_image="debian-cloud/debian-11" #checked
 #boot_image="debian-cloud/debian-12" #checked
 
 #inlined BASH
