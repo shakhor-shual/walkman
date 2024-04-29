@@ -755,12 +755,12 @@ init_home_local_bin() {
     fi
 
     if not_installed jq; then
-        try_as_root curl -Lo "$user_home_bin/jq" https://github.com/jqlang/jq/releases/download/jq-${JQ_v}/jq-linux-${pkg_arch}
+        try_as_root curl -fsSLo "$user_home_bin/jq" https://github.com/jqlang/jq/releases/download/jq-${JQ_v}/jq-linux-${pkg_arch}
         try_as_root chmod +x "$user_home_bin/jq"
     fi
 
     if not_installed terraform; then
-        try_as_root curl -Lo "$user_home_bin/terraform_linux_${pkg_arch}.zip" https://releases.hashicorp.com/terraform/${TERRAFORM_v}/terraform_${TERRAFORM_v}_linux_${pkg_arch}.zip
+        try_as_root curl -fsSLo "$user_home_bin/terraform_linux_${pkg_arch}.zip" https://releases.hashicorp.com/terraform/${TERRAFORM_v}/terraform_${TERRAFORM_v}_linux_${pkg_arch}.zip
         try_as_root unzip -o "$user_home_bin/terraform_linux_${pkg_arch}.zip" -d "$user_home_bin"
         try_as_root rm -f "$user_home_bin/terraform_linux_${pkg_arch}.zip"
     fi
