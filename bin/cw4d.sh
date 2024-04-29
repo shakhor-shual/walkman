@@ -582,47 +582,49 @@ apt_packages_install() {
 
 yum_packages_install() {
     not_installed yum && return
-    local command
+    if not_installed dnf; then
+        local command
+        case $(os_detect) in
 
-    case $(os_detect) in
+        "AMAZON-2")
+            try_as_root amazon-linux-extras install epel -y #for Amazon Linux 2
+            ;;
+        "AMAZON-2023") ;;
+        "RHEL-7")
+            export LANG="en_US.UTF-8"
+            export LC_CTYPE="en_US.UTF-8"
+            try_as_root yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm >/dev/null 2>&1 #RHEL-7
+            echo "user.max_user_namespaces=10000" | try_as_root tee /etc/sysctl.d/42-rootless.conf
+            try_as_root sysctl --system
+            ;;
+        "CENTOS-7")
+            export LANG="en_US.UTF-8"
+            export LC_CTYPE="en_US.UTF-8"
+            try_as_root yum -y install epel-release # CENTOS-7
+            #echo "user.max_user_namespaces=10000" | try_as_root tee /etc/sysctl.d/42-rootless.conf
+            try_as_root sysctl --system
+            ;;
+        *)
+            export LANG="en_US.UTF-8"
+            export LC_CTYPE="en_US.UTF-8"
+            try_as_root yum -y install epel-release # CENTOS-7
+            #echo "user.max_user_namespaces=10000" | try_as_root tee /etc/sysctl.d/42-rootless.conf
+            try_as_root sysctl --system
+            ;;
 
-    "AMAZON-2")
-        try_as_root amazon-linux-extras install epel -y #for Amazon Linux 2
-        ;;
-    "AMAZON-2023") ;;
-    "RHEL-7")
-        export LANG="en_US.UTF-8"
-        export LC_CTYPE="en_US.UTF-8"
-        try_as_root yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm >/dev/null 2>&1 #RHEL-7
-        echo "user.max_user_namespaces=10000" | try_as_root tee /etc/sysctl.d/42-rootless.conf
-        try_as_root sysctl --system
-        ;;
-    "CENTOS-7")
-        export LANG="en_US.UTF-8"
-        export LC_CTYPE="en_US.UTF-8"
-        try_as_root yum -y install epel-release # CENTOS-7
-        #echo "user.max_user_namespaces=10000" | try_as_root tee /etc/sysctl.d/42-rootless.conf
-        try_as_root sysctl --system
-        ;;
-    *)
-        export LANG="en_US.UTF-8"
-        export LC_CTYPE="en_US.UTF-8"
-        try_as_root yum -y install epel-release # CENTOS-7
-        #echo "user.max_user_namespaces=10000" | try_as_root tee /etc/sysctl.d/42-rootless.conf
-        try_as_root sysctl --system
-        ;;
+        esac
 
-    esac
+        # shellcheck disable=SC2046
+        not_installed pipx && try_as_root yum install -y pipx >/dev/null 2>&1
 
-    # shellcheck disable=SC2046
-    not_installed pipx && try_as_root yum install -y pipx >/dev/null 2>&1
-
-    for pkg in "$@"; do
-        command=$pkg
-        [ "$pkg" = "coreutils" ] && command="csplit"
-        [ "$pkg" = "python3-pip" ] && command="pip3"
-        not_installed "$command" && try_as_root yum install -y "$pkg"
-    done
+        for pkg in "$@"; do
+            command=$pkg
+            [ "$pkg" = "coreutils" ] && command="csplit"
+            [ "$pkg" = "python3-pip" ] && command="pip3"
+            echo "install pkg: $pkg"
+            not_installed "$command" && try_as_root yum install -y "$pkg" >/dev/null 2>&1
+        done
+    fi
 }
 
 dnf_packages_install() {
@@ -631,31 +633,31 @@ dnf_packages_install() {
 
     case $(os_detect) in
     "CENTOS-8")
-        try_as_root dnf update -y
+        #  try_as_root dnf update -y
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y >/dev/null 2>&1 #CentOS-8
         try_as_root dnf config-manager --set-enabled PowerTools
         ;;
     "CENTOS-9")
-        try_as_root dnf update -y
+        # try_as_root dnf update -y
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y >/dev/null 2>&1 #CentOS-9
         try_as_root dnf config-manager --set-enabled PowerTools
         ;;
     "RHEL-8" | "ROCKY-8")
-        try_as_root dnf update -y
+        #try_as_root dnf update -y
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y >/dev/null 2>&1 #RHEL-8
         ;;
     "RHEL-9")
-        try_as_root dnf update -y
+        #try_as_root dnf update -y
         try_as_root subscription-manager repos --enable "codeready-builder-for-rhel-9-$(arch)-rpms"
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y >/dev/null 2>&1 #RHEL-9
         ;;
     "ROCKY-9")
-        try_as_root dnf update -y
+        # try_as_root dnf update -y
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y >/dev/null 2>&1 #ROCKY-9
         ;;
 
     *)
-        try_as_root dnf update -y
+        #try_as_root dnf update -y
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y >/dev/null 2>&1 #all other
         ;;
     esac
@@ -667,7 +669,8 @@ dnf_packages_install() {
         command=$pkg
         [ "$pkg" = "coreutils" ] && command="csplit"
         [ "$pkg" = "python3-pip" ] && command="pip3"
-        not_installed "$command" && try_as_root dnf install -y "$pkg"
+        echo "install pkg: $pkg"
+        not_installed "$command" && try_as_root dnf install -y -q "$pkg" >/dev/null 2>&1
     done
 }
 
