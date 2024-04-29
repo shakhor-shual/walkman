@@ -538,7 +538,7 @@ build_shc() {
 }
 
 os_detect() {
-    if grep </etc/os-release -q "Red Hat"; then
+    if grep </etc/os-release -q "Red Hat" || grep </etc/os-release -q "Rocky Linux"; then
         grep </etc/os-release -q "Linux 9" && echo "RHEL-9" && return
         grep </etc/os-release -q "Linux 8" && echo "RHEL-8" && return
         grep </etc/os-release -q "Linux Server 7" && echo "RHEL-7" && return
@@ -624,6 +624,11 @@ dnf_packages_install() {
     "RHEL-9")
         try_as_root dnf update -y
         try_as_root subscription-manager repos --enable "codeready-builder-for-rhel-9-$(arch)-rpms"
+        try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y 2>/dev/null #RHEL-9
+        ;;
+    *)
+        try_as_root dnf update -y
+        # try_as_root subscription-manager repos --enable "codeready-builder-for-rhel-9-$(arch)-rpms"
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y 2>/dev/null #RHEL-9
         ;;
     esac
