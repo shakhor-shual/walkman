@@ -1,16 +1,7 @@
 # Walkman (Cloud Walkman For Devops)
 
 Walkman is a tool for configuring and orchestrating mixed IaC projects based on
-existing code-base for Terraform, Ansible, Helm, docker, kubectl etc. To quickly 
-understand what it is and why it is, just think of Walkman as something like 
-"nano-Jenkins" designed exclusively for IaC operations. If this statement seems 
-excessive to you, consider it as a helper tool for automating the collaboration
-of Terraform & Ansible bunch for GitOps-like style. If even this seems too much, 
-just think of Walkman as a dynamic inventory script that gives Ansible automatic 
-access to setting up the infrastructure deployed and managed using with Walkman. 
-If all of the above doesn't interest you, just consider this as script to 
-automatically install a bunch of core DevOps tools on a new Linux system 
-(Debian/Ubuntu and CentOs/RHEL/Amazon Linux are supported). In general, Walkman 
+existing code-base for Terraform, Ansible, Helm etc.  In general, Walkman 
 was conceived as a small “Swiss Army knife” for DevOps-routines. 
 
 ## Quick Start:
@@ -43,6 +34,31 @@ in SSH_PARAMS_LIST possible use any valid options of ssh command e.g.:
 
 ### More For in-cloud Walkman installation and usage (AWS/Azure/GCP):
  - [read and use this info](https://github.com/shakhor-shual/walkman/tree/main/self_deploy)
+
+### Supported Distributions List
+List of Linux distributions with tested support of Walkman (i.e. all external 
+tools/components self-installation has been tested and works correctly):
+
+- Amazon Linux 2, Amazon Linux 2023
+- CentOS 7, *CentOS 8-stream, *CentOS 9-stream
+- *RHEL-7, *RHEL-8, *RHEL-9
+- *Rocky Linux 8, *Rocky Linux 9
+- Ubuntu 20.04, Ubuntu 22.04, Ubuntu 24.04
+- Debian 10, Debian 11, Debian 12
+- SLES-12, SLES-15
+
+(*) distributions are marked in which the Walkman self-installer will install 
+podman/podman-compose instead of the Docker toolset. In this case for extend 
+general compatibility installer will create a symbolic links:  docker->podman
+docker-compose -> podman compose.
+
+### Auto-installing tools/components list:
+The following tools are automatically installed by the Walkman self-installer (if 
+they are not present on the system):
+
+- (for IaC): Terraform, Ansible-core
+- (for K8S): Helm, kubectl, k9s
+- (common system): docker(or podman), git(+ tig), rsync, curl, wget, nano, mc
 
 Working example projects with Walkman deployment scripts are provided in the 
 [examples folder. The deployment scripting language](https://github.com/shakhor-shual/walkman/tree/main/examples) is an extremely 
