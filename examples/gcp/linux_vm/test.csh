@@ -49,21 +49,25 @@ boot_disk_size=@@last
 boot_disk_type=@@
 #boot_image="suse-cloud/sles-12"
 #boot_image="suse-cloud/sles-15"
+#boot_image="opensuse-cloud/opensuse-leap"
 #boot_image="rhel-cloud/rhel-7" #checked
 #boot_image="rhel-cloud/rhel-8" #checked
 #boot_image="rhel-cloud/rhel-9" #checked
 #boot_image="centos-cloud/centos-7" #checked
 #boot_image="centos-cloud/centos-stream-8" #checked
 #boot_image="centos-cloud/centos-stream-9" #checked
-#boot_image="fedora-coreos-cloud/fedora-coreos-stable"
-boot_image="rocky-linux-cloud/rocky-linux-8" #checked
+#boot_image="fedora-cloud/fedora-cloud-34"
+#boot_image="fedora-cloud/fedora-cloud-37"
+#boot_image="fedora-cloud/fedora-cloud-38"
+#boot_image="fedora-cloud/fedora-cloud-39"
+#boot_image="rocky-linux-cloud/rocky-linux-8" #checked
 #boot_image="rocky-linux-cloud/rocky-linux-9" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2004-lts" #checked
-#boot_image="ubuntu-os-cloud/ubuntu-2204-lts"
+#boot_image="ubuntu-os-cloud/ubuntu-2204-lts" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2404-lts"
-#boot_image="debian-cloud/debian-10"
-#boot_image="debian-cloud/debian-11"
-#boot_image="debian-cloud/debian-12"
+#boot_image="debian-cloud/debian-10" #checked
+boot_image="debian-cloud/debian-11" #checked
+#boot_image="debian-cloud/debian-12" #checked
 
 #inlined BASH
 /*

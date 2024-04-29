@@ -567,6 +567,8 @@ apt_packages_install() {
     local command
     echo "update repositories list"
     try_as_root DEBIAN_FRONTEND=noninteractive apt-get update -qq >/dev/null
+    # shellcheck disable=SC2046
+    not_installed pipx && try_as_root apt-get install -y pipx >/dev/null 2>&1
     for pkg in "$@"; do
         command=$pkg
         [ "$pkg" = "coreutils" ] && command="csplit"
@@ -612,6 +614,9 @@ yum_packages_install() {
 
     esac
 
+    # shellcheck disable=SC2046
+    not_installed pipx && try_as_root yum install -y pipx >/dev/null 2>&1
+
     for pkg in "$@"; do
         command=$pkg
         [ "$pkg" = "coreutils" ] && command="csplit"
@@ -653,6 +658,9 @@ dnf_packages_install() {
         ;;
     esac
 
+    # shellcheck disable=SC2046
+    not_installed pipx && try_as_root dnf install -y pipx >/dev/null 2>&1
+
     for pkg in "$@"; do
         command=$pkg
         [ "$pkg" = "coreutils" ] && command="csplit"
@@ -671,6 +679,16 @@ system_pakages_install() {
         dnf_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano podman openssl
         build_shc
     fi
+}
+
+# shellcheck disable=SC2183
+# shellcheck disable=SC2046
+function ver_cmp {
+    printf "%03d%03d%03d%03d" $(echo "$1" | tr '.' ' ')
+}
+
+function py_ver() {
+    return "$(python3 --version 2>/dev/null | grep "Python" | awk '{print $NF} ')"
 }
 
 init_home_local_bin() {
@@ -743,14 +761,29 @@ init_home_local_bin() {
     fi
 
     if not_installed ansible; then
-        try_as_root pip3 install --upgrade pip
+        sudo pip3 install --upgrade pip >/dev/null 2>&1
 
-        if [ "$user" = "$(whoami)" ]; then
-            python3 -m pip install --user ansible-core
-        else
-            try_as_root -H -u "$user" python3 -m pip install --user ansible-core
-            fix_user_home "$user"
+        if not_installed pipx; then
+            if [ "$user" = "$(whoami)" ]; then
+                python3 -m pip install --user pipx
+            else
+                try_as_root -H -u "$user" python3 -m pip install --user pipx
+                fix_user_home "$user"
+            fi
+            python3 -m pipx ensurepath
         fi
+
+        if not_installed pipx; then
+            if [ "$user" = "$(whoami)" ]; then
+                python3 -m pip install --user ansible-core
+            else
+                try_as_root -H -u "$user" python3 -m pip install --user ansible-core
+                fix_user_home "$user"
+            fi
+        else
+            pipx install ansible-core
+        fi
+
     fi
 
     if not_installed helm; then
