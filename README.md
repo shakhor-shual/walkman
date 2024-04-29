@@ -44,9 +44,10 @@ tools/components self-installation has been tested and works correctly):
 - CentOS 7, *CentOS 8-stream, *CentOS 9-stream
 - *RHEL-7, *RHEL-8, *RHEL-9
 - *Rocky Linux 8, *Rocky Linux 9
+- *Fedora 34, *Fedora 37, *Fedora 38, *Fedora 39 
 - Ubuntu 20.04, Ubuntu 22.04, Ubuntu 24.04
 - Debian 10, Debian 11, Debian 12
-- SLES-12, SLES-15
+- SLES-12, SLES-15, OpenSUSE Leap
 
 (*) distributions are marked in which the Walkman self-installer will install 
 podman/podman-compose instead of the Docker toolset. In this case for extend 
