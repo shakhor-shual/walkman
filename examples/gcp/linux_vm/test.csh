@@ -56,10 +56,10 @@ boot_disk_type=@@
 #boot_image="centos-cloud/centos-7" #checked
 #boot_image="centos-cloud/centos-stream-8" #checked
 #boot_image="centos-cloud/centos-stream-9" #checked
-#boot_image="fedora-cloud/fedora-cloud-34"
-#boot_image="fedora-cloud/fedora-cloud-37"
-#boot_image="fedora-cloud/fedora-cloud-38"
-boot_image="fedora-cloud/fedora-cloud-39"
+#boot_image="fedora-cloud/fedora-cloud-34" #checked
+#boot_image="fedora-cloud/fedora-cloud-37" #checked
+boot_image="fedora-cloud/fedora-cloud-38"
+#boot_image="fedora-cloud/fedora-cloud-39"
 #boot_image="rocky-linux-cloud/rocky-linux-8" #checked
 #boot_image="rocky-linux-cloud/rocky-linux-9" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2004-lts" #checked
@@ -74,7 +74,7 @@ boot_image="fedora-cloud/fedora-cloud-39"
 if [[ $boot_image =~ "ubuntu" ]]; then
     ssh_user="ubuntu"
 else
-    ssh_user="core"
+    ssh_user="fedora"
 fi
 */
 ssh_user=@@last
