@@ -281,6 +281,9 @@ bashcl_translator() {
         [ -z "$SINGLE_LABEL" ] && tmp=$DIR_ALBUM_HOME/.meta
         val=${val//@@meta/$tmp}
         ;&
+    "{"* | "["*)
+        val=$(echo "$val" | sed 's/^{ */{/;s/ *}$/}/; s/^\[ */[/;s/ *\]$/]/; s/, */,/g; s/ *,/,/g')
+        ;&
     *)
         # shellcheck disable=SC2076 disable=SC2016
         if [[ $val =~ '<<' ]] || [[ $val =~ '(' ]]; then

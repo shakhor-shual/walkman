@@ -23,7 +23,7 @@ VM_name="$NS-host-01"
 HOST="master-1"
 DOMAIN="my.example.com"
 
-credentials_file=@@meta/gcp.json
+credentials_file="~/.gcp/gcp.json"
 project_id="foxy-test-415019"
 region="europe-west1"
 zone="$region-b"
@@ -32,10 +32,10 @@ subnet_name="$NS-custom-subnet"
 subnet_cidr="192.168.0.0/24"
 
 ~VPC:
-credentials_file=@@last # "@@last" annotation it just a "syntax-sugar"
-project_id=@@last       # and ALL lines which contains IT can be removed
-region=@@last           # from thе script without affecting his work
-vpc_name=@@last         # they are present in the script only to illustrate
+credentials_file=@@last
+project_id=@@last
+region=@@last
+vpc_name=@@last
 ssh_key_public=@@meta/public.key
 ssh_key_private=@@meta/private.key
 fau=@@
@@ -45,7 +45,7 @@ credentials_file=@@last
 project_id=@@last
 namespace=$NS
 region=@@last
-network= <<<GET_from_state_by_type | google_compute_network | self_link
+network= $(GET_from_state_by_type google_compute_network self_link)
 tag_allow_ssh="$NS-allow-ssh"
 tag_allow_web="$NS-allow-web"
 
