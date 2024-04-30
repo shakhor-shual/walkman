@@ -582,16 +582,22 @@ apt_packages_install() {
     done
 }
 
+zypper_not_run() {
+    while [ -n "$(pgrep zypper)" ]; do sleep 1; done
+    while [ -n "$(pgrep Zypp-main)" ]; do sleep 1; done
+}
+
 zypper_packages_install() {
     not_installed zypper && return
     local command
+    zypper_not_run && try_as_root zypper -n refresh
     for pkg in "$@"; do
         command=$pkg
         [ "$pkg" = "coreutils" ] && command="csplit"
         [ "$pkg" = "python3-pip" ] && command="pip3"
         if not_installed "$command"; then
             echo "install pkg: $pkg"
-            try_as_root zypper install -y "$pkg" >/dev/null 2>&1
+            zypper_not_run && try_as_root zypper -n install -y "$pkg" >/dev/null 2>&1
         fi
     done
 }
@@ -699,7 +705,7 @@ system_pakages_install() {
 
         dnf_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano podman openssl
 
-        zypper_packages_install wget curl unzip gcc make automake rsync python3-pip coreutils git tig mc nano openssl
+        zypper_packages_install wget curl unzip gcc make automake rsync python3-pip coreutils git tig mc nano openssl docker
         build_shc
     fi
 }

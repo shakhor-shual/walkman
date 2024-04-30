@@ -47,8 +47,8 @@ echo $boot_disk_size
 
 boot_disk_size=@@last
 boot_disk_type=@@
-boot_image="suse-cloud/sles-12"
-#boot_image="suse-cloud/sles-15"
+#boot_image="suse-cloud/sles-12"
+boot_image="suse-cloud/sles-15"
 #boot_image="opensuse-cloud/opensuse-leap"
 #boot_image="rhel-cloud/rhel-7" #checked
 #boot_image="rhel-cloud/rhel-8" #checked
@@ -74,7 +74,7 @@ boot_image="suse-cloud/sles-12"
 if [[ $boot_image =~ "ubuntu" ]]; then
     ssh_user="ubuntu"
 else
-    ssh_user="fedora"
+    ssh_user="fedo"
 fi
 */
 ssh_user=@@last
