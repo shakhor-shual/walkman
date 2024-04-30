@@ -583,14 +583,15 @@ apt_packages_install() {
 }
 
 zypper_not_run() {
-    while [ -n "$(pgrep zypper)" ]; do sleep 1; done
-    while [ -n "$(pgrep Zypp-main)" ]; do sleep 1; done
+    while [ -n "$(pgrep zypper)" ]; do sleep 3; done
+    while [ -n "$(pgrep Zypp-main)" ]; do sleep 3; done
 }
 
 zypper_packages_install() {
     not_installed zypper && return
     local command
-    zypper_not_run && try_as_root zypper -n refresh
+    zypper_not_run && sleep 5
+    try_as_root zypper refresh
     for pkg in "$@"; do
         command=$pkg
         [ "$pkg" = "coreutils" ] && command="csplit"
