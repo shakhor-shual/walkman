@@ -307,7 +307,7 @@ add_or_replace_var() {
     if grep -Fq "$key=" "$TF_VARS"; then # REPLACE values for existed keys
         sed -i "/^$key=/c $key=$val" "$TF_VARS"
     else # ADD new key-value pairs
-        echo "$key=$val" >>"$TF_VARS"
+        grep <"$VARS_TF" "variable" | cut -d '"' -f 2 | grep -q "^$key$" && echo "$key=$val" >>"$TF_VARS"
     fi
     # post tune structures in tfvars
     sed -i 's/="\[/=\["/g; s/\]"/"\]/g; s/="{/={"/g; s/}"/"}/g' "$TF_VARS"
