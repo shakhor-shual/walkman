@@ -88,6 +88,7 @@ do_COPY() {
     cat <<EOF >"$PLAYBOOK_HELPER"
 - hosts: $CURRENT_ANSIBLE_TARGET
   gather_facts: no
+  become: yes
   tasks:
   - name: Copy file 
     ansible.builtin.copy:
