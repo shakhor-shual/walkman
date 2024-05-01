@@ -67,7 +67,7 @@ ssh_key_private=@@meta/private.key
 startup_script=@@meta/init.sh
 tags="{master, $tag_allow_ssh }"
 #ACCESS_ip=@@self/nat_ip
-<<<SET_access_artefacts | nat_ip | $ssh_user | $ssh_key_private
+<<<INIT_access | nat_ip | $ssh_user | $ssh_key_private
 
 ~SLAVESOUP:
 group_size=2
@@ -88,7 +88,7 @@ ssh_key_private=@@last
 startup_script=@@last
 tags="{slaves, $tag_allow_ssh, $tag_allow_web }"
 #ACCESS_ip=@@self/nat_ip
-<<<SET_access_artefacts | nat_ip | $ssh_user | $ssh_key_private
+<<<INIT_access | nat_ip | $ssh_user | $ssh_key_private
 
 ~SETUP_SLAVES
 host=@@all

@@ -84,8 +84,12 @@ startup_script_file=@@
 
 #returned parameters
 walkman_install=@@self
-$(SET_access_artefacts IP-public $ssh_user $auto_key_private)
-#<<<SET_access_artefacts | IP-public | $ssh_user | $auto_key_private
+$(INIT_access IP-public $ssh_user $auto_key_private)
+#<<<INIT_access | IP-public | $ssh_user | $auto_key_private
+$(DO_helm)
+$(DO_kubectl)
+$(DO_rsync)
+$(DO_exec)
 
 /* #inlined BASH
 if [ -n "$walkman_install" ]; then

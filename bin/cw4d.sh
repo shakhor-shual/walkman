@@ -60,7 +60,28 @@ GET_from_state_by_type() {
     return 1
 }
 
-SET_access_artefacts() {
+DO_exec() {
+    [ -z "$1" ] && return
+    helm "$@"
+}
+
+DO_helm() {
+    [ -z "$1" ] && return
+    helm "$@"
+}
+
+DO_kubectl() {
+    [ -z "$1" ] && return
+    kubectl "$@"
+}
+
+DO_rsync() {
+    [ -z "$1" ] && return
+    rsync "$@"
+}
+
+INIT_access() {
+    [ -z "$1" ] && return
     [ -z "$SINGLE_LABEL" ] && return
     local ips='[]'
     local user=$2

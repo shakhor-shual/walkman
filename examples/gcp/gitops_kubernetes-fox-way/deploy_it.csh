@@ -51,4 +51,4 @@ nfs_pv_size =30                                               # @@=50
 ddns_domain_ingress="none"
 ddns_domain_bastion="none"
 ddns_access_token="none"
-<<<SET_access_artefacts | nat_ip | $ssh_user | $auto_key_privare
+<<<INIT_access | nat_ip | $ssh_user | $auto_key_privare

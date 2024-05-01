@@ -36,7 +36,7 @@ instance_type="t3.micro"
 
 #returned parameters
 walkman_install=@@self
-<<<SET_access_artefacts | "IP-public" | "ec2-user" | $auto_key_private
+<<<INIT_access | "IP-public" | "ec2-user" | $auto_key_private
 
 /* #inlined BASH
 if [ -n "$walkman_install" ]; then
