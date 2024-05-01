@@ -1,0 +1,7 @@
+- hosts: all
+  gather_facts: no
+  tasks:
+  - name: Copy file 
+    ansible.builtin.command: "ls -l"
+    register: out
+  - debug: var=out.stdout_lines

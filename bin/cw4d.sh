@@ -23,11 +23,12 @@ DEBUG=0
 TF_EC=0
 RUN_LIST="init apply destroy validate describe gitops plan --list --host"
 IN_BASH=0
+CURRENT_ANSIBLE_TARGET=all
 
 check_ansible_connection() {
     local group=${1:-"all"}
     local delay=${2:-"30"}
-    cat <<EOF >"$ANSIBLE_CHECKER"
+    cat <<EOF >"$PLAYBOOK_HELPER"
 - hosts: $group
   gather_facts: no
   tasks:
@@ -35,8 +36,8 @@ check_ansible_connection() {
     ansible.builtin.wait_for_connection:
       timeout: $delay
 EOF
-    ansible-playbook -i "$ALBUM_SELF" "$ANSIBLE_CHECKER"
-    rm "$ANSIBLE_CHECKER"
+    ansible-playbook -i "$ALBUM_SELF" "$PLAYBOOK_HELPER"
+    rm "$PLAYBOOK_HELPER"
 }
 
 ################ EXTENTION HELPERS LIBRARY #############################
@@ -60,42 +61,87 @@ GET_from_state_by_type() {
     return 1
 }
 
-DO_ready() {
-    #  [ -z "$1" ] && return
+do_FROM() {
+    CURRENT_ANSIBLE_TARGET=all
+    [ -n "$1" ] && CURRENT_ANSIBLE_TARGET=$1
     #  [ "$1" = "test" ] && return
-    echo "%%%%%%%%%%% REMOTE: READYNESS %%%%%%%%%%%%%%%"
-    check_ansible_connection "$1"
+    echo "%%%%%%%%%%% remotely: READY %%%%%%%%%%%%%%%"
+    check_ansible_connection "$CURRENT_ANSIBLE_TARGET"
     # ansible-playbook ../.meta/readyness.yaml -i "$ALBUM_SELF" | grep 'Wait\|ok:' | tr -d '*'
     echo -e
 }
 
-DO_exec() {
+do_COPY() {
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
-    echo "%%%%%%%%%%% REMOTE: EXEC %%%%%%%%%%%%%%%"
-    ansible-playbook ../.meta/readyness.yaml -i "$ALBUM_SELF" | grep 'Wait\|ok:' | tr -d '*'
+    local src=$1
+    local dst=$2
+    local usr
+    local grp
+
+    if [[ $3 =~ : ]]; then
+        usr=$(echo "$3" | cut -d ':' -f 1)
+        grp=$(echo "$3" | cut -d ':' -f 2)
+    fi
+
+    echo "%%%%%%%%%%% remotely: COPY %%%%%%%%%%%%%%%"
+    cat <<EOF >"$PLAYBOOK_HELPER"
+- hosts: $CURRENT_ANSIBLE_TARGET
+  gather_facts: no
+  tasks:
+  - name: Copy file 
+    ansible.builtin.copy:
+      src: $src
+      dest: $dst
+EOF
+
+    [ -n "$usr" ] && echo "      owner: $usr" >>"$PLAYBOOK_HELPER"
+    [ -n "$grp" ] && echo "      group: $grp" >>"$PLAYBOOK_HELPER"
+    [ -n "$4" ] && echo "      mode: $4" >>"$PLAYBOOK_HELPER"
+
+    ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF"
+
     echo -e
 }
 
-DO_helm() {
+do_RUN() {
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
+    echo "%%%%%%%%%%% remotely: RUN %%%%%%%%%%%%%%%"
+    cat <<EOF >"$PLAYBOOK_HELPER"
+- hosts: $CURRENT_ANSIBLE_TARGET
+  gather_facts: no
+  tasks:
+  - name: Copy file 
+    ansible.builtin.command: "$@"
+    register: out
+  - debug: var=out.stdout_lines
+EOF
+    ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF"
+    rm "$PLAYBOOK_HELPER"
+    echo -e
+}
+
+do_HELM() {
+    [ -z "$1" ] && return
+    [ "$1" = "test" ] && return
+    echo "%%%%%%%%%%% remotely: HELM %%%%%%%%%%%%%%%"
     helm "$@"
     echo -e
 }
 
-DO_kubectl() {
+do_KUBECTL() {
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
-    echo "%%%%%%%%%%% REMOTE: EXEC %%%%%%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: KUBECTL %%%%%%%%%%%%%%%"
     kubectl "$@"
     echo -e
 }
 
-DO_rsync() {
+do_RSYNC() {
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
-    echo "%%%%%%%%%%% REMOTE: RSYNC %%%%%%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: RSYNC %%%%%%%%%%%%%%%"
     rsync "$@"
     echo -e
 }
@@ -147,10 +193,10 @@ run_helper_by_name() {
     helper_name="$(echo "$helper_call_string" | awk '{print $1}')"
 
     if helper_exists "$helper_name"; then
-        if [[ "$1" =~ ^DO_* ]]; then
-            [[ "$3" =~ "env" ]] && [ -n "$1" ] && eval "$helper_call_string $1"
+        if [[ "$1" =~ ^do_* ]]; then
+            [[ "$3" =~ "env_after" ]] && [ -n "$1" ] && eval "$helper_call_string"
         else
-            [ -n "$1" ] && val="$(eval "$helper_call_string $1")"
+            [ -n "$1" ] && val="$(eval "$helper_call_string")"
             [[ "$3" =~ "env" ]] && export CW4D_"$1"="$(eval echo "$val")" #$val
         fi
 
@@ -244,13 +290,14 @@ init_bash_inline_vars() {
 }
 
 run_bash_inlined_part() {
-    echo "<<$1<<<<<<<<<<<<<<<< RUN BASH INLINED CODE >>>>>>>>>>>>>>>>>>>>>>>>>"
+    echo "%%%%%%%%%%%% locally: RUN INLINED BASH  %%%%%%%%%%%%"
     # echo "mode:$2"
     /bin/bash "$BASH_INLINE"
     set -o allexport
     # shellcheck source=/dev/null
     . /tmp/walkman_bash_export.tmp
     set +o allexport
+    echo -e
 }
 
 inlines_engine() {
@@ -477,7 +524,7 @@ init_album_home() {
         INVENTORY_HOST="$DIR_WS_TMP/$WS_NAME.inventoty_host.draft"
         INVENTORY_LIST_HEAD="$DIR_WS_TMP/$WS_NAME.inventoty_head.draft"
         INVENTORY_LIST_TAIL="$DIR_WS_TMP/$WS_NAME.inventoty_tail.draft"
-        ANSIBLE_CHECKER=$DIR_WS_TMP/check_hosts.yml
+
         DIR_META="../.meta"
     fi
 }
@@ -503,6 +550,7 @@ get_in_tf_packet_home() {
     VARS_TF="$PACK_HOME/variables.tf"
     cd "$PACK_HOME" || exit
     PACK_HOME_FULL_PATH=$PWD
+    PLAYBOOK_HELPER=$PACK_HOME_FULL_PATH/playbook.yaml
 }
 
 reset_album_tmp() {

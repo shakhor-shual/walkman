@@ -85,12 +85,11 @@ startup_script_file=@@
 #returned parameters
 walkman_install=@@self
 $(INIT_access IP-public $ssh_user $auto_key_private)
-$(DO_ready all)
-$(DO_helm test)
-$(DO_kubectl test)
-$(DO_rsync test)
-$(DO_exec test)
-
+$(do_FROM)
+$(do_COPY $auto_key_public /home/$ssh_user/public.key $ssh_user:$ssh_user)
+$(do_RUN ls -l)
+$(do_HELM test)
+$(do_KUBECTL test)
 /* #inlined BASH
 if [ -n "$walkman_install" ]; then
     #   echo "Wait 30 sec before Install Walkman on deployed VM"
