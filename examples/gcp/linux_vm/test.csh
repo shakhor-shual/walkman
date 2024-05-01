@@ -49,7 +49,7 @@ boot_disk_size=@@last
 boot_disk_type=@@
 #boot_image="suse-cloud/sles-12"
 #boot_image="suse-cloud/sles-15"
-boot_image="opensuse-cloud/opensuse-leap"
+#boot_image="opensuse-cloud/opensuse-leap"
 #boot_image="rhel-cloud/rhel-7" #checked
 #boot_image="rhel-cloud/rhel-8" #checked
 #boot_image="rhel-cloud/rhel-9" #checked
@@ -63,7 +63,7 @@ boot_image="opensuse-cloud/opensuse-leap"
 #boot_image="rocky-linux-cloud/rocky-linux-8" #checked
 #boot_image="rocky-linux-cloud/rocky-linux-9" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2004-lts" #checked
-#boot_image="ubuntu-os-cloud/ubuntu-2204-lts" #checked
+boot_image="ubuntu-os-cloud/ubuntu-2204-lts" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2404-lts"
 #boot_image="debian-cloud/debian-10" #checked
 #boot_image="debian-cloud/debian-11" #checked
@@ -85,17 +85,17 @@ startup_script_file=@@
 #returned parameters
 walkman_install=@@self
 $(INIT_access IP-public $ssh_user $auto_key_private)
-#<<<INIT_access | IP-public | $ssh_user | $auto_key_private
-$(DO_helm)
-$(DO_kubectl)
-$(DO_rsync)
-$(DO_exec)
+$(DO_ready all)
+$(DO_helm test)
+$(DO_kubectl test)
+$(DO_rsync test)
+$(DO_exec test)
 
 /* #inlined BASH
 if [ -n "$walkman_install" ]; then
-    echo "Wait 30 sec before Install Walkman on deployed VM"
-    sleep 30
-    eval $walkman_install
+    #   echo "Wait 30 sec before Install Walkman on deployed VM"
+    #   sleep 30
+    #   eval $walkman_install
     echo $walkman_install
 else
     echo "Can't Install Walkman"

@@ -27,16 +27,16 @@ IN_BASH=0
 check_ansible_connection() {
     local group=${1:-"all"}
     local delay=${2:-"30"}
-    echo "- hosts: $group" >"$ANSIBLE_CHECKER"
-    {
-        echo "  gather_facts: no"
-        echo "  tasks:"
-        echo "  - name: Wait for hosts become reachable"
-        echo "    ansible.builtin.wait_for_connection:"
-        echo "      timeout: $delay"
-    } >>"$ANSIBLE_CHECKER"
-
+    cat <<EOF >"$ANSIBLE_CHECKER"
+- hosts: $group
+  gather_facts: no
+  tasks:
+  - name: Wait for hosts become reachable
+    ansible.builtin.wait_for_connection:
+      timeout: $delay
+EOF
     ansible-playbook -i "$ALBUM_SELF" "$ANSIBLE_CHECKER"
+    rm "$ANSIBLE_CHECKER"
 }
 
 ################ EXTENTION HELPERS LIBRARY #############################
@@ -60,24 +60,44 @@ GET_from_state_by_type() {
     return 1
 }
 
+DO_ready() {
+    #  [ -z "$1" ] && return
+    #  [ "$1" = "test" ] && return
+    echo "%%%%%%%%%%% REMOTE: READYNESS %%%%%%%%%%%%%%%"
+    check_ansible_connection "$1"
+    # ansible-playbook ../.meta/readyness.yaml -i "$ALBUM_SELF" | grep 'Wait\|ok:' | tr -d '*'
+    echo -e
+}
+
 DO_exec() {
     [ -z "$1" ] && return
-    helm "$@"
+    [ "$1" = "test" ] && return
+    echo "%%%%%%%%%%% REMOTE: EXEC %%%%%%%%%%%%%%%"
+    ansible-playbook ../.meta/readyness.yaml -i "$ALBUM_SELF" | grep 'Wait\|ok:' | tr -d '*'
+    echo -e
 }
 
 DO_helm() {
     [ -z "$1" ] && return
+    [ "$1" = "test" ] && return
     helm "$@"
+    echo -e
 }
 
 DO_kubectl() {
     [ -z "$1" ] && return
+    [ "$1" = "test" ] && return
+    echo "%%%%%%%%%%% REMOTE: EXEC %%%%%%%%%%%%%%%"
     kubectl "$@"
+    echo -e
 }
 
 DO_rsync() {
     [ -z "$1" ] && return
+    [ "$1" = "test" ] && return
+    echo "%%%%%%%%%%% REMOTE: RSYNC %%%%%%%%%%%%%%%"
     rsync "$@"
+    echo -e
 }
 
 INIT_access() {
@@ -127,8 +147,13 @@ run_helper_by_name() {
     helper_name="$(echo "$helper_call_string" | awk '{print $1}')"
 
     if helper_exists "$helper_name"; then
-        val="$(eval "$helper_call_string $1")"
-        [[ "$3" =~ "env" ]] && export CW4D_"$1"="$(eval echo "$val")" #$val
+        if [[ "$1" =~ ^DO_* ]]; then
+            [[ "$3" =~ "env" ]] && [ -n "$1" ] && eval "$helper_call_string $1"
+        else
+            [ -n "$1" ] && val="$(eval "$helper_call_string $1")"
+            [[ "$3" =~ "env" ]] && export CW4D_"$1"="$(eval echo "$val")" #$val
+        fi
+
         [[ "$1" != "$helper_name" ]] && [[ "$3" =~ "file" ]] && add_or_replace_var "$1" "$val"
     else
         finish_grace "err_helper" "$helper_name" "$ALBUM_SELF"

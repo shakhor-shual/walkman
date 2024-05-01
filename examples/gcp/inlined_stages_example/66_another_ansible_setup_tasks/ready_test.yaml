@@ -1,0 +1,6 @@
+- hosts: all
+  gather_facts: no
+  tasks:
+  - name: Wait for system to become reachable 
+    ansible.builtin.wait_for_connection:
+      timeout: 30
