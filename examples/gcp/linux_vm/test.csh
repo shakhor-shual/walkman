@@ -87,7 +87,7 @@ walkman_install=@@self
 $(INIT_access IP-public $ssh_user $auto_key_private)
 $(do_FROM)
 $(do_COPY $auto_key_public /home/$ssh_user/public.key $ssh_user:$ssh_user)
-$(do_RUN ls -l)
+$(do_RUN " ls -a")
 $(do_HELM test)
 $(do_KUBECTL test)
 /* #inlined BASH
