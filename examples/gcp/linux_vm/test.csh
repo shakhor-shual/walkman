@@ -86,10 +86,10 @@ startup_script_file=@@
 walkman_install=@@self
 
 do_TARGET IP-public $ssh_user $auto_key_private
-do_WALKMAN
+#do_WALKMAN
 do_FROM all
 do_WORKDIR /usr/local/bin
-do_COPY $auto_key_public /usr/local/bin/public.key root:root
+do_ADD $auto_key_public /usr/local/bin/pop/up/3/ root:root
 do_RUN "sudo apt install nano -y; pwd; ls -l"
 do_PACKAGE wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano openssl
 do_HELM test

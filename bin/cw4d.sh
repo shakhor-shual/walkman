@@ -77,28 +77,78 @@ do_ADD() {
     local dst=$2
     local usr
     local grp
+    local dst_dir
 
     if [[ $3 =~ : ]]; then
         usr=$(echo "$3" | cut -d ':' -f 1)
         grp=$(echo "$3" | cut -d ':' -f 2)
     fi
 
-    echo "%%%%%%%%%%% remotely: ADD %%%%%%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: ADD %%%%%%%%%%%%%"
+
     cat <<EOF >"$PLAYBOOK_HELPER"
 - hosts: $CURRENT_ANSIBLE_TARGET
-  gather_facts: no
   become: yes
   tasks:
-  - name: Copy file 
+EOF
+    case $src in
+    *".zip" | *".tar.gz" | *".tgz")
+        dst_dir=$dst
+        cat <<EOF >>"$PLAYBOOK_HELPER"
+  - name: install Tools
+    ansible.builtin.package:
+      state: present
+      name:
+        - unzip
+        - zip
+        - tar
+  - name: Create a dst_dir
+    ansible.builtin.file:
+      path:  $dst_dir
+      state: directory
+      mode: '0755'
+      owner: $usr
+      group: $grp
+  - name: ADD archived
+    ansible.builtin.unarchive:
+      src: $src
+      dest: $dst
+
+EOF
+        [[ $src =~ "://" ]] && echo "      remote_src: yes" >>"$PLAYBOOK_HELPER"
+        ;;
+    *"://"*)
+        dst_dir=$(dirname "$dst")
+        cat <<EOF >>"$PLAYBOOK_HELPER"
+  - name: Create a dst_dir
+    ansible.builtin.file:
+      path:  $dst_dir
+      state: directory
+      mode: '0755'
+      owner: $usr
+      group: $grp
+  - name: ADD remote 
+    ansible.builtin.get_url:
+      url: $src
+      dest: $dst
+EOF
+        ;;
+    *)
+        cat <<EOF >>"$PLAYBOOK_HELPER"
+  - name: ADD local content 
     ansible.builtin.copy:
       src: $src
       dest: $dst
 EOF
+        ;;
+    esac
+
     [ -n "$usr" ] && echo "      owner: $usr" >>"$PLAYBOOK_HELPER"
     [ -n "$grp" ] && echo "      group: $grp" >>"$PLAYBOOK_HELPER"
     [ -n "$4" ] && echo "      mode: $4" >>"$PLAYBOOK_HELPER"
-    ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    rm "$PLAYBOOK_HELPER"
+    ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF" #| grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    cat "$PLAYBOOK_HELPER"
+    #rm "$PLAYBOOK_HELPER"
     echo -e
 }
 
@@ -126,7 +176,7 @@ do_COPY() {
   gather_facts: no
   become: yes
   tasks:
-  - name: Copy file 
+  - name: COPY file 
     ansible.builtin.copy:
       src: $src
       dest: $dst
@@ -198,8 +248,7 @@ EOF
 do_WALKMAN() {
     [ "$1" = "test" ] && return
     echo "%%%%%%%%%%% remotely: WALKMAN INSTALL %%%%%%%%%%%%%%%"
-    sed <"$SINGLE_ECHO_FILE" 's/^ssh /cw4d.sh /' | bash
-    # cw4d.sh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i /home/ubuntu/github/walkman/examples/gcp/linux_vm/.meta/private.key ubuntu@34.65.242.247
+    sed <"$SINGLE_TARGET_FILE" 's/^ssh /cw4d.sh /' | bash
     echo -e
 }
 
@@ -235,28 +284,28 @@ do_TARGET() {
     local secret
 
     ips="$(extract_ip_from_state_file "$1")"
-    echo " #!/bin/bash" >"$SINGLE_ECHO_FILE"
-    echo "#~""$SINGLE_LABEL" >>"$SINGLE_ECHO_FILE"
-    echo "# hosts:$ips" >>"$SINGLE_ECHO_FILE"
+    echo " #!/bin/bash" >"$SINGLE_TARGET_FILE"
+    echo "#~""$SINGLE_LABEL" >>"$SINGLE_TARGET_FILE"
+    echo "# hosts:$ips" >>"$SINGLE_TARGET_FILE"
 
     if echo "$3" | grep -q "$DIR_META"; then
         secret=$PACK_HOME_FULL_PATH/$3
-        echo "KEY_FILE=$secret" >>"$SINGLE_ECHO_FILE"
+        echo "KEY_FILE=$secret" >>"$SINGLE_TARGET_FILE"
     else
         secret=$3
-        echo "KEY_FILE=$secret" >>"$SINGLE_ECHO_FILE"
+        echo "KEY_FILE=$secret" >>"$SINGLE_TARGET_FILE"
     fi
 
     print_hosts_for_list_request "$ips" "$user" "$secret": >>"$INVENTORY_LIST_HEAD"
 
     for ip in $(echo "$ips" | sed 's/,/ /;s/\[//;s/\]//'); do
         # shellcheck disable=SC2016
-        echo 'ssh  -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i $KEY_FILE '"$user"'@'"$ip" >>"$SINGLE_ECHO_FILE"
+        echo 'ssh  -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i $KEY_FILE '"$user"'@'"$ip" >>"$SINGLE_TARGET_FILE"
         print_hostvars_for_host_request "$ip" "$user" "$secret" >>"$INVENTORY_HOST"
         print_hostvars_for_list_request "$ip" "$user" "$secret" >>"$INVENTORY_LIST_TAIL"
     done
 
-    chmod 777 "$SINGLE_ECHO_FILE"
+    chmod 777 "$SINGLE_TARGET_FILE"
     echo "$ips"
 }
 
@@ -1369,7 +1418,7 @@ case $RUN_MODE in
         ); do
             SINGLE_INIT_FILE="$DIR_WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
             SINGLE_LABEL=$(head <"$SINGLE_INIT_FILE" -n 1 | sed 's/#//g;s/ //g;s/://g;s/~//g;')
-            SINGLE_ECHO_FILE=$DIR_ALBUM_META/ssh-to-$WS_NAME-$SINGLE_LABEL.sh
+            SINGLE_TARGET_FILE=$DIR_ALBUM_META/ssh-to-$WS_NAME-$SINGLE_LABEL.sh
 
             echo
             echo "############################## Stage-$STAGE_COUNT ################################"
