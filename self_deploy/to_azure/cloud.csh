@@ -24,4 +24,4 @@ vm_size = "Standard_B1ms"
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
 admin_username=devops
-<<<INIT_access | IP-public | $admin_username | $auto_key_private
+IP-public <<<do_TARGET | $admin_username | $auto_key_private

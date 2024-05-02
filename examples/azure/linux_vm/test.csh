@@ -31,4 +31,4 @@ admin_username=devops
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
 custom_data_file= "@@meta/custom_data.sh"
-<<<INIT_access | IP-public | $admin_username | $auto_key_private
+<<<do_TARGET | IP-public | $admin_username | $auto_key_private

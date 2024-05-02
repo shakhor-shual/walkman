@@ -84,12 +84,15 @@ startup_script_file=@@
 
 #returned parameters
 walkman_install=@@self
-$(INIT_access IP-public $ssh_user $auto_key_private)
-$(do_FROM)
-$(do_COPY $auto_key_public /usr/local/bin/public.key root:root)
-$(do_RUN "sudo apt-get install mc -y")
-$(do_HELM test)
-$(do_KUBECTL test)
+
+do_TARGET_INIT IP-public $ssh_user $auto_key_private
+do_FROM
+do_WORKDIR /usr/local/bin
+do_COPY $auto_key_public /usr/local/bin/public.key root:root
+do_RUN "sudo apt install nano -y ; pwd ; ls -l"
+do_HELM test
+do_KUBECTL test
+
 /* #inlined BASH
 if [ -n "$walkman_install" ]; then
     #   echo "Wait 30 sec before Install Walkman on deployed VM"

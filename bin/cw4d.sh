@@ -24,6 +24,7 @@ TF_EC=0
 RUN_LIST="init apply destroy validate describe gitops plan --list --host"
 IN_BASH=0
 CURRENT_ANSIBLE_TARGET=all
+CURRENT_ANSIBLE_WORKDIR='$HOME'
 
 check_ansible_connection() {
     local group=${1:-"all"}
@@ -36,7 +37,7 @@ check_ansible_connection() {
     ansible.builtin.wait_for_connection:
       timeout: $delay
 EOF
-    ansible-playbook -i "$ALBUM_SELF" "$PLAYBOOK_HELPER"
+    ansible-playbook -i "$ALBUM_SELF" "$PLAYBOOK_HELPER" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
     rm "$PLAYBOOK_HELPER"
 }
 
@@ -64,11 +65,46 @@ GET_from_state_by_type() {
 do_FROM() {
     CURRENT_ANSIBLE_TARGET=all
     [ -n "$1" ] && CURRENT_ANSIBLE_TARGET=$1
-    #  [ "$1" = "test" ] && return
-    echo "%%%%%%%%%%% remotely: READY %%%%%%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: FROM - $CURRENT_ANSIBLE_TARGET %%%%%%%%%%%%%%%"
     check_ansible_connection "$CURRENT_ANSIBLE_TARGET"
-    # ansible-playbook ../.meta/readyness.yaml -i "$ALBUM_SELF" | grep 'Wait\|ok:' | tr -d '*'
     echo -e
+}
+
+do_ADD() {
+    [ -z "$1" ] && return
+    [ "$1" = "test" ] && return
+    local src=$1
+    local dst=$2
+    local usr
+    local grp
+
+    if [[ $3 =~ : ]]; then
+        usr=$(echo "$3" | cut -d ':' -f 1)
+        grp=$(echo "$3" | cut -d ':' -f 2)
+    fi
+
+    echo "%%%%%%%%%%% remotely: ADD %%%%%%%%%%%%%%%"
+    cat <<EOF >"$PLAYBOOK_HELPER"
+- hosts: $CURRENT_ANSIBLE_TARGET
+  gather_facts: no
+  become: yes
+  tasks:
+  - name: Copy file 
+    ansible.builtin.copy:
+      src: $src
+      dest: $dst
+EOF
+    [ -n "$usr" ] && echo "      owner: $usr" >>"$PLAYBOOK_HELPER"
+    [ -n "$grp" ] && echo "      group: $grp" >>"$PLAYBOOK_HELPER"
+    [ -n "$4" ] && echo "      mode: $4" >>"$PLAYBOOK_HELPER"
+    ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm "$PLAYBOOK_HELPER"
+    echo -e
+}
+
+do_GIT() {
+    [ -z "$1" ] && return
+    [ "$1" = "test" ] && return
 }
 
 do_COPY() {
@@ -99,28 +135,46 @@ EOF
     [ -n "$usr" ] && echo "      owner: $usr" >>"$PLAYBOOK_HELPER"
     [ -n "$grp" ] && echo "      group: $grp" >>"$PLAYBOOK_HELPER"
     [ -n "$4" ] && echo "      mode: $4" >>"$PLAYBOOK_HELPER"
-
-    ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF"
-
+    ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm "$PLAYBOOK_HELPER"
     echo -e
 }
 
 do_RUN() {
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
-    echo "%%%%%%%%%%% remotely: RUN %%%%%%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: RUN %%%%%%%%%%%"
+    echo "#!/bin/sh" >/tmp/test.sh
+    echo "$@" >>/tmp/test.sh
     cat <<EOF >"$PLAYBOOK_HELPER"
 - hosts: $CURRENT_ANSIBLE_TARGET
   gather_facts: no
   tasks:
-  - name: Copy file 
-    ansible.builtin.command: "$@"
+  - name: commands RUN 
+    ansible.builtin.script:
+     chdir: $CURRENT_ANSIBLE_WORKDIR 
+     cmd: /tmp/test.sh
     register: out
   - debug: var=out.stdout_lines
 EOF
-    ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF"
+    ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
     rm "$PLAYBOOK_HELPER"
     echo -e
+}
+
+do_PLAY() {
+    [ -z "$1" ] && return
+    [ "$1" = "test" ] && return
+    echo "%%%%%%%%%%% remotely: PLAY: $1 %%%%%%%%%%%%%%%"
+    ansible-playbook "$1" -i "$ALBUM_SELF" | grep -v "^PLAY \|^[[:space:]]*$"
+}
+
+do_WORKDIR() {
+    if [ -z "$1" ]; then
+        CURRENT_ANSIBLE_WORKDIR='$HOME'
+    else
+        CURRENT_ANSIBLE_WORKDIR=$1
+    fi
 }
 
 do_HELM() {
@@ -139,7 +193,7 @@ do_KUBECTL() {
     echo -e
 }
 
-do_RSYNC() {
+do_SYNC() {
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
     echo "%%%%%%%%%%% remotely: RSYNC %%%%%%%%%%%%%%%"
@@ -147,7 +201,7 @@ do_RSYNC() {
     echo -e
 }
 
-INIT_access() {
+do_TARGET() {
     [ -z "$1" ] && return
     [ -z "$SINGLE_LABEL" ] && return
     local ips='[]'
@@ -185,17 +239,24 @@ run_helper_by_name() {
     local helper_call_string
     local val
     local helper_name
+    local helper_params
     # shellcheck disable=SC2076
-    if [[ $2 =~ '(' ]]; then
-        helper_call_string="$(echo "$2" | cut -d'(' -f 2 | cut -d ')' -f 1)"
-    else
+
+    if [[ $2 =~ ^\<\<\<* ]]; then
         helper_call_string="$(echo "$2" | tr -d ' ' | sed 's/<<<//; s/|/ /g;')"
+    else
+        helper_call_string="$(echo "$2" | cut -d'(' -f 2 | cut -d ')' -f 1)"
     fi
+
     helper_name="$(echo "$helper_call_string" | awk '{print $1}')"
+    helper_params="$(echo "$helper_call_string" | sed "s/^$helper_name//")"
 
     if helper_exists "$helper_name"; then
         if [[ "$1" =~ ^do_* ]]; then
-            [[ "$3" =~ "env_after" ]] && [ -n "$1" ] && eval "$helper_call_string"
+            [[ "$3" =~ "env_after" ]] && case $helper_name in
+            do_RUN) do_RUN "${helper_params}" ;;
+            *) eval "$helper_name $helper_params" ;;
+            esac
         else
             [ -n "$1" ] && val="$(eval "$helper_call_string")"
             [[ "$3" =~ "env" ]] && export CW4D_"$1"="$(eval echo "$val")" #$val
@@ -339,18 +400,40 @@ bashcl_translator() {
     local val
     local last
     local tmp
+    local is_var
 
     key_val=$(echo "$2" | grep -v '""' | sed 's/=~/=/;s/,~/,/;s/@@all/all/g' | tr '$' '\0' | sed "s/\o0[A-Za-z]/$ENV_PREFIX&/g" | sed "s/$ENV_PREFIX\o0/\o0$ENV_PREFIX/g" | tr '\0' '$' | tr -d '"')
     [ -z "$key_val" ] && return
 
-    if [[ $key_val =~ ^\<\<\<* ]] || [[ $key_val =~ ^\$\(* ]]; then
-        [[ $key_val =~ ^\<\<\<* ]] && key=$(echo "$key_val" | cut -d '|' -f 1 | tr -d ' ' | sed 's/^<<<//')
-        [[ $key_val =~ ^\$\(* ]] && key=$(echo "$key_val" | cut -d '(' -f 2 | awk '{print $1}')
+    # if [[ $key_val =~ ^\<\<\<* ]] || [[ $key_val =~ ^\$\(* ]] || [[ $key_val =~ ^do_[:upper:]* ]]; then
+    #     [[ $key_val =~ ^\<\<\<* ]] && key=$(echo "$key_val" | cut -d '|' -f 1 | tr -d ' ' | sed 's/^<<<//')
+    #     [[ $key_val =~ ^\$\(* ]] && key=$(echo "$key_val" | cut -d '(' -f 2 | awk '{print $1}')
+    #     val=$key_val
+    # else
+    #     key=$(echo "$key_val" | sed 's/=/\o0/' | cut -d $'\000' -f 1)
+    #     val=$(echo "$key_val" | sed 's/=/\o0/' | cut -d $'\000' -f 2)
+    # fi
+
+    case $key_val in
+    "<<<"*)
+        key=$(echo "$key_val" | cut -d '|' -f 1 | tr -d ' ' | sed 's/^<<<//')
         val=$key_val
-    else
+        ;;
+    ^\$\(*)
+        key=$(echo "$key_val" | cut -d '(' -f 2 | awk '{print $1}')
+        val=$key_val
+        ;;
+    "do_"*)
+        key=$(echo "$key_val" | awk '{print $1}')
+        val=$key_val
+        ;;
+    *)
         key=$(echo "$key_val" | sed 's/=/\o0/' | cut -d $'\000' -f 1)
         val=$(echo "$key_val" | sed 's/=/\o0/' | cut -d $'\000' -f 2)
-    fi
+        is_var=1
+        ;;
+    esac
+
     echo "$val" | grep -q ':' || val=$(echo "$val" | sed 's/^{/[/; s/}$/]/;') # set correct type brakets for list type
 
     last=$(get_if_exported "$key")
@@ -380,7 +463,7 @@ bashcl_translator() {
         ;&
     *)
         # shellcheck disable=SC2076 disable=SC2016
-        if [[ $val =~ '<<' ]] || [[ $val =~ '(' ]]; then
+        if [ -z "$is_var" ]; then
             run_helper_by_name "$key" "$val" "$3"
         else
             val="$(eval echo "$val")"

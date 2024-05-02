@@ -33,4 +33,4 @@ instance_type=@@
 #ami="ami-029e4db491be76287" #Amazon Linux 2023    SSH_user="ec2-user"
 ami="ami-0f0ec0d37d04440e3" # Amazon Linux 2       SSH_user="ec2-user"
 volume_size=@@
-<<<INIT_access | public_ip | $SSH_user | $auto_key_private
+public_ip <<<do_TARGET | $SSH_user | $auto_key_private
