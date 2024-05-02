@@ -142,7 +142,6 @@ EOF
 
 do_RUN() {
     [ -z "$1" ] && return
-    [ "$1" = "test" ] && return
     echo "%%%%%%%%%%% remotely: RUN %%%%%%%%%%%"
     echo "#!/bin/sh" >/tmp/test.sh
     echo "$@" >>/tmp/test.sh
@@ -175,6 +174,33 @@ do_WORKDIR() {
     else
         CURRENT_ANSIBLE_WORKDIR=$1
     fi
+}
+
+do_PACKAGE() {
+    [ -z "$1" ] && return
+    echo "%%%%%%%%%%% remotely: PACKAGE INSTALL %%%%%%%%%%%"
+    cat <<EOF >"$PLAYBOOK_HELPER"
+- hosts: $CURRENT_ANSIBLE_TARGET
+  become: yes
+  tasks:
+  - name: install OS packages
+    ansible.builtin.package:
+      state: present
+      name:
+EOF
+    for pkg in "$@"; do echo "        - $pkg" >>"$PLAYBOOK_HELPER"; done
+
+    ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm "$PLAYBOOK_HELPER"
+    echo -e
+}
+
+do_WALKMAN() {
+    [ "$1" = "test" ] && return
+    echo "%%%%%%%%%%% remotely: WALKMAN INSTALL %%%%%%%%%%%%%%%"
+    sed <"$SINGLE_ECHO_FILE" 's/^ssh /cw4d.sh /' | bash
+    # cw4d.sh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i /home/ubuntu/github/walkman/examples/gcp/linux_vm/.meta/private.key ubuntu@34.65.242.247
+    echo -e
 }
 
 do_HELM() {
@@ -423,7 +449,7 @@ bashcl_translator() {
         key=$(echo "$key_val" | cut -d '(' -f 2 | awk '{print $1}')
         val=$key_val
         ;;
-    "do_"*)
+    "do_"[A-Z]*)
         key=$(echo "$key_val" | awk '{print $1}')
         val=$key_val
         ;;
