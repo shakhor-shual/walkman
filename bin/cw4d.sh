@@ -27,6 +27,8 @@ ANSIBLE_TARGET=all
 ANSIBLE_WORKDIR='$HOME'
 ANSIBLE_USER=$(whoami)
 ANSIBLE_GROUP=$(whoami)
+#ANSIBLE_ENTRYPOINT=""
+#ANSIBLE_ARG=""
 
 check_ansible_connection() {
     local group=${1:-"all"}
@@ -103,8 +105,7 @@ do_TARGET() {
 }
 
 do_USER() {
-    local usr
-    local grp
+    [ -z "$1" ] && return
     if [[ $1 =~ ":" ]]; then
         ANSIBLE_USER=$(echo "$1" | cut -d ':' -f 1)
         ANSIBLE_GROUP=$(echo "$1" | cut -d ':' -f 2)
@@ -112,6 +113,24 @@ do_USER() {
         ANSIBLE_USER=$1
         ANSIBLE_GROUP=$1
     fi
+}
+
+do_ARG() {
+    [ -z "$1" ] && return
+    #  ANSIBLE_ARG=$1
+}
+
+do_ENTRYPOINT() {
+    [ -z "$1" ] && return
+    #  ANSIBLE_ENTRYPOINT=$1
+}
+
+do_ENV() {
+    [ -z "$1" ] && return
+}
+
+do_VOLUME() {
+    [ -z "$1" ] && return
 }
 
 do_FROM() {
@@ -124,7 +143,6 @@ do_FROM() {
 
 do_ADD() {
     [ -z "$1" ] && return
-    [ "$1" = "test" ] && return
     local src=$1
     local dst=$2
     local dst_dir
