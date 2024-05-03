@@ -25,6 +25,8 @@ RUN_LIST="init apply destroy validate describe gitops plan --list --host"
 IN_BASH=0
 CURRENT_ANSIBLE_TARGET=all
 CURRENT_ANSIBLE_WORKDIR='$HOME'
+ANSIBLE_USER=$(whoami)
+ANSIBLE_GROUP=$(whoami)
 
 check_ansible_connection() {
     local group=${1:-"all"}
@@ -77,12 +79,29 @@ do_ADD() {
     local dst=$2
     local usr
     local grp
+    local mode
     local dst_dir
 
-    if [[ $3 =~ : ]]; then
+    [ -n "$4" ] && mode=$4
+    case $3 in
+    *":"*)
         usr=$(echo "$3" | cut -d ':' -f 1)
         grp=$(echo "$3" | cut -d ':' -f 2)
-    fi
+        ;;
+    [0-9][0-9][0-9]*)
+        mode=$3
+        usr=$ANSIBLE_USER
+        grp=$ANSIBLE_GROUP
+        ;;
+    "")
+        usr=$ANSIBLE_USER
+        grp=$ANSIBLE_GROUP
+        ;;
+    *)
+        usr=$3
+        grp=$3
+        ;;
+    esac
 
     echo "%%%%%%%%%%% remotely: ADD %%%%%%%%%%%%%"
 
@@ -145,16 +164,11 @@ EOF
 
     [ -n "$usr" ] && echo "      owner: $usr" >>"$PLAYBOOK_HELPER"
     [ -n "$grp" ] && echo "      group: $grp" >>"$PLAYBOOK_HELPER"
-    [ -n "$4" ] && echo "      mode: $4" >>"$PLAYBOOK_HELPER"
+    [ -n "$mode" ] && echo "      mode: $mode" >>"$PLAYBOOK_HELPER"
     ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF" #| grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
     cat "$PLAYBOOK_HELPER"
     #rm "$PLAYBOOK_HELPER"
     echo -e
-}
-
-do_GIT() {
-    [ -z "$1" ] && return
-    [ "$1" = "test" ] && return
 }
 
 do_COPY() {
@@ -164,11 +178,28 @@ do_COPY() {
     local dst=$2
     local usr
     local grp
+    local mode
 
-    if [[ $3 =~ : ]]; then
+    [ -n "$4" ] && mode=$4
+    case $3 in
+    *":"*)
         usr=$(echo "$3" | cut -d ':' -f 1)
         grp=$(echo "$3" | cut -d ':' -f 2)
-    fi
+        ;;
+    [0-9][0-9][0-9]*)
+        mode=$3
+        usr=$ANSIBLE_USER
+        grp=$ANSIBLE_GROUP
+        ;;
+    "")
+        usr=$ANSIBLE_USER
+        grp=$ANSIBLE_GROUP
+        ;;
+    *)
+        usr=$3
+        grp=$3
+        ;;
+    esac
 
     echo "%%%%%%%%%%% remotely: COPY %%%%%%%%%%%%%%%"
     cat <<EOF >"$PLAYBOOK_HELPER"
@@ -180,14 +211,18 @@ do_COPY() {
     ansible.builtin.copy:
       src: $src
       dest: $dst
+      owner: $usr
+      group: $grp
 EOF
-
-    [ -n "$usr" ] && echo "      owner: $usr" >>"$PLAYBOOK_HELPER"
-    [ -n "$grp" ] && echo "      group: $grp" >>"$PLAYBOOK_HELPER"
-    [ -n "$4" ] && echo "      mode: $4" >>"$PLAYBOOK_HELPER"
+    [ -n "$mode" ] && echo "      mode: $mode" >>"$PLAYBOOK_HELPER"
     ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
     rm "$PLAYBOOK_HELPER"
     echo -e
+}
+
+do_GIT() {
+    [ -z "$1" ] && return
+    [ "$1" = "test" ] && return
 }
 
 do_RUN() {
@@ -283,6 +318,9 @@ do_TARGET() {
     local user=$2
     local secret
 
+    ANSIBLE_USER=$user
+    ANSIBLE_GROUP=$user
+
     ips="$(extract_ip_from_state_file "$1")"
     echo " #!/bin/bash" >"$SINGLE_TARGET_FILE"
     echo "#~""$SINGLE_LABEL" >>"$SINGLE_TARGET_FILE"
@@ -307,6 +345,18 @@ do_TARGET() {
 
     chmod 777 "$SINGLE_TARGET_FILE"
     echo "$ips"
+}
+
+do_USER() {
+    local usr
+    local grp
+    if [[ $1 =~ ":" ]]; then
+        ANSIBLE_USER=$(echo "$1" | cut -d ':' -f 1)
+        ANSIBLE_GROUP=$(echo "$1" | cut -d ':' -f 2)
+    else
+        ANSIBLE_USER=$1
+        ANSIBLE_GROUP=$1
+    fi
 }
 
 ############### HELPERS EXECUTOR ##############
