@@ -133,6 +133,50 @@ do_ENV() {
 
 do_VOLUME() {
     [ -z "$1" ] && return
+    local dir=$1
+    local usr
+    local grp
+    local mode="'0755'"
+    local tmp
+    tmp=$(mktemp -d)
+
+    [ -n "$3" ] && mode=$3
+    case $2 in
+    *":"*)
+        usr=$(echo "$2" | cut -d ':' -f 1)
+        grp=$(echo "$2" | cut -d ':' -f 2)
+        ;;
+    [0-9][0-9][0-9]*)
+        mode=$3
+        usr=$ANSIBLE_USER
+        grp=$ANSIBLE_GROUP
+        ;;
+    "")
+        usr=$ANSIBLE_USER
+        grp=$ANSIBLE_GROUP
+        ;;
+    *)
+        usr=$2
+        grp=$2
+        ;;
+    esac
+
+    echo "%%%%%%%%%%% remotely: ADD %%%%%%%%%%%%%"
+    cat <<EOF >"$tmp/tmp.yaml"
+- hosts: $ANSIBLE_TARGET
+  become: yes
+  tasks:
+    - name: Create DIRECTORY
+    ansible.builtin.file:
+      path:  $dir
+      state: directory
+      mode: $mode
+      owner: $usr
+      group: $grp
+EOF
+    ansible-playbook " $tmp/tmp.yaml" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm -r "$tmp"
+    echo -e
 }
 
 do_FROM() {
