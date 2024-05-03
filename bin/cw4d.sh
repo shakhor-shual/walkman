@@ -31,7 +31,9 @@ ANSIBLE_GROUP=$(whoami)
 check_ansible_connection() {
     local group=${1:-"all"}
     local delay=${2:-"30"}
-    cat <<EOF >"$PLAYBOOK_HELPER"
+    local tmp
+    tmp=$(mktemp -d)
+    cat <<EOF >"$tmp/tmp.yaml"
 - hosts: $group
   gather_facts: no
   tasks:
@@ -39,8 +41,8 @@ check_ansible_connection() {
     ansible.builtin.wait_for_connection:
       timeout: $delay
 EOF
-    ansible-playbook -i "$ALBUM_SELF" "$PLAYBOOK_HELPER" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    rm "$PLAYBOOK_HELPER"
+    ansible-playbook -i "$ALBUM_SELF" " $tmp/tmp.yaml" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm -r "$tmp"
 }
 
 ################ EXTENTION HELPERS LIBRARY #############################
@@ -81,6 +83,8 @@ do_ADD() {
     local grp
     local mode
     local dst_dir
+    local tmp
+    tmp=$(mktemp -d)
 
     [ -n "$4" ] && mode=$4
     case $3 in
@@ -104,8 +108,7 @@ do_ADD() {
     esac
 
     echo "%%%%%%%%%%% remotely: ADD %%%%%%%%%%%%%"
-
-    cat <<EOF >"$PLAYBOOK_HELPER"
+    cat <<EOF >"$tmp/tmp.yaml"
 - hosts: $CURRENT_ANSIBLE_TARGET
   become: yes
   tasks:
@@ -113,7 +116,7 @@ EOF
     case $src in
     *".zip" | *".tar.gz" | *".tgz")
         dst_dir=$dst
-        cat <<EOF >>"$PLAYBOOK_HELPER"
+        cat <<EOF >>"$tmp/tmp.yaml"
   - name: install Tools
     ansible.builtin.package:
       state: present
@@ -134,11 +137,11 @@ EOF
       dest: $dst
 
 EOF
-        [[ $src =~ "://" ]] && echo "      remote_src: yes" >>"$PLAYBOOK_HELPER"
+        [[ $src =~ "://" ]] && echo "      remote_src: yes" >>" $tmp/tmp.yaml"
         ;;
     *"://"*)
         dst_dir=$(dirname "$dst")
-        cat <<EOF >>"$PLAYBOOK_HELPER"
+        cat <<EOF >>"$tmp/tmp.yaml"
   - name: Create a dst_dir
     ansible.builtin.file:
       path:  $dst_dir
@@ -153,7 +156,7 @@ EOF
 EOF
         ;;
     *)
-        cat <<EOF >>"$PLAYBOOK_HELPER"
+        cat <<EOF >>"$tmp/tmp.yaml"
   - name: ADD local content 
     ansible.builtin.copy:
       src: $src
@@ -162,12 +165,12 @@ EOF
         ;;
     esac
 
-    [ -n "$usr" ] && echo "      owner: $usr" >>"$PLAYBOOK_HELPER"
-    [ -n "$grp" ] && echo "      group: $grp" >>"$PLAYBOOK_HELPER"
-    [ -n "$mode" ] && echo "      mode: $mode" >>"$PLAYBOOK_HELPER"
-    ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF" #| grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    cat "$PLAYBOOK_HELPER"
-    #rm "$PLAYBOOK_HELPER"
+    [ -n "$usr" ] && echo "      owner: $usr" >>" $tmp/tmp.yaml"
+    [ -n "$grp" ] && echo "      group: $grp" >>" $tmp/tmp.yaml"
+    [ -n "$mode" ] && echo "      mode: $mode" >>" $tmp/tmp.yaml"
+    ansible-playbook " $tmp/tmp.yaml" -i "$ALBUM_SELF" #| grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    cat " $tmp/tmp.yaml"
+    rm -r "$tmp"
     echo -e
 }
 
@@ -202,7 +205,8 @@ do_COPY() {
     esac
 
     echo "%%%%%%%%%%% remotely: COPY %%%%%%%%%%%%%%%"
-    cat <<EOF >"$PLAYBOOK_HELPER"
+    tmp=$(mktemp -d)
+    cat <<EOF >"$tmp/tmp.yaml"
 - hosts: $CURRENT_ANSIBLE_TARGET
   gather_facts: no
   become: yes
@@ -214,9 +218,9 @@ do_COPY() {
       owner: $usr
       group: $grp
 EOF
-    [ -n "$mode" ] && echo "      mode: $mode" >>"$PLAYBOOK_HELPER"
-    ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    rm "$PLAYBOOK_HELPER"
+    [ -n "$mode" ] && echo "      mode: $mode" >>" $tmp/tmp.yaml"
+    ansible-playbook " $tmp/tmp.yaml" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm -r "$tmp"
     echo -e
 }
 
@@ -227,22 +231,26 @@ do_GIT() {
 
 do_RUN() {
     [ -z "$1" ] && return
+    local tmp
+    tmp=$(mktemp -d)
     echo "%%%%%%%%%%% remotely: RUN %%%%%%%%%%%"
-    echo "#!/bin/sh" >/tmp/test.sh
-    echo "$@" >>/tmp/test.sh
-    cat <<EOF >"$PLAYBOOK_HELPER"
+    {
+        echo "#!/bin/sh"
+        echo "$@"
+    } >>"$tmp/tmp.sh"
+    cat <<EOF >"$tmp/tmp.yaml"
 - hosts: $CURRENT_ANSIBLE_TARGET
   gather_facts: no
   tasks:
   - name: commands RUN 
     ansible.builtin.script:
      chdir: $CURRENT_ANSIBLE_WORKDIR 
-     cmd: /tmp/test.sh
+     cmd: $tmp/tmp.sh
     register: out
   - debug: var=out.stdout_lines
 EOF
-    ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    rm "$PLAYBOOK_HELPER"
+    ansible-playbook "$tmp/tmp.yaml" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm -r "$tmp"
     echo -e
 }
 
@@ -264,7 +272,9 @@ do_WORKDIR() {
 do_PACKAGE() {
     [ -z "$1" ] && return
     echo "%%%%%%%%%%% remotely: PACKAGE INSTALL %%%%%%%%%%%"
-    cat <<EOF >"$PLAYBOOK_HELPER"
+    local tmp
+    tmp=$(mktemp -d)
+    cat <<EOF >"$tmp/tmp.yaml"
 - hosts: $CURRENT_ANSIBLE_TARGET
   become: yes
   tasks:
@@ -273,10 +283,10 @@ do_PACKAGE() {
       state: present
       name:
 EOF
-    for pkg in "$@"; do echo "        - $pkg" >>"$PLAYBOOK_HELPER"; done
+    for pkg in "$@"; do echo "        - $pkg" >>" $tmp/tmp.yaml"; done
 
-    ansible-playbook "$PLAYBOOK_HELPER" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    rm "$PLAYBOOK_HELPER"
+    ansible-playbook " $tmp/tmp.yaml" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm -r "$tmp"
     echo -e
 }
 
