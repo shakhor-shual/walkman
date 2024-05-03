@@ -122,11 +122,13 @@ do_ARG() {
 
 do_ENTRYPOINT() {
     [ -z "$1" ] && return
-    #  ANSIBLE_ENTRYPOINT=$1
+    ANSIBLE_ENTRYPOINT=$1
 }
 
 do_ENV() {
     [ -z "$1" ] && return
+    [ -z "$ANSIBLE_ENTRYPOINT" ] && return
+
 }
 
 do_VOLUME() {
