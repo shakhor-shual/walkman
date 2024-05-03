@@ -66,6 +66,54 @@ GET_from_state_by_type() {
     return 1
 }
 
+do_TARGET() {
+    [ -z "$1" ] && return
+    [ -z "$SINGLE_LABEL" ] && return
+    local ips='[]'
+    local user=$2
+    local secret
+
+    ANSIBLE_USER=$user
+    ANSIBLE_GROUP=$user
+
+    ips="$(extract_ip_from_state_file "$1")"
+    echo " #!/bin/bash" >"$SINGLE_TARGET_FILE"
+    echo "#~""$SINGLE_LABEL" >>"$SINGLE_TARGET_FILE"
+    echo "# hosts:$ips" >>"$SINGLE_TARGET_FILE"
+
+    if echo "$3" | grep -q "$DIR_META"; then
+        secret=$PACK_HOME_FULL_PATH/$3
+        echo "KEY_FILE=$secret" >>"$SINGLE_TARGET_FILE"
+    else
+        secret=$3
+        echo "KEY_FILE=$secret" >>"$SINGLE_TARGET_FILE"
+    fi
+
+    print_hosts_for_list_request "$ips" "$user" "$secret": >>"$INVENTORY_LIST_HEAD"
+
+    for ip in $(echo "$ips" | sed 's/,/ /;s/\[//;s/\]//'); do
+        # shellcheck disable=SC2016
+        echo 'ssh  -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i $KEY_FILE '"$user"'@'"$ip" >>"$SINGLE_TARGET_FILE"
+        print_hostvars_for_host_request "$ip" "$user" "$secret" >>"$INVENTORY_HOST"
+        print_hostvars_for_list_request "$ip" "$user" "$secret" >>"$INVENTORY_LIST_TAIL"
+    done
+
+    chmod 777 "$SINGLE_TARGET_FILE"
+    echo "$ips"
+}
+
+do_USER() {
+    local usr
+    local grp
+    if [[ $1 =~ ":" ]]; then
+        ANSIBLE_USER=$(echo "$1" | cut -d ':' -f 1)
+        ANSIBLE_GROUP=$(echo "$1" | cut -d ':' -f 2)
+    else
+        ANSIBLE_USER=$1
+        ANSIBLE_GROUP=$1
+    fi
+}
+
 do_FROM() {
     ANSIBLE_TARGET=all
     [ -n "$1" ] && ANSIBLE_TARGET=$1
@@ -79,10 +127,10 @@ do_ADD() {
     [ "$1" = "test" ] && return
     local src=$1
     local dst=$2
+    local dst_dir
     local usr
     local grp
     local mode
-    local dst_dir
     local tmp
     tmp=$(mktemp -d)
 
@@ -224,11 +272,6 @@ EOF
     echo -e
 }
 
-do_GIT() {
-    [ -z "$1" ] && return
-    [ "$1" = "test" ] && return
-}
-
 do_RUN() {
     [ -z "$1" ] && return
     local tmp
@@ -297,6 +340,11 @@ do_WALKMAN() {
     echo -e
 }
 
+do_GIT() {
+    [ -z "$1" ] && return
+    [ "$1" = "test" ] && return
+}
+
 do_HELM() {
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
@@ -319,54 +367,6 @@ do_SYNC() {
     echo "%%%%%%%%%%% remotely: RSYNC %%%%%%%%%%%%%%%"
     rsync "$@"
     echo -e
-}
-
-do_TARGET() {
-    [ -z "$1" ] && return
-    [ -z "$SINGLE_LABEL" ] && return
-    local ips='[]'
-    local user=$2
-    local secret
-
-    ANSIBLE_USER=$user
-    ANSIBLE_GROUP=$user
-
-    ips="$(extract_ip_from_state_file "$1")"
-    echo " #!/bin/bash" >"$SINGLE_TARGET_FILE"
-    echo "#~""$SINGLE_LABEL" >>"$SINGLE_TARGET_FILE"
-    echo "# hosts:$ips" >>"$SINGLE_TARGET_FILE"
-
-    if echo "$3" | grep -q "$DIR_META"; then
-        secret=$PACK_HOME_FULL_PATH/$3
-        echo "KEY_FILE=$secret" >>"$SINGLE_TARGET_FILE"
-    else
-        secret=$3
-        echo "KEY_FILE=$secret" >>"$SINGLE_TARGET_FILE"
-    fi
-
-    print_hosts_for_list_request "$ips" "$user" "$secret": >>"$INVENTORY_LIST_HEAD"
-
-    for ip in $(echo "$ips" | sed 's/,/ /;s/\[//;s/\]//'); do
-        # shellcheck disable=SC2016
-        echo 'ssh  -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i $KEY_FILE '"$user"'@'"$ip" >>"$SINGLE_TARGET_FILE"
-        print_hostvars_for_host_request "$ip" "$user" "$secret" >>"$INVENTORY_HOST"
-        print_hostvars_for_list_request "$ip" "$user" "$secret" >>"$INVENTORY_LIST_TAIL"
-    done
-
-    chmod 777 "$SINGLE_TARGET_FILE"
-    echo "$ips"
-}
-
-do_USER() {
-    local usr
-    local grp
-    if [[ $1 =~ ":" ]]; then
-        ANSIBLE_USER=$(echo "$1" | cut -d ':' -f 1)
-        ANSIBLE_GROUP=$(echo "$1" | cut -d ':' -f 2)
-    else
-        ANSIBLE_USER=$1
-        ANSIBLE_GROUP=$1
-    fi
 }
 
 ############### HELPERS EXECUTOR ##############
@@ -539,15 +539,6 @@ bashcl_translator() {
 
     key_val=$(echo "$2" | grep -v '""' | sed 's/=~/=/;s/,~/,/;s/@@all/all/g' | tr '$' '\0' | sed "s/\o0[A-Za-z]/$ENV_PREFIX&/g" | sed "s/$ENV_PREFIX\o0/\o0$ENV_PREFIX/g" | tr '\0' '$' | tr -d '"')
     [ -z "$key_val" ] && return
-
-    # if [[ $key_val =~ ^\<\<\<* ]] || [[ $key_val =~ ^\$\(* ]] || [[ $key_val =~ ^do_[:upper:]* ]]; then
-    #     [[ $key_val =~ ^\<\<\<* ]] && key=$(echo "$key_val" | cut -d '|' -f 1 | tr -d ' ' | sed 's/^<<<//')
-    #     [[ $key_val =~ ^\$\(* ]] && key=$(echo "$key_val" | cut -d '(' -f 2 | awk '{print $1}')
-    #     val=$key_val
-    # else
-    #     key=$(echo "$key_val" | sed 's/=/\o0/' | cut -d $'\000' -f 1)
-    #     val=$(echo "$key_val" | sed 's/=/\o0/' | cut -d $'\000' -f 2)
-    # fi
 
     case $key_val in
     "<<<"*)
