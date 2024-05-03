@@ -404,11 +404,6 @@ do_WALKMAN() {
     echo -e
 }
 
-do_GIT() {
-    [ -z "$1" ] && return
-    [ "$1" = "test" ] && return
-}
-
 do_HELM() {
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
