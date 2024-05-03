@@ -23,8 +23,8 @@ DEBUG=0
 TF_EC=0
 RUN_LIST="init apply destroy validate describe gitops plan --list --host"
 IN_BASH=0
-CURRENT_ANSIBLE_TARGET=all
-CURRENT_ANSIBLE_WORKDIR='$HOME'
+ANSIBLE_TARGET=all
+ANSIBLE_WORKDIR='$HOME'
 ANSIBLE_USER=$(whoami)
 ANSIBLE_GROUP=$(whoami)
 
@@ -67,10 +67,10 @@ GET_from_state_by_type() {
 }
 
 do_FROM() {
-    CURRENT_ANSIBLE_TARGET=all
-    [ -n "$1" ] && CURRENT_ANSIBLE_TARGET=$1
-    echo "%%%%%%%%%%% remotely: FROM - $CURRENT_ANSIBLE_TARGET %%%%%%%%%%%%%%%"
-    check_ansible_connection "$CURRENT_ANSIBLE_TARGET"
+    ANSIBLE_TARGET=all
+    [ -n "$1" ] && ANSIBLE_TARGET=$1
+    echo "%%%%%%%%%%% remotely: FROM - $ANSIBLE_TARGET %%%%%%%%%%%%%%%"
+    check_ansible_connection "$ANSIBLE_TARGET"
     echo -e
 }
 
@@ -109,7 +109,7 @@ do_ADD() {
 
     echo "%%%%%%%%%%% remotely: ADD %%%%%%%%%%%%%"
     cat <<EOF >"$tmp/tmp.yaml"
-- hosts: $CURRENT_ANSIBLE_TARGET
+- hosts: $ANSIBLE_TARGET
   become: yes
   tasks:
 EOF
@@ -207,7 +207,7 @@ do_COPY() {
     echo "%%%%%%%%%%% remotely: COPY %%%%%%%%%%%%%%%"
     tmp=$(mktemp -d)
     cat <<EOF >"$tmp/tmp.yaml"
-- hosts: $CURRENT_ANSIBLE_TARGET
+- hosts: $ANSIBLE_TARGET
   gather_facts: no
   become: yes
   tasks:
@@ -239,12 +239,12 @@ do_RUN() {
         echo "$@"
     } >>"$tmp/tmp.sh"
     cat <<EOF >"$tmp/tmp.yaml"
-- hosts: $CURRENT_ANSIBLE_TARGET
+- hosts: $ANSIBLE_TARGET
   gather_facts: no
   tasks:
   - name: commands RUN 
     ansible.builtin.script:
-     chdir: $CURRENT_ANSIBLE_WORKDIR 
+     chdir: $ANSIBLE_WORKDIR 
      cmd: $tmp/tmp.sh
     register: out
   - debug: var=out.stdout_lines
@@ -263,9 +263,9 @@ do_PLAY() {
 
 do_WORKDIR() {
     if [ -z "$1" ]; then
-        CURRENT_ANSIBLE_WORKDIR='$HOME'
+        ANSIBLE_WORKDIR='$HOME'
     else
-        CURRENT_ANSIBLE_WORKDIR=$1
+        ANSIBLE_WORKDIR=$1
     fi
 }
 
@@ -275,7 +275,7 @@ do_PACKAGE() {
     local tmp
     tmp=$(mktemp -d)
     cat <<EOF >"$tmp/tmp.yaml"
-- hosts: $CURRENT_ANSIBLE_TARGET
+- hosts: $ANSIBLE_TARGET
   become: yes
   tasks:
   - name: install OS packages
