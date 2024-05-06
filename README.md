@@ -4,6 +4,10 @@ Walkman is a tool for configuring and orchestrating mixed IaC projects based on
 existing code-base for Terraform, Ansible, Helm etc.  In general, Walkman 
 was conceived as a small “Swiss Army knife” for DevOps-routines. 
 
+It allows you to declaratively describe the process of deployment and subsequent 
+configuration of cloud infrastructure using executable scripts. In essence, Walkman 
+is a specialized form of Unix Shell with own IaC oriented DSL based on the BASH 
+shorthand syntax.
 
 ## Quick Start:
 Walkman is just a single  bash script(cw4d.sh) that, when run without parameters, 
