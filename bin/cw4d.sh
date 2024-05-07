@@ -34,8 +34,8 @@ check_ansible_connection() {
     local group=${1:-"all"}
     local delay=${2:-"30"}
     local tmp
-    tmp=$(mktemp -d)
-    cat <<EOF >"$tmp/tmp.yaml"
+    tmp=$(mktemp -d)/tmp.yaml
+    cat <<EOF >"$tmp"
 - hosts: $group
   gather_facts: no
   tasks:
@@ -43,8 +43,8 @@ check_ansible_connection() {
     ansible.builtin.wait_for_connection:
       timeout: $delay
 EOF
-    ansible-playbook -i "$ALBUM_SELF" "$tmp/tmp.yaml" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    rm -r "$tmp"
+    ansible-playbook -i "$ALBUM_SELF" "$tmp" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm -r "$(dirname "$tmp")"
 }
 
 ################ EXTENTION HELPERS LIBRARY #############################
@@ -70,37 +70,33 @@ GET_from_state_by_type() {
 
 do_TARGET() {
     [ -z "$1" ] && return
-    [ -z "$SINGLE_LABEL" ] && return
+    [ -z "$STAGE_LABEL" ] && return
     local ips='[]'
     local user=$2
-    local secret
+    local secret=$3
 
     ANSIBLE_USER=$user
     ANSIBLE_GROUP=$user
 
     ips="$(extract_ip_from_state_file "$1")"
-    echo " #!/bin/bash" >"$SINGLE_TARGET_FILE"
-    echo "#~""$SINGLE_LABEL" >>"$SINGLE_TARGET_FILE"
-    echo "# hosts:$ips" >>"$SINGLE_TARGET_FILE"
 
-    if echo "$3" | grep -q "$DIR_META"; then
-        secret=$PACK_HOME_FULL_PATH/$3
-        echo "KEY_FILE=$secret" >>"$SINGLE_TARGET_FILE"
-    else
-        secret=$3
-        echo "KEY_FILE=$secret" >>"$SINGLE_TARGET_FILE"
-    fi
+    cat <<EOF >"$STAGE_TARGET_FILE"
+#!/bin/bash
+# ~$STAGE_LABEL
+# hosts:$ips
+KEY_FILE=$secret
+EOF
 
     print_hosts_for_list_request "$ips" "$user" "$secret": >>"$INVENTORY_LIST_HEAD"
 
     for ip in $(echo "$ips" | sed 's/,/ /;s/\[//;s/\]//'); do
         # shellcheck disable=SC2016
-        echo 'ssh  -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i $KEY_FILE '"$user"'@'"$ip" >>"$SINGLE_TARGET_FILE"
+        echo 'ssh  -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i $KEY_FILE '"$user"'@'"$ip" >>"$STAGE_TARGET_FILE"
         print_hostvars_for_host_request "$ip" "$user" "$secret" >>"$INVENTORY_HOST"
         print_hostvars_for_list_request "$ip" "$user" "$secret" >>"$INVENTORY_LIST_TAIL"
     done
 
-    chmod 777 "$SINGLE_TARGET_FILE"
+    chmod 777 "$STAGE_TARGET_FILE"
     echo "$ips"
 }
 
@@ -138,7 +134,7 @@ do_VOLUME() {
     local grp
     local mode="'0755'"
     local tmp
-    tmp=$(mktemp -d)
+    tmp=$(mktemp -d)/tmp.yaml
 
     [ -n "$3" ] && mode=$3
     case $2 in
@@ -162,7 +158,7 @@ do_VOLUME() {
     esac
 
     echo "%%%%%%%%%%% remotely: ADD %%%%%%%%%%%%%"
-    cat <<EOF >"$tmp/tmp.yaml"
+    cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: yes
   tasks:
@@ -174,8 +170,8 @@ do_VOLUME() {
       owner: $usr
       group: $grp
 EOF
-    ansible-playbook "$tmp/tmp.yaml" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    rm -r "$tmp"
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm -r "$(dirname "$tmp")"
     echo -e
 }
 
@@ -196,7 +192,7 @@ do_ADD() {
     local grp
     local mode
     local tmp
-    tmp=$(mktemp -d)
+    tmp=$(mktemp -d)/tmp.yaml
 
     [ -n "$4" ] && mode=$4
     case $3 in
@@ -220,7 +216,7 @@ do_ADD() {
     esac
 
     echo "%%%%%%%%%%% remotely: ADD %%%%%%%%%%%%%"
-    cat <<EOF >"$tmp/tmp.yaml"
+    cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: yes
   tasks:
@@ -228,7 +224,7 @@ EOF
     case $src in
     *".zip" | *".tar.gz" | *".tgz")
         dst_dir=$dst
-        cat <<EOF >>"$tmp/tmp.yaml"
+        cat <<EOF >>"$tmp"
   - name: install Tools
     ansible.builtin.package:
       state: present
@@ -249,11 +245,11 @@ EOF
       dest: $dst
 
 EOF
-        [[ $src =~ "://" ]] && echo "      remote_src: yes" >>"$tmp/tmp.yaml"
+        [[ $src =~ "://" ]] && echo "      remote_src: yes" >>"$tmp"
         ;;
     *"://"*)
         dst_dir=$(dirname "$dst")
-        cat <<EOF >>"$tmp/tmp.yaml"
+        cat <<EOF >>"$tmp"
   - name: Create a dst_dir
     ansible.builtin.file:
       path:  $dst_dir
@@ -268,7 +264,7 @@ EOF
 EOF
         ;;
     *)
-        cat <<EOF >>"$tmp/tmp.yaml"
+        cat <<EOF >>"$tmp"
   - name: ADD local content 
     ansible.builtin.copy:
       src: $src
@@ -277,12 +273,12 @@ EOF
         ;;
     esac
 
-    [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp/tmp.yaml"
-    [ -n "$grp" ] && echo "      group: $grp" >>"$tmp/tmp.yaml"
-    [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp/tmp.yaml"
-    ansible-playbook "$tmp/tmp.yaml" -i "$ALBUM_SELF" #| grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    cat "$tmp/tmp.yaml"
-    rm -r "$tmp"
+    [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
+    [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
+    [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" #| grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    cat "$tmp"
+    rm -r "$(dirname "$tmp")"
     echo -e
 }
 
@@ -317,8 +313,8 @@ do_COPY() {
     esac
 
     echo "%%%%%%%%%%% remotely: COPY %%%%%%%%%%%%%%%"
-    tmp=$(mktemp -d)
-    cat <<EOF >"$tmp/tmp.yaml"
+    tmp=$(mktemp -d)/tmp.yaml
+    cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   gather_facts: no
   become: yes
@@ -330,34 +326,39 @@ do_COPY() {
       owner: $usr
       group: $grp
 EOF
-    [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp/tmp.yaml"
-    ansible-playbook "$tmp/tmp.yaml" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    rm -r "$tmp"
+    [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm -r "$(dirname "$tmp")"
     echo -e
 }
 
 do_RUN() {
     [ -z "$1" ] && return
     local tmp
+    local tmp_sh
     tmp=$(mktemp -d)
+    tmp_sh=$tmp/tmp.sh
+
     echo "%%%%%%%%%%% remotely: RUN %%%%%%%%%%%"
     {
         echo "#!/bin/sh"
         echo "$@"
-    } >>"$tmp/tmp.sh"
-    cat <<EOF >"$tmp/tmp.yaml"
+    } >>"$tmp_sh"
+
+    tmp=$tmp/tmp.yaml
+    cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   gather_facts: no
   tasks:
   - name: commands RUN 
     ansible.builtin.script:
      chdir: $ANSIBLE_WORKDIR 
-     cmd: $tmp/tmp.sh
+     cmd: $tmp_sh
     register: out
   - debug: var=out.stdout_lines
 EOF
-    ansible-playbook "$tmp/tmp.yaml" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    rm -r "$tmp"
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm -r "$(dirname "$tmp")"
     echo -e
 }
 
@@ -380,8 +381,8 @@ do_PACKAGE() {
     [ -z "$1" ] && return
     echo "%%%%%%%%%%% remotely: PACKAGE INSTALL %%%%%%%%%%%"
     local tmp
-    tmp=$(mktemp -d)
-    cat <<EOF >"$tmp/tmp.yaml"
+    tmp=$(mktemp -d)/tmp.yaml
+    cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: yes
   tasks:
@@ -390,17 +391,17 @@ do_PACKAGE() {
       state: present
       name:
 EOF
-    for pkg in "$@"; do echo "        - $pkg" >>"$tmp/tmp.yaml"; done
+    for pkg in "$@"; do echo "        - $pkg" >>"$tmp"; done
 
-    ansible-playbook "$tmp/tmp.yaml" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    rm -r "$tmp"
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm -r "$(dirname "$tmp")"
     echo -e
 }
 
 do_WALKMAN() {
     [ "$1" = "test" ] && return
     echo "%%%%%%%%%%% remotely: WALKMAN INSTALL %%%%%%%%%%%%%%%"
-    sed <"$SINGLE_TARGET_FILE" 's/^ssh /cw4d.sh /' | bash
+    sed <"$STAGE_TARGET_FILE" 's/^ssh /cw4d.sh /' | bash
     echo -e
 }
 
@@ -639,8 +640,8 @@ bashcl_translator() {
         val=${val//++last/$last}
         ;&
     *"@@meta"*)
-        tmp="../.meta"
-        [ -z "$SINGLE_LABEL" ] && tmp=$DIR_ALBUM_HOME/.meta
+        tmp=$(readlink -f ../.meta)
+        [ -z "$STAGE_LABEL" ] && tmp=$DIR_ALBUM_HOME/.meta
         val=${val//@@meta/$tmp}
         ;&
     "{"* | "["*)
@@ -715,7 +716,7 @@ print_hosts_for_list_request() { #head
     hosts=${1//\"/}
     [ "$hosts" = "[]" ] && return
     hosts=$(echo "$hosts" | sed 's/\[/\["/;s/\]/"\]/; s/,/","/g')
-    echo -n "\"$SINGLE_LABEL\":{"
+    echo -n "\"$STAGE_LABEL\":{"
     echo -n "\"hosts\":"
     echo -n "$hosts,"
     echo -n "\"vars\":{"
@@ -1342,7 +1343,7 @@ git_clone_or_pull() {
         git -C "$1" pull | grep -q "up to date" && return 0
     else
         if [ "$1" = "." ]; then
-            tmp=$(mktemp -d)
+            tmp=$(mktemp -d)/tmp.yaml
             mv ./*.csh "$tmp" 2>/dev/null
             rm -rf "${packet_dir:?}/"*
             rm -rf "${packet_dir:?}/."meta
@@ -1518,28 +1519,28 @@ case $RUN_MODE in
         sed <"$ALBUM_VARS_DRAFT" 's/^~/###~/' | csplit - -s '/^###~/' '{*}' -f "$DIR_WS_TMP/$WS_NAME" -b "%02d_vars.draft"
 
         STAGE_COUNT=0
-        SINGLE_INIT_FILE="$DIR_WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
-        SINGLE_LABEL="&root&"
-        update_variables_state "$SINGLE_INIT_FILE" "env_all"
+        STAGE_INIT_FILE="$DIR_WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
+        STAGE_LABEL="&root&"
+        update_variables_state "$STAGE_INIT_FILE" "env_all"
 
         STAGE_COUNT=1
         for stage_path in $(
             find "$DIR_ALBUM_HOME" -maxdepth 1 -type d | sort | grep -v '\.meta\|\.git' | tail -n +2
         ); do
-            SINGLE_INIT_FILE="$DIR_WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
-            SINGLE_LABEL=$(head <"$SINGLE_INIT_FILE" -n 1 | sed 's/#//g;s/ //g;s/://g;s/~//g;')
-            SINGLE_TARGET_FILE=$DIR_ALBUM_META/ssh-to-$WS_NAME-$SINGLE_LABEL.sh
+            STAGE_INIT_FILE="$DIR_WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
+            STAGE_LABEL=$(head <"$STAGE_INIT_FILE" -n 1 | sed 's/#//g;s/ //g;s/://g;s/~//g;')
+            STAGE_TARGET_FILE=$DIR_ALBUM_META/ssh-to-$WS_NAME-$STAGE_LABEL.sh
 
             echo
             echo "############################## Stage-$STAGE_COUNT ################################"
-            echo "### Stage LABEL: $SINGLE_LABEL  "
+            echo "### Stage LABEL: $STAGE_LABEL  "
             echo "### Stage HOME: $stage_path"
             echo
 
             if get_in_tf_packet_home "$stage_path"; then #get in packet dir
                 mkdir -p "$DIR_META"
                 draft_tfvars_from_packet_variables
-                update_variables_state "$SINGLE_INIT_FILE" "env_file"
+                update_variables_state "$STAGE_INIT_FILE" "env_file"
 
                 terraform workspace select -or-create "$WS_NAME"
                 case $RUN_MODE in
@@ -1562,7 +1563,7 @@ case $RUN_MODE in
                         terraform apply -auto-approve
                         TF_EC=$?
                         [ "$TF_EC" -eq 1 ] && finish_grace "err_tf" "$STAGE_COUNT" "$stage_path"
-                        update_variables_state "$SINGLE_INIT_FILE" "env_after"
+                        update_variables_state "$STAGE_INIT_FILE" "env_after"
                     fi
                     ;;
                 esac
@@ -1590,7 +1591,7 @@ case $RUN_MODE in
                         ;;
                     *) echo "This UNKNOWN packet!!!" ;;
                     esac
-                    update_variables_state "$SINGLE_INIT_FILE" "env_all"
+                    update_variables_state "$STAGE_INIT_FILE" "env_all"
                 fi
             fi
             ((STAGE_COUNT++))

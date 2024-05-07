@@ -47,8 +47,8 @@ echo $boot_disk_size
 
 boot_disk_size=@@last
 boot_disk_type=@@
-#boot_image="suse-cloud/sles-12"
-#boot_image="suse-cloud/sles-15"
+#boot_image="suse-cloud/sles-12" #checked
+#boot_image="suse-cloud/sles-15" #checked
 #boot_image="opensuse-cloud/opensuse-leap"
 #boot_image="rhel-cloud/rhel-7" #checked
 #boot_image="rhel-cloud/rhel-8" #checked
@@ -71,11 +71,12 @@ boot_image="ubuntu-os-cloud/ubuntu-2204-lts" #checked
 
 #inlined BASH
 /*
-if [[ $boot_image =~ "ubuntu" ]]; then
-    ssh_user="ubuntu"
-else
-    ssh_user="fedo"
-fi
+case $boot_image in
+*"ubuntu"*) ssh_user="ubuntu" ;;
+*"debian"*) ssh_user="admin" ;;
+*"fedora"*) ssh_user="fedora" ;;
+*) ssh_user="devops" ;;
+esac
 */
 ssh_user=@@last
 auto_key_public=@@meta/public.key
@@ -90,7 +91,7 @@ do_TARGET IP-public $ssh_user $auto_key_private
 do_FROM all
 do_WORKDIR /usr/local/bin
 do_ADD $auto_key_public /usr/local/bin/pop/up/3/ root:root
-do_RUN "sudo apt install nano -y; pwd; ls -l"
+do_RUN "sudo apt update; sudo apt install nano -y; pwd; ls -l"
 do_PACKAGE wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano openssl
 do_HELM test
 do_KUBECTL test
