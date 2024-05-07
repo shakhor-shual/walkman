@@ -7,7 +7,18 @@ was conceived as a small “Swiss Army knife” for DevOps-routines.
 It allows you to declaratively describe the process of deployment and subsequent 
 configuration of cloud infrastructure using executable scripts. In essence, Walkman 
 is a specialized form of Unix Shell with own IaC oriented DSL based on the BASH 
-shorthand syntax.
+syntax. A simple illustrative example would be the Walkman [deployment script](https://github.com/shakhor-shual/walkman/blob/main/examples/gcp/linux_vm/test.csh)
+ which creates a virtual machine in the GKP and then configures it in a Docker-like 
+ style. The example above shows: 
+
+ - Customizing an existing terraform package using Walkman-variables. 
+ - Ability to use native inserts in pure Bash (located in /*....*/ blocks) 
+ for additional manipulation of Walkman variables and performing any other 
+ actions on the local system. 
+ - The ability to use helpers (functions), named in a Docker-like style, 
+ to configure a deployed remote system (the actions performed by the helpers are
+ similar to the actions of the Docker-file directives of the same name, but 
+ they configure the entire deployed VM).
 
 ## Quick Start:
 Walkman is just a single  bash script(cw4d.sh) that, when run without parameters, 
