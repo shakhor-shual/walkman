@@ -43,7 +43,7 @@ check_ansible_connection() {
     ansible.builtin.wait_for_connection:
       timeout: $delay
 EOF
-    ansible-playbook -i "$ALBUM_SELF" " $tmp/tmp.yaml" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    ansible-playbook -i "$ALBUM_SELF" "$tmp/tmp.yaml" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
     rm -r "$tmp"
 }
 
@@ -174,7 +174,7 @@ do_VOLUME() {
       owner: $usr
       group: $grp
 EOF
-    ansible-playbook " $tmp/tmp.yaml" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    ansible-playbook "$tmp/tmp.yaml" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
     rm -r "$tmp"
     echo -e
 }
@@ -249,7 +249,7 @@ EOF
       dest: $dst
 
 EOF
-        [[ $src =~ "://" ]] && echo "      remote_src: yes" >>" $tmp/tmp.yaml"
+        [[ $src =~ "://" ]] && echo "      remote_src: yes" >>"$tmp/tmp.yaml"
         ;;
     *"://"*)
         dst_dir=$(dirname "$dst")
@@ -277,11 +277,11 @@ EOF
         ;;
     esac
 
-    [ -n "$usr" ] && echo "      owner: $usr" >>" $tmp/tmp.yaml"
-    [ -n "$grp" ] && echo "      group: $grp" >>" $tmp/tmp.yaml"
-    [ -n "$mode" ] && echo "      mode: $mode" >>" $tmp/tmp.yaml"
-    ansible-playbook " $tmp/tmp.yaml" -i "$ALBUM_SELF" #| grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    cat " $tmp/tmp.yaml"
+    [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp/tmp.yaml"
+    [ -n "$grp" ] && echo "      group: $grp" >>"$tmp/tmp.yaml"
+    [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp/tmp.yaml"
+    ansible-playbook "$tmp/tmp.yaml" -i "$ALBUM_SELF" #| grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    cat "$tmp/tmp.yaml"
     rm -r "$tmp"
     echo -e
 }
@@ -330,8 +330,8 @@ do_COPY() {
       owner: $usr
       group: $grp
 EOF
-    [ -n "$mode" ] && echo "      mode: $mode" >>" $tmp/tmp.yaml"
-    ansible-playbook " $tmp/tmp.yaml" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp/tmp.yaml"
+    ansible-playbook "$tmp/tmp.yaml" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
     rm -r "$tmp"
     echo -e
 }
@@ -390,9 +390,9 @@ do_PACKAGE() {
       state: present
       name:
 EOF
-    for pkg in "$@"; do echo "        - $pkg" >>" $tmp/tmp.yaml"; done
+    for pkg in "$@"; do echo "        - $pkg" >>"$tmp/tmp.yaml"; done
 
-    ansible-playbook " $tmp/tmp.yaml" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    ansible-playbook "$tmp/tmp.yaml" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
     rm -r "$tmp"
     echo -e
 }
