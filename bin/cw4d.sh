@@ -386,12 +386,25 @@ do_PACKAGE() {
 - hosts: $ANSIBLE_TARGET
   become: yes
   tasks:
-  - name: install OS packages
+  - name: install non-APT packages
     ansible.builtin.package:
       state: present
       name:
 EOF
     for pkg in "$@"; do echo "        - $pkg" >>"$tmp"; done
+
+    cat <<EOF >>"$tmp"
+    when: ansible_os_family != 'Debian' and ansible_os_family != 'Ubuntu'
+  - name: install APT packages
+    ansible.builtin.apt:
+      state: present
+      name:
+EOF
+    for pkg in "$@"; do echo "        - $pkg" >>"$tmp"; done
+    cat <<EOF >>"$tmp"
+      update_cache: yes
+    when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
+EOF
 
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
     rm -r "$(dirname "$tmp")"
