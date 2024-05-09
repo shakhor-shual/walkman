@@ -967,6 +967,11 @@ os_detect() {
         echo "SLES-14" && return
     fi
 
+    if grep </etc/os-release -q "openSUSE"; then
+        grep </etc/os-release -q "Leap 15" && echo "SUSE-15" && return
+        echo "SUSE-14" && return
+    fi
+
 }
 
 apt_packages_install() {
@@ -1012,7 +1017,7 @@ zypper_packages_install() {
             zypper_not_run && try_as_root zypper -n install -y "$pkg" >/dev/null 2>&1
         fi
     done
-    if [ "$(os_detect)" = "SLES-15" ]; then
+    if [ "$(os_detect)" = "SLES-15" ] || [ "$(os_detect)" = "SUSE-15" ]; then
         try_as_root zypper -n install -y python311 python311-pipx python311-pip
         alias python3=python3.11
     else
