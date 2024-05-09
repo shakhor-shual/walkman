@@ -459,13 +459,6 @@ run_helper_by_name() {
     local val
     local helper_name
     local helper_params
-    # shellcheck disable=SC2076
-
-    # if [[ $2 =~ ^\<\<\<* ]]; then
-    #     helper_call_string="$(echo "$2" | tr -d ' ' | sed 's/<<<//; s/|/ /g;')"
-    # else
-    #     helper_call_string="$(echo "$2" | cut -d'(' -f 2 | cut -d ')' -f 1)"
-    # fi
 
     case $2 in
     "<<<"*)
@@ -481,6 +474,7 @@ run_helper_by_name() {
     esac
 
     helper_name="$(echo "$helper_call_string" | awk '{print $1}')"
+    # shellcheck disable=SC2001
     helper_params="$(echo "$helper_call_string" | sed "s/^$helper_name//")"
 
     if helper_exists "$helper_name"; then
@@ -990,7 +984,7 @@ apt_packages_install() {
 }
 
 zypper_not_run() {
-    ps -A | grep ypp
+    #ps -A | grep ypp
     while [ -n "$(pgrep zypper)" ]; do sleep 5; done
     while [ -n "$(pgrep Zypp-main)" ]; do sleep 5; done
 }
@@ -1001,8 +995,6 @@ zypper_packages_install() {
     echo "First system rise delay"
     sleep 15
     zypper_not_run && sleep 5
-    # echo "Refreshing repos"
-    # try_as_root zypper refresh
 
     for pkg in "$@"; do
         command=$pkg

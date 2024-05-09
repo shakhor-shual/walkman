@@ -47,8 +47,8 @@ echo $boot_disk_size
 
 boot_disk_size=@@last
 boot_disk_type=@@
-boot_image="suse-cloud/sles-12" #checked
-#boot_image="suse-cloud/sles-15" #checked
+#boot_image="suse-cloud/sles-12" #checked
+boot_image="suse-cloud/sles-15" #checked
 #boot_image="opensuse-cloud/opensuse-leap"
 #boot_image="rhel-cloud/rhel-7" #checked
 #boot_image="rhel-cloud/rhel-8" #checked
