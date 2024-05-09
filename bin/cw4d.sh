@@ -386,7 +386,7 @@ do_PACKAGE() {
 - hosts: $ANSIBLE_TARGET
   become: yes
   tasks:
-  - name: install non-APT packages
+  - name: install RPM packages
     ansible.builtin.package:
       state: present
       name:
@@ -394,8 +394,8 @@ EOF
     for pkg in "$@"; do echo "        - $pkg" >>"$tmp"; done
 
     cat <<EOF >>"$tmp"
-    when: ansible_os_family != 'Debian' and ansible_os_family != 'Ubuntu'
-  - name: install APT packages
+    when: ansible_os_family == 'RedHat'
+  - name: install DEB packages
     ansible.builtin.apt:
       state: present
       name:
@@ -404,9 +404,20 @@ EOF
     cat <<EOF >>"$tmp"
       update_cache: yes
     when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
+
+  - name: install ZYPPER packages
+    community.general.zypper:
+      state: present
+      name:
+EOF
+    for pkg in "$@"; do echo "        - $pkg" >>"$tmp"; done
+    cat <<EOF >>"$tmp"
+      disable_recommends: false
+    when: ansible_os_family == 'Suse'
 EOF
 
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" #| grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    cat "$tmp"
     rm -r "$(dirname "$tmp")"
     echo -e
 }
@@ -450,11 +461,24 @@ run_helper_by_name() {
     local helper_params
     # shellcheck disable=SC2076
 
-    if [[ $2 =~ ^\<\<\<* ]]; then
+    # if [[ $2 =~ ^\<\<\<* ]]; then
+    #     helper_call_string="$(echo "$2" | tr -d ' ' | sed 's/<<<//; s/|/ /g;')"
+    # else
+    #     helper_call_string="$(echo "$2" | cut -d'(' -f 2 | cut -d ')' -f 1)"
+    # fi
+
+    case $2 in
+    "<<<"*)
         helper_call_string="$(echo "$2" | tr -d ' ' | sed 's/<<<//; s/|/ /g;')"
-    else
+        ;;
+    "do_"[A-Z]*)
+        helper_call_string=$2
+        ;;
+    ^\$\(*)
         helper_call_string="$(echo "$2" | cut -d'(' -f 2 | cut -d ')' -f 1)"
-    fi
+        ;;
+    *) return ;;
+    esac
 
     helper_name="$(echo "$helper_call_string" | awk '{print $1}')"
     helper_params="$(echo "$helper_call_string" | sed "s/^$helper_name//")"
@@ -618,12 +642,12 @@ bashcl_translator() {
         key=$(echo "$key_val" | cut -d '|' -f 1 | tr -d ' ' | sed 's/^<<<//')
         val=$key_val
         ;;
-    ^\$\(*)
-        key=$(echo "$key_val" | cut -d '(' -f 2 | awk '{print $1}')
-        val=$key_val
-        ;;
     "do_"[A-Z]*)
         key=$(echo "$key_val" | awk '{print $1}')
+        val=$key_val
+        ;;
+    ^\$\(*)
+        key=$(echo "$key_val" | cut -d '(' -f 2 | awk '{print $1}')
         val=$key_val
         ;;
     *)
@@ -908,15 +932,18 @@ not_installed() {
 }
 
 build_shc() {
+    local tmp
     not_installed shc || return
-    git clone https://github.com/neurobin/shc.git
-    cd shc || exit
+    tmp=$(mktemp -d)
+    git clone https://github.com/neurobin/shc.git "$tmp"
+    cd "$tmp" || exit
+    ./autogen.sh
     ./configure
     make
     try_as_root make install
     try_as_root mv /usr/local/bin/shc /usr/bin/shc
-    cd ..
-    rm -rf ./shc
+    cd "$HOME" || exit
+    rm -rf "$tmp"
 }
 
 os_detect() {
@@ -963,22 +990,27 @@ apt_packages_install() {
 }
 
 zypper_not_run() {
-    while [ -n "$(pgrep zypper)" ]; do sleep 3; done
-    while [ -n "$(pgrep Zypp-main)" ]; do sleep 3; done
+    ps -A | grep ypp
+    while [ -n "$(pgrep zypper)" ]; do sleep 5; done
+    while [ -n "$(pgrep Zypp-main)" ]; do sleep 5; done
 }
 
 zypper_packages_install() {
     not_installed zypper && return
     local command
+    echo "First system rise delay"
+    sleep 15
     zypper_not_run && sleep 5
-    try_as_root zypper refresh
+    # echo "Refreshing repos"
+    # try_as_root zypper refresh
+
     for pkg in "$@"; do
         command=$pkg
         [ "$pkg" = "coreutils" ] && command="csplit"
         [ "$pkg" = "python3-pip" ] && command="pip3"
         if not_installed "$command"; then
             echo "install pkg: $pkg"
-            zypper_not_run && try_as_root zypper -n install -y "$pkg" >/dev/null 2>&1
+            zypper_not_run && try_as_root zypper -n install -y "$pkg" #>/dev/null 2>&1
         fi
     done
 }
