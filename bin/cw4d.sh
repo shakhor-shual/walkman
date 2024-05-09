@@ -1,4 +1,10 @@
 #!/bin/bash
+do_WALKMAN() {
+    [ "$1" = "test" ] && return
+    echo "%%%%%%%%%%% remotely: WALKMAN INSTALL %%%%%%%%%%%%%%%"
+    sed <"$STAGE_TARGET_FILE" 's/^ssh /cw4d.sh /' | bash
+    echo -e
+}
 ###########################################################################
 # Copyright The Vadym Yanik.
 #
@@ -419,13 +425,6 @@ EOF
     ansible-playbook "$tmp" -i "$ALBUM_SELF" #| grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
     cat "$tmp"
     rm -r "$(dirname "$tmp")"
-    echo -e
-}
-
-do_WALKMAN() {
-    [ "$1" = "test" ] && return
-    echo "%%%%%%%%%%% remotely: WALKMAN INSTALL %%%%%%%%%%%%%%%"
-    sed <"$STAGE_TARGET_FILE" 's/^ssh /cw4d.sh /' | bash
     echo -e
 }
 
@@ -941,10 +940,11 @@ build_shc() {
 }
 
 os_detect() {
-    if grep </etc/os-release -q "Red Hat"; then
-        grep </etc/os-release -q "Linux 9" && echo "RHEL-9" && return
-        grep </etc/os-release -q "Linux 8" && echo "RHEL-8" && return
-        grep </etc/os-release -q "Linux Server 7" && echo "RHEL-7" && return
+
+    if grep </etc/os-release -q "CentOS"; then
+        grep </etc/os-release -q "Stream 9" && echo "CENTOS-9" && return
+        grep </etc/os-release -q "Stream 8" && echo "CENTOS-8" && return
+        grep </etc/os-release -q "Linux 7" && echo "CENTOS-7" && return
     fi
 
     if grep </etc/os-release -q "Rocky Linux"; then
@@ -953,11 +953,12 @@ os_detect() {
         grep </etc/os-release -q "Linux 7" && echo "ROCKY-7" && return
     fi
 
-    if grep </etc/os-release -q "CentOS"; then
-        grep </etc/os-release -q "Stream 9" && echo "CENTOS-9" && return
-        grep </etc/os-release -q "Stream 8" && echo "CENTOS-8" && return
-        grep </etc/os-release -q "Linux 7" && echo "CENTOS-7" && return
+    if grep </etc/os-release -q "Red Hat"; then
+        grep </etc/os-release -q "Linux 9" && echo "RHEL-9" && return
+        grep </etc/os-release -q "Linux 8" && echo "RHEL-8" && return
+        grep </etc/os-release -q "Linux Server 7" && echo "RHEL-7" && return
     fi
+
     if grep </etc/os-release -q "Amazon Linux"; then
         grep </etc/os-release -q "2023" && echo "AMAZON-2023" && return
         echo "AMAZON-2" && return
@@ -1093,7 +1094,7 @@ dnf_packages_install() {
         ;;
     "RHEL-9")
         #try_as_root dnf update -y
-        try_as_root subscription-manager repos --enable "codeready-builder-for-rhel-9-$(arch)-rpms"
+        not_installed subscription-manager || try_as_root subscription-manager repos --enable "codeready-builder-for-rhel-9-$(arch)-rpms"
         try_as_root dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -y >/dev/null 2>&1 #RHEL-9
         ;;
     "ROCKY-9")
@@ -1205,9 +1206,11 @@ init_home_local_bin() {
             fix_user_home "$user"
         fi
     else
-        try_as_root systemctl enable /usr/lib/systemd/system/docker.service
-        try_as_root systemctl start docker.service
-        try_as_root usermod -aG docker "$user"
+        if [ ! -L "$(which docker 2>/dev/null)" ]; then
+            try_as_root systemctl enable /usr/lib/systemd/system/docker.service
+            try_as_root systemctl start docker.service
+            try_as_root usermod -aG docker "$user"
+        fi
     fi
 
     if not_installed jq; then
