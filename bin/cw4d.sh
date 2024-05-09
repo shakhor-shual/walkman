@@ -962,6 +962,11 @@ os_detect() {
         grep </etc/os-release -q "2023" && echo "AMAZON-2023" && return
         echo "AMAZON-2" && return
     fi
+    if grep </etc/os-release -q "SLES"; then
+        grep </etc/os-release -q "Server 15" && echo "SLES-15" && return
+        echo "SLES-14" && return
+    fi
+
 }
 
 apt_packages_install() {
@@ -995,6 +1000,8 @@ zypper_packages_install() {
     echo "First system rise delay"
     sleep 15
     zypper_not_run && sleep 5
+    [ "$(os_detect)" = "SLES-15" ] && try_as_root zypper addrepo https://download.opensuse.org/repositories/openSUSE:Backports:SLE-15-SP4/standard/openSUSE:Backports:SLE-15-SP4.repo
+    zypper_not_run && try_as_root zypper --gpg-auto-import-keys refresh
 
     for pkg in "$@"; do
         command=$pkg
@@ -1002,9 +1009,15 @@ zypper_packages_install() {
         [ "$pkg" = "python3-pip" ] && command="pip3"
         if not_installed "$command"; then
             echo "install pkg: $pkg"
-            zypper_not_run && try_as_root zypper -n install -y "$pkg" #>/dev/null 2>&1
+            zypper_not_run && try_as_root zypper -n install -y "$pkg" >/dev/null 2>&1
         fi
     done
+    if [ "$(os_detect)" = "SLES-15" ]; then
+        try_as_root zypper -n install -y python311 python311-pipx python311-pip
+        alias python3=python3.11
+    else
+        try_as_root zypper -n install -y python3-pip
+    fi
 }
 
 yum_packages_install() {
@@ -1110,7 +1123,7 @@ system_pakages_install() {
 
         dnf_packages_install wget curl unzip gcc automake shc rsync python3-pip coreutils git tig mc nano podman openssl
 
-        zypper_packages_install wget curl unzip gcc make automake rsync python3-pip coreutils git tig mc nano openssl docker
+        zypper_packages_install wget curl unzip gcc make automake rsync coreutils git tig mc nano openssl docker
         build_shc
     fi
 }
