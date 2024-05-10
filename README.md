@@ -1,5 +1,7 @@
 # Walkman (Cloud Walkman For Devops)
 
+### I express my deep gratitude to Amazon for providing sponsorship support of this project!
+
 Walkman is a tool for configuring and orchestrating mixed IaC projects based on
 existing code-base for Terraform, Ansible, Helm etc.  In general, Walkman 
 was conceived as a small “Swiss Army knife” for DevOps-routines. 
