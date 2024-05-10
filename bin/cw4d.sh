@@ -1,10 +1,4 @@
 #!/bin/bash
-do_WALKMAN() {
-    [ "$1" = "test" ] && return
-    echo "%%%%%%%%%%% remotely: WALKMAN INSTALL %%%%%%%%%%%%%%%"
-    sed <"$STAGE_TARGET_FILE" 's/^ssh /cw4d.sh /' | bash
-    echo -e
-}
 ###########################################################################
 # Copyright The Vadym Yanik.
 #
@@ -74,122 +68,8 @@ GET_from_state_by_type() {
     return 1
 }
 
-do_TARGET() {
-    [ -z "$1" ] && return
-    [ -z "$STAGE_LABEL" ] && return
-    local ips='[]'
-    local user=$2
-    local secret=$3
-
-    ANSIBLE_USER=$user
-    ANSIBLE_GROUP=$user
-
-    ips="$(extract_ip_from_state_file "$1")"
-
-    cat <<EOF >"$STAGE_TARGET_FILE"
-#!/bin/bash
-# ~$STAGE_LABEL
-# hosts:$ips
-KEY_FILE=$secret
-EOF
-
-    print_hosts_for_list_request "$ips" "$user" "$secret": >>"$INVENTORY_LIST_HEAD"
-
-    for ip in $(echo "$ips" | sed 's/,/ /;s/\[//;s/\]//'); do
-        # shellcheck disable=SC2016
-        echo 'ssh  -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i $KEY_FILE '"$user"'@'"$ip" >>"$STAGE_TARGET_FILE"
-        print_hostvars_for_host_request "$ip" "$user" "$secret" >>"$INVENTORY_HOST"
-        print_hostvars_for_list_request "$ip" "$user" "$secret" >>"$INVENTORY_LIST_TAIL"
-    done
-
-    chmod 777 "$STAGE_TARGET_FILE"
-    echo "$ips"
-}
-
-do_USER() {
-    [ -z "$1" ] && return
-    if [[ $1 =~ ":" ]]; then
-        ANSIBLE_USER=$(echo "$1" | cut -d ':' -f 1)
-        ANSIBLE_GROUP=$(echo "$1" | cut -d ':' -f 2)
-    else
-        ANSIBLE_USER=$1
-        ANSIBLE_GROUP=$1
-    fi
-}
-
-do_ARG() {
-    [ -z "$1" ] && return
-    #  ANSIBLE_ARG=$1
-}
-
-do_ENTRYPOINT() {
-    [ -z "$1" ] && return
-    ANSIBLE_ENTRYPOINT=$1
-}
-
-do_ENV() {
-    [ -z "$1" ] && return
-    [ -z "$ANSIBLE_ENTRYPOINT" ] && return
-
-}
-
-do_VOLUME() {
-    [ -z "$1" ] && return
-    local dir=$1
-    local usr
-    local grp
-    local mode="'0755'"
-    local tmp
-    tmp=$(mktemp -d)/tmp.yaml
-
-    [ -n "$3" ] && mode=$3
-    case $2 in
-    *":"*)
-        usr=$(echo "$2" | cut -d ':' -f 1)
-        grp=$(echo "$2" | cut -d ':' -f 2)
-        ;;
-    [0-9][0-9][0-9]*)
-        mode=$3
-        usr=$ANSIBLE_USER
-        grp=$ANSIBLE_GROUP
-        ;;
-    "")
-        usr=$ANSIBLE_USER
-        grp=$ANSIBLE_GROUP
-        ;;
-    *)
-        usr=$2
-        grp=$2
-        ;;
-    esac
-
-    echo "%%%%%%%%%%% remotely: ADD %%%%%%%%%%%%%"
-    cat <<EOF >"$tmp"
-- hosts: $ANSIBLE_TARGET
-  become: yes
-  tasks:
-    - name: Create DIRECTORY
-    ansible.builtin.file:
-      path:  $dir
-      state: directory
-      mode: $mode
-      owner: $usr
-      group: $grp
-EOF
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    rm -r "$(dirname "$tmp")"
-    echo -e
-}
-
-do_FROM() {
-    ANSIBLE_TARGET=all
-    [ -n "$1" ] && ANSIBLE_TARGET=$1
-    echo "%%%%%%%%%%% remotely: FROM - $ANSIBLE_TARGET %%%%%%%%%%%%%%%"
-    check_ansible_connection "$ANSIBLE_TARGET"
-    echo -e
-}
-
-do_ADD() {
+#============== A
+do_ADD() { # Docker ADD analogue
     [ -z "$1" ] && return
     local src=$1
     local dst=$2
@@ -288,7 +168,13 @@ EOF
     echo -e
 }
 
-do_COPY() {
+do_ARG() { # Docker ARG analogue
+
+    [ -z "$1" ] && return
+    #  ANSIBLE_ARG=$1
+}
+#============== C
+do_COPY() { # Docker COPY analogue
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
     local src=$1
@@ -337,53 +223,45 @@ EOF
     rm -r "$(dirname "$tmp")"
     echo -e
 }
-
-do_RUN() {
+#============== D
+#============== E
+do_ENTRYPOINT() { # Docker ENTRYPOINT analogue
     [ -z "$1" ] && return
-    local tmp
-    local tmp_sh
-    tmp=$(mktemp -d)
-    tmp_sh=$tmp/tmp.sh
+    ANSIBLE_ENTRYPOINT=$1
+}
 
-    echo "%%%%%%%%%%% remotely: RUN %%%%%%%%%%%"
-    {
-        echo "#!/bin/sh"
-        echo "$@"
-    } >>"$tmp_sh"
+do_ENV() { # Docker ENV analogue
+    [ -z "$1" ] && return
+    [ -z "$ANSIBLE_ENTRYPOINT" ] && return
 
-    tmp=$tmp/tmp.yaml
-    cat <<EOF >"$tmp"
-- hosts: $ANSIBLE_TARGET
-  gather_facts: no
-  tasks:
-  - name: commands RUN 
-    ansible.builtin.script:
-     chdir: $ANSIBLE_WORKDIR 
-     cmd: $tmp_sh
-    register: out
-  - debug: var=out.stdout_lines
-EOF
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    rm -r "$(dirname "$tmp")"
+}
+#============== F
+do_FROM() { # Docker FROM analogue
+    ANSIBLE_TARGET=all
+    [ -n "$1" ] && ANSIBLE_TARGET=$1
+    echo "%%%%%%%%%%% remotely: FROM - $ANSIBLE_TARGET %%%%%%%%%%%%%%%"
+    check_ansible_connection "$ANSIBLE_TARGET"
     echo -e
 }
 
-do_PLAY() {
+#============== H
+do_HELM() { # helm Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
-    echo "%%%%%%%%%%% remotely: PLAY: $1 %%%%%%%%%%%%%%%"
-    ansible-playbook "$1" -i "$ALBUM_SELF" | grep -v "^PLAY \|^[[:space:]]*$"
+    echo "%%%%%%%%%%% remotely: HELM %%%%%%%%%%%%%%%"
+    helm "$@"
+    echo -e
 }
-
-do_WORKDIR() {
-    if [ -z "$1" ]; then
-        ANSIBLE_WORKDIR='$HOME'
-    else
-        ANSIBLE_WORKDIR=$1
-    fi
+#============== K
+do_KUBECTL() { # kubectl Wrapper
+    [ -z "$1" ] && return
+    [ "$1" = "test" ] && return
+    echo "%%%%%%%%%%% remotely: KUBECTL %%%%%%%%%%%%%%%"
+    kubectl "$@"
+    echo -e
 }
-
-do_PACKAGE() {
+#============== P
+do_PACKAGE() { # rpm/apt/zipper Wrapper
     [ -z "$1" ] && return
     echo "%%%%%%%%%%% remotely: PACKAGE INSTALL %%%%%%%%%%%"
     local tmp
@@ -428,28 +306,155 @@ EOF
     echo -e
 }
 
-do_HELM() {
+do_PLAY() { # ansible Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
-    echo "%%%%%%%%%%% remotely: HELM %%%%%%%%%%%%%%%"
-    helm "$@"
-    echo -e
+    echo "%%%%%%%%%%% remotely: PLAY: $1 %%%%%%%%%%%%%%%"
+    ansible-playbook "$1" -i "$ALBUM_SELF" | grep -v "^PLAY \|^[[:space:]]*$"
 }
-
-do_KUBECTL() {
+#============== R
+do_RUN() { # Docker RUN analogue
     [ -z "$1" ] && return
-    [ "$1" = "test" ] && return
-    echo "%%%%%%%%%%% remotely: KUBECTL %%%%%%%%%%%%%%%"
-    kubectl "$@"
+    local tmp
+    local tmp_sh
+    tmp=$(mktemp -d)
+    tmp_sh=$tmp/tmp.sh
+
+    echo "%%%%%%%%%%% remotely: RUN %%%%%%%%%%%"
+    {
+        echo "#!/bin/sh"
+        echo "$@"
+    } >>"$tmp_sh"
+
+    tmp=$tmp/tmp.yaml
+    cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  gather_facts: no
+  tasks:
+  - name: commands RUN 
+    ansible.builtin.script:
+     chdir: $ANSIBLE_WORKDIR 
+     cmd: $tmp_sh
+    register: out
+  - debug: var=out.stdout_lines
+EOF
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm -r "$(dirname "$tmp")"
     echo -e
 }
-
-do_SYNC() {
+#============== S
+do_SYNC() { # rsync Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
     echo "%%%%%%%%%%% remotely: RSYNC %%%%%%%%%%%%%%%"
     rsync "$@"
     echo -e
+}
+#============== T
+do_TARGET() { # create ssh access artefacts for target
+    [ -z "$1" ] && return
+    [ -z "$STAGE_LABEL" ] && return
+    local ips='[]'
+    local user=$2
+    local secret=$3
+
+    ANSIBLE_USER=$user
+    ANSIBLE_GROUP=$user
+
+    ips="$(extract_ip_from_state_file "$1")"
+
+    cat <<EOF >"$STAGE_TARGET_FILE"
+#!/bin/bash
+# ~$STAGE_LABEL
+# hosts:$ips
+KEY_FILE=$secret
+EOF
+
+    print_hosts_for_list_request "$ips" "$user" "$secret": >>"$INVENTORY_LIST_HEAD"
+
+    for ip in $(echo "$ips" | sed 's/,/ /;s/\[//;s/\]//'); do
+        # shellcheck disable=SC2016
+        echo 'ssh  -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i $KEY_FILE '"$user"'@'"$ip" >>"$STAGE_TARGET_FILE"
+        print_hostvars_for_host_request "$ip" "$user" "$secret" >>"$INVENTORY_HOST"
+        print_hostvars_for_list_request "$ip" "$user" "$secret" >>"$INVENTORY_LIST_TAIL"
+    done
+
+    chmod 777 "$STAGE_TARGET_FILE"
+    echo "$ips"
+}
+#============== U
+do_USER() { # Docker USER analogue
+    [ -z "$1" ] && return
+    if [[ $1 =~ ":" ]]; then
+        ANSIBLE_USER=$(echo "$1" | cut -d ':' -f 1)
+        ANSIBLE_GROUP=$(echo "$1" | cut -d ':' -f 2)
+    else
+        ANSIBLE_USER=$1
+        ANSIBLE_GROUP=$1
+    fi
+}
+#============== V
+do_VOLUME() { # Docker VOLUME analogue
+    [ -z "$1" ] && return
+    local dir=$1
+    local usr
+    local grp
+    local mode="'0755'"
+    local tmp
+    tmp=$(mktemp -d)/tmp.yaml
+
+    [ -n "$3" ] && mode=$3
+    case $2 in
+    *":"*)
+        usr=$(echo "$2" | cut -d ':' -f 1)
+        grp=$(echo "$2" | cut -d ':' -f 2)
+        ;;
+    [0-9][0-9][0-9]*)
+        mode=$3
+        usr=$ANSIBLE_USER
+        grp=$ANSIBLE_GROUP
+        ;;
+    "")
+        usr=$ANSIBLE_USER
+        grp=$ANSIBLE_GROUP
+        ;;
+    *)
+        usr=$2
+        grp=$2
+        ;;
+    esac
+
+    echo "%%%%%%%%%%% remotely: ADD %%%%%%%%%%%%%"
+    cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  become: yes
+  tasks:
+    - name: Create DIRECTORY
+    ansible.builtin.file:
+      path:  $dir
+      state: directory
+      mode: $mode
+      owner: $usr
+      group: $grp
+EOF
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm -r "$(dirname "$tmp")"
+    echo -e
+}
+#============== W
+do_WALKMAN() { # Walkman installer
+    [ "$1" = "test" ] && return
+    echo "%%%%%%%%%%% remotely: WALKMAN INSTALL %%%%%%%%%%%%%%%"
+    sed <"$STAGE_TARGET_FILE" 's/^ssh /cw4d.sh /' | bash
+    echo -e
+}
+
+do_WORKDIR() { # Docker WORKDIR analogue
+    if [ -z "$1" ]; then
+        ANSIBLE_WORKDIR='$HOME'
+    else
+        ANSIBLE_WORKDIR=$1
+    fi
 }
 
 ############### HELPERS EXECUTOR ##############
