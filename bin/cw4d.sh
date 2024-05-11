@@ -242,10 +242,8 @@ do_ENV() { # Docker ENV analogue
 
     for param in "$@"; do
         if [[ $param =~ "=" ]]; then
-            echo "this env var"
             echo "$param" | sed 's/=/="/;s/$/"/' >>"$tmp_env"
         else
-            echo "this env var file"
             [ -s "$param" ] && cat "$param" >>"$tmp_env"
         fi
         echo "$param"
@@ -271,7 +269,7 @@ do_ENV() { # Docker ENV analogue
       mode: 0444
       content: |
          [Service]
-         Environment=/etc/env.walkman/$ANSIBLE_ENTRYPOINT.env
+         EnvironmentFile=/etc/env.walkman/$ANSIBLE_ENTRYPOINT.env
   - name: Create ENV dir
     ansible.builtin.file:
       path:  /etc/env.walkman
@@ -286,10 +284,13 @@ do_ENV() { # Docker ENV analogue
       owner: root
       group: root
       mode: 0444
+  - name: Restart $ANSIBLE_ENTRYPOINT
+    ansible.builtin.systemd_service:
+      state: restarted
+      daemon_reload: true
+      name: $ANSIBLE_ENTRYPOINT
 EOF
-    cat "$tmp_env"
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    echo "============$tmp=========="
     rm -r "$(dirname "$tmp")"
     echo -e
 }
