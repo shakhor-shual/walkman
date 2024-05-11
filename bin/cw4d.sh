@@ -256,7 +256,14 @@ do_ENV() { # Docker ENV analogue
   gather_facts: no
   become: yes
   tasks:
-  - name: ENV file 
+  - name: Create ENV dir
+    ansible.builtin.file:
+      path:  /etc/env_walkman
+      state: directory
+      mode: '0755'
+      owner: root
+      group: root
+  - name: copy ENV file 
     ansible.builtin.copy:
       src: $tmp_env
       dest: /etc/env_walkman/$ANSIBLE_ENTRYPOINT.env
