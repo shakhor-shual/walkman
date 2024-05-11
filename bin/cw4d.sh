@@ -182,6 +182,7 @@ do_COPY() { # Docker COPY analogue
     local usr
     local grp
     local mode
+    local tmp
 
     [ -n "$4" ] && mode=$4
     case $3 in
@@ -231,14 +232,14 @@ do_ENTRYPOINT() { # Docker ENTRYPOINT analogue
 }
 
 do_ENV() { # Docker ENV analogue
+    [ -z "$1" ] && return
+    [ -z "$ANSIBLE_ENTRYPOINT" ] && return
     local tmp
     local tmp_env
     tmp=$(mktemp -d)
     tmp_env=$tmp/tmp.env
     tmp=$(dirname $$tmp)/tmp.yaml
 
-    [ -z "$1" ] && return
-    [ -z "$ANSIBLE_ENTRYPOINT" ] && return
     for param in $@; do
         if [[ $param =~ "=" ]]; then
             echo "this env var"
@@ -247,7 +248,7 @@ do_ENV() { # Docker ENV analogue
             echo "this env var file"
             [ -s "$param" ] && cat "$param" >>"$tmp_env"
         fi
-        echo $param
+        echo "$param"
     done
     echo "%%%%%%%%%%% remotely: ENV %%%%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
@@ -261,13 +262,11 @@ do_ENV() { # Docker ENV analogue
       dest: /etc/env_walkman/$ANSIBLE_ENTRYPOINT.env
       owner: root
       group: root
-      mode: 0400
+      mode: 0444
 EOF
-    [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
     rm -r "$(dirname "$tmp")"
     echo -e
-
 }
 #============== F
 do_FROM() { # Docker FROM analogue
