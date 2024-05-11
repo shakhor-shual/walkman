@@ -1,0 +1,11 @@
+- hosts: all
+  gather_facts: no
+  become: yes
+  tasks:
+  - name: ENV file 
+    ansible.builtin.copy:
+      src: 
+      dest: /etc/env_walkman/docker.env
+      owner: root
+      group: root
+      mode: 0444

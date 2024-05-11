@@ -238,12 +238,12 @@ do_ENV() { # Docker ENV analogue
     local tmp_env
     tmp=$(mktemp -d)
     tmp_env=$tmp/tmp.env
-    tmp=$(dirname "$tmp")/tmp.yaml
+    tmp=$tmp/tmp.yaml
 
     for param in "$@"; do
         if [[ $param =~ "=" ]]; then
             echo "this env var"
-            echo "$param" >>"$tmp_env"
+            echo "$param" | sed 's/=/="/;s/$/"/' >>"$tmp_env"
         else
             echo "this env var file"
             [ -s "$param" ] && cat "$param" >>"$tmp_env"
@@ -266,6 +266,7 @@ do_ENV() { # Docker ENV analogue
 EOF
     cat "$tmp_env"
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    echo "============$tmp=========="
     rm -r "$(dirname "$tmp")"
     echo -e
 }
