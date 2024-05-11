@@ -301,7 +301,7 @@ EOF
 EOF
 
     ansible-playbook "$tmp" -i "$ALBUM_SELF" #| grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    cat "$tmp"
+    #cat "$tmp"
     rm -r "$(dirname "$tmp")"
     echo -e
 }
@@ -322,7 +322,7 @@ do_RUN() { # Docker RUN analogue
 
     echo "%%%%%%%%%%% remotely: RUN %%%%%%%%%%%"
     {
-        echo "#!/bin/sh"
+        echo "#!/bin/bash"
         echo "$@"
     } >>"$tmp_sh"
 

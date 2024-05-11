@@ -52,7 +52,7 @@ boot_disk_type=@@
 #boot_image="opensuse-cloud/opensuse-leap"
 #boot_image="rhel-cloud/rhel-7" #checked
 #boot_image="rhel-cloud/rhel-8" #checked
-boot_image="rhel-cloud/rhel-9" #checked
+#boot_image="rhel-cloud/rhel-9" #checked
 #boot_image="centos-cloud/centos-7" #checked
 #boot_image="centos-cloud/centos-stream-8" #checked
 #boot_image="centos-cloud/centos-stream-9" #checked
@@ -67,7 +67,7 @@ boot_image="rhel-cloud/rhel-9" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2404-lts"
 #boot_image="debian-cloud/debian-10" #checked
 #boot_image="debian-cloud/debian-11" #checked
-#boot_image="debian-cloud/debian-12" #checked
+boot_image="debian-cloud/debian-12" #checked
 
 #inlined BASH
 /*
@@ -89,11 +89,11 @@ walkman_install=@@self
 do_TARGET IP-public $ssh_user $auto_key_private
 #do_WALKMAN
 do_FROM all
-do_WALKMAN
-# do_WORKDIR /usr/local/bin
-# do_ADD $auto_key_public /usr/local/bin/pop/up/3/ root:root
-# do_RUN " while [[ -n $(pgrep Zypp-main) ]]; do sleep 3; done; pwd; ls -l"
-# do_PACKAGE wget curl unzip gcc automake rsync python3-pip coreutils git mc nano openssl
+# do_WALKMAN
+do_WORKDIR /usr/local/bin
+do_ADD $auto_key_public /usr/local/bin/pop/up/3/ root:root
+do_RUN " while [[ -n $(pgrep Zypp-main) ]]; do sleep 3; done; pwd; ls -l"
+do_PACKAGE wget curl unzip gcc automake rsync python3-pip coreutils git mc nano openssl
 # do_HELM test
 # do_KUBECTL test
 
