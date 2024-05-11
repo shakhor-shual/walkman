@@ -256,9 +256,25 @@ do_ENV() { # Docker ENV analogue
   gather_facts: no
   become: yes
   tasks:
+  - name: Create SERVICE dir
+    ansible.builtin.file:
+      path:  /etc/systemd/system/$ANSIBLE_ENTRYPOINT.service.d
+      state: directory
+      mode: '0755'
+      owner: root
+      group: root
+  - name: copy CONF file 
+    ansible.builtin.copy:
+      dest: /etc/systemd/system/$ANSIBLE_ENTRYPOINT.service.d/local.conf
+      owner: root
+      group: root
+      mode: 0444
+      content: |
+         [Service]
+         Environment=/etc/env.walkman/$ANSIBLE_ENTRYPOINT.env
   - name: Create ENV dir
     ansible.builtin.file:
-      path:  /etc/env_walkman
+      path:  /etc/env.walkman
       state: directory
       mode: '0755'
       owner: root
@@ -266,7 +282,7 @@ do_ENV() { # Docker ENV analogue
   - name: copy ENV file 
     ansible.builtin.copy:
       src: $tmp_env
-      dest: /etc/env_walkman/$ANSIBLE_ENTRYPOINT.env
+      dest: /etc/env.walkman/$ANSIBLE_ENTRYPOINT.env
       owner: root
       group: root
       mode: 0444
@@ -341,7 +357,7 @@ EOF
     done
 
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:"
-    cat "$tmp"
+    # cat "$tmp"
     rm -r "$(dirname "$tmp")"
     echo -e
 }

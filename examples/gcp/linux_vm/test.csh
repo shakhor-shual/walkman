@@ -94,7 +94,7 @@ do_WORKDIR /usr/local/bin
 do_ADD $auto_key_public /usr/local/bin/pop/up/3/ root:root
 do_RUN " while [[ -n $(pgrep Zypp-main) ]]; do sleep 3; done; pwd; ls -l"
 do_PACKAGE wget curl unzip gcc automake rsync python3-pip coreutils git mc nano openssl apache2
-do_ENTRYPOINT docker
+do_ENTRYPOINT apache2
 do_ENV ENV_VAR1="foo" ENV_VAR2="bar" @@meta/test_vars.env
 # do_HELM test
 # do_KUBECTL test
