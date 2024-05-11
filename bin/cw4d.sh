@@ -268,35 +268,38 @@ do_PACKAGE() { # rpm/apt/zipper Wrapper
     tmp=$(mktemp -d)/tmp.yaml
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
-  become: yes
   tasks:
 EOF
     for pkg in "$@"; do
         cat <<EOF >>"$tmp"
-  - name: $pkg
-    ansible.builtin.package:
-      state: present
-      name: $pkg
-    when: ansible_os_family == 'RedHat'
-
-  - name: $pkg
-    ansible.builtin.apt:
-      state: present
-      update_cache: yes
-      name: $pkg
-    when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
-
-  - name: $pkg
-    community.general.zypper:
-      state: present
-      disable_recommends: false
-      name: $pkg
-    when: ansible_os_family == 'Suse'
+  - name: install $pkg
+    block:
+      - name: $pkg
+        ansible.builtin.package:
+          state: present
+          name: $pkg
+        when: ansible_os_family == 'RedHat'
+    
+      - name: $pkg
+        ansible.builtin.apt:
+          state: present
+          update_cache: yes
+          name: $pkg
+        when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
+    
+      - name: $pkg
+        community.general.zypper:
+          state: present
+          disable_recommends: false
+          name: $pkg
+        when: ansible_os_family == 'Suse'
+    become: true
+    ignore_errors: true
 EOF
     done
 
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:"
-    #cat "$tmp"
+    cat "$tmp"
     rm -r "$(dirname "$tmp")"
     echo -e
 }
