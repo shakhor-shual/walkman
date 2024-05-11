@@ -27,7 +27,7 @@ ANSIBLE_TARGET=all
 ANSIBLE_WORKDIR='$HOME'
 ANSIBLE_USER=$(whoami)
 ANSIBLE_GROUP=$(whoami)
-#ANSIBLE_ENTRYPOINT=""
+ANSIBLE_ENTRYPOINT="nginx"
 #ANSIBLE_ARG=""
 
 check_ansible_connection() {
@@ -231,8 +231,42 @@ do_ENTRYPOINT() { # Docker ENTRYPOINT analogue
 }
 
 do_ENV() { # Docker ENV analogue
+    local tmp
+    local tmp_env
+    tmp=$(mktemp -d)
+    tmp_env=$tmp/tmp.env
+    tmp=$(dirname $$tmp)/tmp.yaml
+
     [ -z "$1" ] && return
     [ -z "$ANSIBLE_ENTRYPOINT" ] && return
+    for param in $@; do
+        if [[ $param =~ "=" ]]; then
+            echo "this env var"
+            $param >>"$tmp_env"
+        else
+            echo "this env var file"
+            [ -s "$param" ] && cat "$param" >>"$tmp_env"
+        fi
+        echo $param
+    done
+    echo "%%%%%%%%%%% remotely: ENV %%%%%%%%%%%%%%%"
+    cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  gather_facts: no
+  become: yes
+  tasks:
+  - name: ENV file 
+    ansible.builtin.copy:
+      src: $src
+      dest: /etc/env_walkman/$ANSIBLE_ENTRYPOINT.env
+      owner: root
+      group: root
+      mode: 0400
+EOF
+    [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    rm -r "$(dirname "$tmp")"
+    echo -e
 
 }
 #============== F
