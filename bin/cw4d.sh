@@ -238,7 +238,7 @@ do_ENV() { # Docker ENV analogue
     local tmp_env
     tmp=$(mktemp -d)
     tmp_env=$tmp/tmp.env
-    tmp=$(dirname $$tmp)/tmp.yaml
+    tmp=$(dirname "$tmp")/tmp.yaml
 
     for param in "$@"; do
         if [[ $param =~ "=" ]]; then
@@ -258,12 +258,13 @@ do_ENV() { # Docker ENV analogue
   tasks:
   - name: ENV file 
     ansible.builtin.copy:
-      src: $src
+      src: $tmp_env
       dest: /etc/env_walkman/$ANSIBLE_ENTRYPOINT.env
       owner: root
       group: root
       mode: 0444
 EOF
+    cat "$tmp_env"
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
     rm -r "$(dirname "$tmp")"
     echo -e
