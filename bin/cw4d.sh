@@ -73,7 +73,6 @@ do_ADD() { # Docker ADD analogue
     [ -z "$1" ] && return
     local src=$1
     local dst=$2
-    local dst_dir
     local usr
     local grp
     local mode
@@ -108,41 +107,31 @@ do_ADD() { # Docker ADD analogue
   tasks:
 EOF
     case $src in
+    # for any archived source
     *".zip" | *".tar.gz" | *".tgz")
-        dst_dir=$dst
+        do_PACKAGE zip unzip tar >/dev/null
+        do_VOLUME "$dst" "$usr:$grp" 0755 >/dev/null
         cat <<EOF >>"$tmp"
-  - name: install Tools
-    ansible.builtin.package:
-      state: present
-      name:
-        - unzip
-        - zip
-        - tar
-  - name: Create a dst_dir
-    ansible.builtin.file:
-      path:  $dst_dir
-      state: directory
-      mode: '0755'
-      owner: $usr
-      group: $grp
   - name: ADD archived
     ansible.builtin.unarchive:
       src: $src
       dest: $dst
-
 EOF
         [[ $src =~ "://" ]] && echo "      remote_src: yes" >>"$tmp"
         ;;
-    *"://"*)
-        dst_dir=$(dirname "$dst")
+        # for git source
+    *".git")
+        do_VOLUME "$(dirname "$dst")" "$usr:$grp" 0755 >/dev/null
         cat <<EOF >>"$tmp"
-  - name: Create a dst_dir
-    ansible.builtin.file:
-      path:  $dst_dir
-      state: directory
-      mode: '0755'
-      owner: $usr
-      group: $grp
+  - name: GIT remote 
+    ansible.builtin.git:
+      repo: $src
+      dest: $dst
+EOF
+        ;;
+    *"://"*)
+        do_VOLUME "$(dirname "$dst")" "$usr:$grp" 0755 >/dev/null
+        cat <<EOF >>"$tmp"
   - name: ADD remote 
     ansible.builtin.get_url:
       url: $src
@@ -481,7 +470,7 @@ do_VOLUME() { # Docker VOLUME analogue
         ;;
     esac
 
-    echo "%%%%%%%%%%% remotely: ADD %%%%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: VOLUMR %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: yes
