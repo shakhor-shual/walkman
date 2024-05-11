@@ -240,10 +240,10 @@ do_ENV() { # Docker ENV analogue
     tmp_env=$tmp/tmp.env
     tmp=$(dirname $$tmp)/tmp.yaml
 
-    for param in $@; do
+    for param in "$@"; do
         if [[ $param =~ "=" ]]; then
             echo "this env var"
-            $param >>"$tmp_env"
+            echo "$param" >>"$tmp_env"
         else
             echo "this env var file"
             [ -s "$param" ] && cat "$param" >>"$tmp_env"
