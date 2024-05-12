@@ -54,7 +54,7 @@ boot_disk_type=@@
 #boot_image="rhel-cloud/rhel-8" #checked
 #boot_image="rhel-cloud/rhel-9" #checked
 #boot_image="centos-cloud/centos-7" #checked
-#boot_image="centos-cloud/centos-stream-8" #checked
+boot_image="centos-cloud/centos-stream-8" #checked
 #boot_image="centos-cloud/centos-stream-9" #checked
 #boot_image="fedora-cloud/fedora-cloud-34" #checked
 #boot_image="fedora-cloud/fedora-cloud-37" #checked
@@ -63,7 +63,7 @@ boot_disk_type=@@
 #boot_image="rocky-linux-cloud/rocky-linux-8" #checked
 #boot_image="rocky-linux-cloud/rocky-linux-9" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2004-lts" #checked
-boot_image="ubuntu-os-cloud/ubuntu-2204-lts" #checked
+#boot_image="ubuntu-os-cloud/ubuntu-2204-lts" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2404-lts"
 #boot_image="debian-cloud/debian-10" #checked
 #boot_image="debian-cloud/debian-11" #checked
@@ -72,10 +72,23 @@ boot_image="ubuntu-os-cloud/ubuntu-2204-lts" #checked
 #inlined BASH
 /*
 case $boot_image in
-*"ubuntu"*) ssh_user="ubuntu" ;;
-*"debian"*) ssh_user="admin" ;;
-*"fedora"*) ssh_user="fedora" ;;
-*) ssh_user="devops" ;;
+*"ubuntu"*)
+    ssh_user="ubuntu"
+    http_service=apache2
+    ;;
+*"debian"*)
+    ssh_user="admin"
+    http_service=apache2
+    ;;
+*"suse"*)
+    ssh_user="devops"
+    http_service=apache2
+    ;;
+*"fedora"*) ssh_user="fedora"http_service=httpd ;;
+*)
+    ssh_user="devops"
+    http_service=httpd
+    ;;
 esac
 */
 ssh_user=@@last
@@ -89,15 +102,12 @@ walkman_install=@@self
 do_TARGET IP-public $ssh_user $auto_key_private
 #do_WALKMAN
 do_FROM all
-# do_WALKMAN
 do_WORKDIR /usr/local/bin
 do_ADD $auto_key_public /usr/local/bin/pop/up/3/ root:root
 do_RUN " while [[ -n $(pgrep Zypp-main) ]]; do sleep 3; done; pwd; ls -l"
-do_PACKAGE wget curl unzip gcc automake rsync python3-pip coreutils git mc nano openssl apache2
-do_ENTRYPOINT apache2
+do_PACKAGE wget curl unzip gcc automake rsync python3-pip coreutils git mc nano openssl $http_service
+do_ENTRYPOINT $http_service
 do_ENV ENV_VAR1="foo" ENV_VAR2="bar" @@meta/test_vars.env
-# do_HELM test
-# do_KUBECTL test
 
 /* #inlined BASH
 if [ -n "$walkman_install" ]; then
