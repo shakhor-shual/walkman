@@ -43,7 +43,7 @@ check_ansible_connection() {
     ansible.builtin.wait_for_connection:
       timeout: $delay
 EOF
-    ansible-playbook -i "$ALBUM_SELF" "$tmp" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    ansible-playbook -i "$ALBUM_SELF" "$tmp"
     rm -r "$(dirname "$tmp")"
 }
 
@@ -151,7 +151,7 @@ EOF
     [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
     [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
     [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" #| grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$\|ok" | grep -v '""'
     cat "$tmp"
     rm -r "$(dirname "$tmp")"
     echo -e
@@ -164,54 +164,7 @@ do_ARG() { # Docker ARG analogue
 }
 #============== C
 do_COPY() { # Docker COPY analogue
-    [ -z "$1" ] && return
-    [ "$1" = "test" ] && return
-    local src=$1
-    local dst=$2
-    local usr
-    local grp
-    local mode
-    local tmp
-
-    [ -n "$4" ] && mode=$4
-    case $3 in
-    *":"*)
-        usr=$(echo "$3" | cut -d ':' -f 1)
-        grp=$(echo "$3" | cut -d ':' -f 2)
-        ;;
-    [0-9][0-9][0-9]*)
-        mode=$3
-        usr=$ANSIBLE_USER
-        grp=$ANSIBLE_GROUP
-        ;;
-    "")
-        usr=$ANSIBLE_USER
-        grp=$ANSIBLE_GROUP
-        ;;
-    *)
-        usr=$3
-        grp=$3
-        ;;
-    esac
-
-    echo "%%%%%%%%%%% remotely: COPY %%%%%%%%%%%%%%%"
-    tmp=$(mktemp -d)/tmp.yaml
-    cat <<EOF >"$tmp"
-- hosts: $ANSIBLE_TARGET
-  gather_facts: no
-  become: yes
-  tasks:
-  - name: COPY file 
-    ansible.builtin.copy:
-      src: $src
-      dest: $dst
-      owner: $usr
-      group: $grp
-EOF
-    [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
-    rm -r "$(dirname "$tmp")"
-    echo -e
+    do_ADD "$@"
 }
 #============== D
 #============== E
@@ -235,21 +188,15 @@ do_ENV() { # Docker ENV analogue
         else
             [ -s "$param" ] && cat "$param" >>"$tmp_env"
         fi
-        echo "$param"
     done
     echo "%%%%%%%%%%% remotely: ENV %%%%%%%%%%%%%%%"
+    do_VOLUME "/etc/systemd/system/$ANSIBLE_ENTRYPOINT.service.d" "root:root" 0755 >/dev/null
+    do_VOLUME "/etc/env.walkman" "root:root" 0755 >/dev/null
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   gather_facts: no
   become: yes
   tasks:
-  - name: Create SERVICE dir
-    ansible.builtin.file:
-      path:  /etc/systemd/system/$ANSIBLE_ENTRYPOINT.service.d
-      state: directory
-      mode: '0755'
-      owner: root
-      group: root
   - name: copy CONF file 
     ansible.builtin.copy:
       dest: /etc/systemd/system/$ANSIBLE_ENTRYPOINT.service.d/local.conf
@@ -259,13 +206,6 @@ do_ENV() { # Docker ENV analogue
       content: |
          [Service]
          EnvironmentFile=/etc/env.walkman/$ANSIBLE_ENTRYPOINT.env
-  - name: Create ENV dir
-    ansible.builtin.file:
-      path:  /etc/env.walkman
-      state: directory
-      mode: '0755'
-      owner: root
-      group: root
   - name: copy ENV file 
     ansible.builtin.copy:
       src: $tmp_env
@@ -279,7 +219,7 @@ do_ENV() { # Docker ENV analogue
       daemon_reload: true
       name: $ANSIBLE_ENTRYPOINT
 EOF
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | grep -v '""'
     rm -r "$(dirname "$tmp")"
     echo -e
 }
@@ -288,7 +228,7 @@ do_FROM() { # Docker FROM analogue
     ANSIBLE_TARGET=all
     [ -n "$1" ] && ANSIBLE_TARGET=$1
     echo "%%%%%%%%%%% remotely: FROM - $ANSIBLE_TARGET %%%%%%%%%%%%%%%"
-    check_ansible_connection "$ANSIBLE_TARGET"
+    check_ansible_connection "$ANSIBLE_TARGET" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$"
     echo -e
 }
 
@@ -316,7 +256,12 @@ do_PACKAGE() { # rpm/apt/zipper Wrapper
     tmp=$(mktemp -d)/tmp.yaml
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
+  become: true
   tasks:
+  - name: APT update
+    ansible.builtin.apt:
+      update_cache: yes
+    when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
 EOF
     for pkg in "$@"; do
         cat <<EOF >>"$tmp"
@@ -331,7 +276,6 @@ EOF
       - name: $pkg
         ansible.builtin.apt:
           state: present
-          update_cache: yes
           name: $pkg
         when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
     
@@ -346,7 +290,7 @@ EOF
 EOF
     done
 
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:"
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gathering \|\[APT\|rescued="
     # cat "$tmp"
     rm -r "$(dirname "$tmp")"
     echo -e
@@ -384,7 +328,7 @@ do_RUN() { # Docker RUN analogue
     register: out
   - debug: var=out.stdout_lines
 EOF
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | grep -v '""'
     rm -r "$(dirname "$tmp")"
     echo -e
 }
@@ -475,7 +419,7 @@ do_VOLUME() { # Docker VOLUME analogue
 - hosts: $ANSIBLE_TARGET
   become: yes
   tasks:
-    - name: Create DIRECTORY
+  - name: Create DIRECTORY
     ansible.builtin.file:
       path:  $dir
       state: directory
@@ -483,7 +427,7 @@ do_VOLUME() { # Docker VOLUME analogue
       owner: $usr
       group: $grp
 EOF
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$" | grep -v '""'
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | grep -v '""'
     rm -r "$(dirname "$tmp")"
     echo -e
 }
@@ -501,6 +445,7 @@ do_WORKDIR() { # Docker WORKDIR analogue
     else
         ANSIBLE_WORKDIR=$1
     fi
+
 }
 
 ############### HELPERS EXECUTOR ##############
