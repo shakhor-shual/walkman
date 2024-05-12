@@ -28,23 +28,14 @@ zone="$region-b"
 vpc_name="@@this-vpc"
 host=@@this
 boot_disk_size=$ext_size
-/* # #Example of inlined BASH usage
-((boot_disk_size++))
-*/
 
 ######### DEPLOY GCP VM STAGE #################
-~GCP_VM:
+~WP_VM:
 project_id=@@last
 region=@@last
 vpc_name=@@last
 zone=@@last
 machine_type="n2-standard-2"
-
-/* #Example of inlined BASH usage
-((boot_disk_size++))
-echo $boot_disk_size
-*/
-
 boot_disk_size=@@last
 boot_disk_type=@@
 #boot_image="suse-cloud/sles-12" #checked
@@ -63,7 +54,6 @@ boot_image="centos-cloud/centos-stream-8" #checked
 #boot_image="rocky-linux-cloud/rocky-linux-8" #checked
 #boot_image="rocky-linux-cloud/rocky-linux-9" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2004-lts" #checked
-#boot_image="ubuntu-os-cloud/ubuntu-2204-lts" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2404-lts"
 #boot_image="debian-cloud/debian-10" #checked
 #boot_image="debian-cloud/debian-11" #checked
@@ -71,6 +61,7 @@ boot_image="centos-cloud/centos-stream-8" #checked
 
 #inlined BASH
 /*
+extra_pkgs="mariadb mariadb-server php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget"
 case $boot_image in
 *"ubuntu"*)
     ssh_user="ubuntu"
@@ -84,10 +75,14 @@ case $boot_image in
     ssh_user="devops"
     http_service=apache2
     ;;
-*"fedora"*) ssh_user="fedora"http_service=httpd ;;
 *)
     ssh_user="devops"
     http_service=httpd
+    case $boot_image in
+    *"-7") extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm ;;
+    *"-8") extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm ;;
+    *"-9") extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm ;;
+    esac
     ;;
 esac
 */
@@ -100,12 +95,13 @@ startup_script_file=@@
 walkman_install=@@self
 
 do_TARGET IP-public $ssh_user $auto_key_private
-#do_WALKMAN
 do_FROM all
-do_WORKDIR /usr/local/bin
-do_ADD $auto_key_public /usr/local/bin/pop/up/3/ root:root
-do_RUN " while [[ -n $(pgrep Zypp-main) ]]; do sleep 3; done; pwd; ls -l"
-do_PACKAGE wget curl unzip gcc automake rsync python3-pip coreutils git mc nano openssl $http_service
+do_PACKAGE $extra_repo
+do_PACKAGE $http_service $extra_pkgs
+#do_WORKDIR /usr/local/bin
+#do_ADD $auto_key_public /usr/local/bin/pop/up/3/ root:root
+#do_RUN " while [[ -n $(pgrep Zypp-main) ]]; do sleep 3; done; pwd; ls -l"
+#do_PACKAGE wget curl unzip gcc automake rsync python3-pip coreutils git mc nano openssl $http_service
 do_ENTRYPOINT $http_service
 do_ENV ENV_VAR1="foo" ENV_VAR2="bar" @@meta/test_vars.env
 

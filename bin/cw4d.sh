@@ -68,6 +68,42 @@ GET_from_state_by_type() {
     return 1
 }
 
+GEN_alpha_password() {
+    local pass
+    tr -dc A-Za-z0-9 </dev/urandom | head -c 13
+    pass=$(echo)
+    [ -z "$2" ] && return "$pass"
+    if [ -s "$2" ]; then
+        if grep <"$2" -q "$1"; then
+            grep <"$2" "$1" | tail -n 1 | cut -d '=' -f 2
+            return
+        else
+            echo "$1=$pass" >"$2"
+            return "$1"
+        fi
+    fi
+}
+
+GEN_password() {
+    local pass
+    LC_ALL=C tr -dc 'A-Za-z0-9!"#$%&'\''()*+,-./:;<=>?@[\]^_`{|}~' </dev/urandom | head -c 13
+    pass=$(echo)
+    [ -z "$2" ] && return "$pass"
+    if [ -s "$2" ]; then
+        if grep <"$2" -q "$1"; then
+            grep <"$2" "$1" | tail -n 1 | cut -d '=' -f 2
+            return
+        else
+            echo "$1=$pass" >"$2"
+            return "$1"
+        fi
+    fi
+}
+
+do_MYSQL() {
+    do_PACKAGE mariadb mariadb-server
+}
+
 #============== A
 do_ADD() { # Docker ADD analogue
     [ -z "$1" ] && return
