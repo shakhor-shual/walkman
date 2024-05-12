@@ -28,6 +28,8 @@ zone="$region-b"
 vpc_name="@@this-vpc"
 host=@@this
 boot_disk_size=$ext_size
+p_file=@@meta/mysql.key
+mysql_pass=$(GEN_password root $p_file)
 
 ######### DEPLOY GCP VM STAGE #################
 ~WP_VM:
@@ -96,16 +98,18 @@ walkman_install=@@self
 
 do_TARGET IP-public $ssh_user $auto_key_private
 do_FROM all
-do_PACKAGE $extra_repo
-do_PACKAGE $http_service $extra_pkgs
+#do_PACKAGE $extra_repo
+#do_PACKAGE $http_service $extra_pkgs
 #do_WORKDIR /usr/local/bin
 #do_ADD $auto_key_public /usr/local/bin/pop/up/3/ root:root
 #do_RUN " while [[ -n $(pgrep Zypp-main) ]]; do sleep 3; done; pwd; ls -l"
 #do_PACKAGE wget curl unzip gcc automake rsync python3-pip coreutils git mc nano openssl $http_service
-do_ENTRYPOINT $http_service
-do_ENV ENV_VAR1="foo" ENV_VAR2="bar" @@meta/test_vars.env
+#do_ENTRYPOINT $http_service
+#do_ENV ENV_VAR1="foo" ENV_VAR2="bar" @@meta/test_vars.env
 
-/* #inlined BASH
+/*
+echo $mysql_pass
+
 if [ -n "$walkman_install" ]; then
     #   echo "Wait 30 sec before Install Walkman on deployed VM"
     #   sleep 30

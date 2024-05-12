@@ -68,40 +68,34 @@ GET_from_state_by_type() {
     return 1
 }
 
-GEN_alpha_password() {
-    local pass
-    tr -dc A-Za-z0-9 </dev/urandom | head -c 13
-    pass=$(echo)
-    [ -z "$2" ] && return "$pass"
-    if [ -s "$2" ]; then
-        if grep <"$2" -q "$1"; then
-            grep <"$2" "$1" | tail -n 1 | cut -d '=' -f 2
-            return
-        else
-            echo "$1=$pass" >"$2"
-            return "$1"
-        fi
+GEN_password() {
+    local password
+    password=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13)
+    [ -z "$2" ] && echo "$password" && return
+    if [ -s "$2" ] && grep <"$2" -q "$1"; then
+        grep <"$2" "$1" | tail -n 1 | cut -d ' ' -f 2
+        return
     fi
+    echo "$1 $password" >"$2"
+    echo "$password"
 }
 
-GEN_password() {
-    local pass
-    LC_ALL=C tr -dc 'A-Za-z0-9!"#$%&'\''()*+,-./:;<=>?@[\]^_`{|}~' </dev/urandom | head -c 13
-    pass=$(echo)
-    [ -z "$2" ] && return "$pass"
-    if [ -s "$2" ]; then
-        if grep <"$2" -q "$1"; then
-            grep <"$2" "$1" | tail -n 1 | cut -d '=' -f 2
-            return
-        else
-            echo "$1=$pass" >"$2"
-            return "$1"
-        fi
+GEN_strong_password() {
+    local password
+    password=$(LC_ALL=C tr -dc 'A-Za-z0-9!"#$%&'\''()*+,-./:;<=>?@[\]^_`{|}~' </dev/urandom | head -c 13)
+    [ -z "$2" ] && echo "$password" && return
+    if [ -s "$2" ] && grep <"$2" -q "$1"; then
+        grep <"$2" "$1" | tail -n 1 | cut -d ' ' -f 2
+        return
     fi
+    echo "$1 $password" >"$2"
+    echo "$password"
 }
 
 do_MYSQL() {
+    local tmp
     do_PACKAGE mariadb mariadb-server
+    tmp=$(mktemp -d)/tmp.yaml
 }
 
 #============== A
@@ -707,7 +701,7 @@ bashcl_translator() {
         ;&
     *"@@meta"*)
         tmp=$(readlink -f ../.meta)
-        [ -z "$STAGE_LABEL" ] && tmp=$DIR_ALBUM_HOME/.meta
+        [ "$STAGE_LABEL" = "&root&" ] && tmp=$DIR_ALBUM_HOME/.meta
         val=${val//@@meta/$tmp}
         ;&
     "{"* | "["*)
