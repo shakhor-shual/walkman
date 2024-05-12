@@ -272,6 +272,7 @@ EOF
     block:
       - name: $pkg
         ansible.builtin.package:
+          disable_gpg_check: "{{ true | d(omit) }}"
           state: present
           name: $pkg
         when: ansible_os_family == 'RedHat'
