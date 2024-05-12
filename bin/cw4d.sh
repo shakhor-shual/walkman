@@ -100,7 +100,7 @@ do_ADD() { # Docker ADD analogue
         ;;
     esac
 
-    echo "%%%%%%%%%%% remotely: ADD %%%%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: Content ADD/COPY %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: yes
@@ -152,7 +152,7 @@ EOF
     [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
     [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$\|ok" | grep -v '""'
-    cat "$tmp"
+    grep <"$tmp" "src\|dest\|repo\|mode\|owner\|group\|url" | tr -d ' '
     rm -r "$(dirname "$tmp")"
     echo -e
 }
@@ -189,7 +189,7 @@ do_ENV() { # Docker ENV analogue
             [ -s "$param" ] && cat "$param" >>"$tmp_env"
         fi
     done
-    echo "%%%%%%%%%%% remotely: ENV %%%%%%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: Entrypoint ENV %%%%%%%%%%%%%%%"
     do_VOLUME "/etc/systemd/system/$ANSIBLE_ENTRYPOINT.service.d" "root:root" 0755 >/dev/null
     do_VOLUME "/etc/env.walkman" "root:root" 0755 >/dev/null
     cat <<EOF >"$tmp"
@@ -219,16 +219,19 @@ do_ENV() { # Docker ENV analogue
       daemon_reload: true
       name: $ANSIBLE_ENTRYPOINT
 EOF
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | grep -v '""'
-    rm -r "$(dirname "$tmp")"
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
+    echo "Entrypoint: [$ANSIBLE_ENTRYPOINT] Environment:"
+    cut <"$tmp_env" -d "=" -f 1 | sed 's/^/[/;s/$/]/'
     echo -e
+
+    rm -r "$(dirname "$tmp")"
 }
 #============== F
 do_FROM() { # Docker FROM analogue
     ANSIBLE_TARGET=all
     [ -n "$1" ] && ANSIBLE_TARGET=$1
     echo "%%%%%%%%%%% remotely: FROM - $ANSIBLE_TARGET %%%%%%%%%%%%%%%"
-    check_ansible_connection "$ANSIBLE_TARGET" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$"
+    check_ansible_connection "$ANSIBLE_TARGET" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | sed 's/^ok/Target ready/'
     echo -e
 }
 
@@ -251,7 +254,7 @@ do_KUBECTL() { # kubectl Wrapper
 #============== P
 do_PACKAGE() { # rpm/apt/zipper Wrapper
     [ -z "$1" ] && return
-    echo "%%%%%%%%%%% remotely: PACKAGE INSTALL %%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: Install PACKAGE(s)  %%%%%%%%%%%"
     local tmp
     tmp=$(mktemp -d)/tmp.yaml
     cat <<EOF >"$tmp"
@@ -290,7 +293,7 @@ EOF
 EOF
     done
 
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gathering \|\[APT\|rescued="
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gathering \|\[APT\|rescued=\|^ok"
     # cat "$tmp"
     rm -r "$(dirname "$tmp")"
     echo -e
@@ -310,7 +313,7 @@ do_RUN() { # Docker RUN analogue
     tmp=$(mktemp -d)
     tmp_sh=$tmp/tmp.sh
 
-    echo "%%%%%%%%%%% remotely: RUN %%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: Script RUN %%%%%%%%%%%"
     {
         echo "#!/bin/bash"
         echo "$@"
@@ -328,7 +331,7 @@ do_RUN() { # Docker RUN analogue
     register: out
   - debug: var=out.stdout_lines
 EOF
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | grep -v '""'
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^changed" | sed 's/^ok/Target/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//;s/}//' | grep -v '""\|^[[:space:]]*$'
     rm -r "$(dirname "$tmp")"
     echo -e
 }
@@ -347,12 +350,11 @@ do_TARGET() { # create ssh access artefacts for target
     local ips='[]'
     local user=$2
     local secret=$3
+    echo "%%%%%%%%%%% remotely: Init TARGET for Setup %%%%%%%%%%%"
 
     ANSIBLE_USER=$user
     ANSIBLE_GROUP=$user
-
     ips="$(extract_ip_from_state_file "$1")"
-
     cat <<EOF >"$STAGE_TARGET_FILE"
 #!/bin/bash
 # ~$STAGE_LABEL
@@ -370,7 +372,8 @@ EOF
     done
 
     chmod 777 "$STAGE_TARGET_FILE"
-    echo "$ips"
+    echo "Available targets: $ips"
+    echo -e
 }
 #============== U
 do_USER() { # Docker USER analogue
@@ -414,7 +417,7 @@ do_VOLUME() { # Docker VOLUME analogue
         ;;
     esac
 
-    echo "%%%%%%%%%%% remotely: VOLUMR %%%%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: Create VOLUME(directory) %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: yes
