@@ -512,7 +512,6 @@ run_helper_by_name() {
 
     if helper_exists "$helper_name"; then
         case $1 in
-
         "do_"[A-Z]* | "set_"[A-Z]* | "cmd_"[A-Z]*)
             [[ "$3" =~ "env_after" ]] && case $helper_name in
             do_RUN) do_RUN "${helper_params}" ;;
