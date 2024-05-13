@@ -98,13 +98,13 @@ walkman_install=@@self
 
 set_TARGET IP-public $ssh_user $auto_key_private
 do_FROM all
-set_REPO $extra_repo
-set_MYSQL
+#set_REPO $extra_repo
+set_MYSQL root $mysql_pass
 #set_PACKAGE $http_service $extra_pkgs
 #do_WORKDIR /usr/local/bin
 #do_ADD $auto_key_public /usr/local/bin/pop/up/3/ root:root
 #do_RUN " while [[ -n $(pgrep Zypp-main) ]]; do sleep 3; done; pwd; ls -l"
-#set_PACKAGE wget curl unzip gcc automake rsync python3-pip coreutils git mc nano openssl $http_service
+set_PACKAGE wget curl unzip gcc automake rsync python3-pip coreutils git mc nano openssl $http_service
 #do_ENTRYPOINT $http_service
 #do_ENV ENV_VAR1="foo" ENV_VAR2="bar" @@meta/test_vars.env
 
