@@ -92,9 +92,9 @@ GEN_strong_password() {
     echo "$password"
 }
 
-do_MYSQL() {
+set_MYSQL() {
     local tmp
-    do_PACKAGE mariadb mariadb-server
+    set_PACKAGE mariadb mariadb-server expect
     tmp=$(mktemp -d)/tmp.yaml
 }
 
@@ -139,7 +139,7 @@ EOF
     case $src in
     # for any archived source
     *".zip" | *".tar.gz" | *".tgz")
-        do_PACKAGE zip unzip tar >/dev/null
+        set_PACKAGE zip unzip tar >/dev/null
         do_VOLUME "$dst" "$usr:$grp" 0755 >/dev/null
         cat <<EOF >>"$tmp"
   - name: ADD archived
@@ -266,7 +266,7 @@ do_FROM() { # Docker FROM analogue
 }
 
 #============== H
-do_HELM() { # helm Wrapper
+cmd_HELM() { # helm Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
     echo "%%%%%%%%%%% remotely: HELM %%%%%%%%%%%%%%%"
@@ -274,7 +274,7 @@ do_HELM() { # helm Wrapper
     echo -e
 }
 #============== K
-do_KUBECTL() { # kubectl Wrapper
+cmd_KUBECTL() { # kubectl Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
     echo "%%%%%%%%%%% remotely: KUBECTL %%%%%%%%%%%%%%%"
@@ -282,7 +282,7 @@ do_KUBECTL() { # kubectl Wrapper
     echo -e
 }
 #============== P
-do_PACKAGE() { # rpm/apt/zipper Wrapper
+set_PACKAGE() { # rpm/apt/zipper Wrapper
     [ -z "$1" ] && return
     echo "%%%%%%%%%%% remotely: Install PACKAGE(s)  %%%%%%%%%%%"
     local tmp
@@ -330,13 +330,17 @@ EOF
     echo -e
 }
 
-do_PLAY() { # ansible Wrapper
+set_PLAY() { # ansible Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
     echo "%%%%%%%%%%% remotely: PLAY: $1 %%%%%%%%%%%%%%%"
     ansible-playbook "$1" -i "$ALBUM_SELF" | grep -v "^PLAY \|^[[:space:]]*$"
 }
 #============== R
+set_REPO() {
+    [ -z "$1" ] && return
+    set_PACKAGE "$@"
+}
 do_RUN() { # Docker RUN analogue
     [ -z "$1" ] && return
     local tmp
@@ -367,7 +371,7 @@ EOF
     echo -e
 }
 #============== S
-do_SYNC() { # rsync Wrapper
+cmd_RSYNC() { # rsync Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
     echo "%%%%%%%%%%% remotely: RSYNC %%%%%%%%%%%%%%%"
@@ -375,7 +379,7 @@ do_SYNC() { # rsync Wrapper
     echo -e
 }
 #============== T
-do_TARGET() { # create ssh access artefacts for target
+set_TARGET() { # create ssh access artefacts for target
     [ -z "$1" ] && return
     [ -z "$STAGE_LABEL" ] && return
     local ips='[]'
@@ -466,7 +470,7 @@ EOF
     echo -e
 }
 #============== W
-do_WALKMAN() { # Walkman installer
+set_WALKMAN() { # Walkman installer
     [ "$1" = "test" ] && return
     echo "%%%%%%%%%%% remotely: WALKMAN INSTALL %%%%%%%%%%%%%%%"
     sed <"$STAGE_TARGET_FILE" 's/^ssh /cw4d.sh /' | bash
@@ -493,7 +497,7 @@ run_helper_by_name() {
     "<<<"*)
         helper_call_string="$(echo "$2" | tr -d ' ' | sed 's/<<<//; s/|/ /g;')"
         ;;
-    "do_"[A-Z]*)
+    "do_"[A-Z]* | "set_"[A-Z]* | "cmd_"[A-Z]*)
         helper_call_string=$2
         ;;
     ^\$\(*)
@@ -665,7 +669,7 @@ bashcl_translator() {
         key=$(echo "$key_val" | cut -d '|' -f 1 | tr -d ' ' | sed 's/^<<<//')
         val=$key_val
         ;;
-    "do_"[A-Z]*)
+    "do_"[A-Z]* | "set_"[A-Z]* | "cmd_"[A-Z]*)
         key=$(echo "$key_val" | awk '{print $1}')
         val=$key_val
         ;;
