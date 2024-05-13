@@ -96,6 +96,33 @@ set_MYSQL() {
     local tmp
     set_PACKAGE mariadb mariadb-server expect
     tmp=$(mktemp -d)/tmp.yaml
+
+    echo "%%%%%%%%%%% remotely: Install/Setup MYSQL/MARIADB %%%%%%%%%%%%%%%"
+
+    #     cat <<EOF >"$tmp"
+    # - hosts: $ANSIBLE_TARGET
+    #   become: yes
+    #   tasks:
+    #   - name: Update MariaDB root password
+    #     mysql_user: name=root host={{item}} password=$1
+    #     with_items:
+    #       - 127.0.0.1
+    #       - ::1
+    #       - localhost
+    #   - name: Delete anonymous MySQL user
+    #     mysql_user: name="" host={{item}} state=absent
+    #     with_items:
+    #       - localhost
+    #       - "{{ansible_nodename}}"
+    #   - name: Delete Hostname based MySQL user
+    #     mysql_user: name=root host="{{ansible_nodename}}" state=absent
+    #   - name: Remove MySQL test database
+    #     mysql_db: name=test state=absent
+    #   register mysql_secured
+    # EOF
+    #     ansible-playbook "$tmp" -i "$ALBUM_SELF" # | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
+    #     echo -e
+    #     rm -r "$(dirname "$tmp")"
 }
 
 #============== A
@@ -295,6 +322,9 @@ set_PACKAGE() { # rpm/apt/zipper Wrapper
     ansible.builtin.apt:
       update_cache: yes
     when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
+  - name: Gather package facts
+    ansible.builtin.package_facts:
+      manager: auto
 EOF
     for pkg in "$@"; do
         cat <<EOF >>"$tmp"
@@ -306,13 +336,11 @@ EOF
           state: present
           name: $pkg
         when: ansible_os_family == 'RedHat'
-    
       - name: $pkg
         ansible.builtin.apt:
           state: present
           name: $pkg
         when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
-    
       - name: $pkg
         community.general.zypper:
           state: present
@@ -321,11 +349,12 @@ EOF
         when: ansible_os_family == 'Suse'
     become: true
     ignore_errors: true
+    when: ('$pkg' not in ansible_facts.packages)
 EOF
     done
 
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gathering \|\[APT\|rescued=\|^ok"
-    # cat "$tmp"
+    #cat "$tmp"
     rm -r "$(dirname "$tmp")"
     echo -e
 }
