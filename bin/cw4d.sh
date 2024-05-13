@@ -511,15 +511,19 @@ run_helper_by_name() {
     helper_params="$(echo "$helper_call_string" | sed "s/^$helper_name//")"
 
     if helper_exists "$helper_name"; then
-        if [[ "$1" =~ ^do_* ]]; then
+        case $1 in
+
+        "do_"[A-Z]* | "set_"[A-Z]* | "cmd_"[A-Z]*)
             [[ "$3" =~ "env_after" ]] && case $helper_name in
             do_RUN) do_RUN "${helper_params}" ;;
             *) eval "$helper_name $helper_params" ;;
             esac
-        else
+            ;;
+        *)
             [ -n "$1" ] && val="$(eval "$helper_call_string")"
             [[ "$3" =~ "env" ]] && export CW4D_"$1"="$(eval echo "$val")" #$val
-        fi
+            ;;
+        esac
 
         [[ "$1" != "$helper_name" ]] && [[ "$3" =~ "file" ]] && add_or_replace_var "$1" "$val"
     else
