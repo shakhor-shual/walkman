@@ -94,35 +94,51 @@ GEN_strong_password() {
 
 set_MYSQL() {
     local tmp
-    set_PACKAGE mariadb mariadb-server expect
+    local usr=$1
+    local password=$2
+
+    set_PACKAGE mariadb mariadb-server expect python3-pip
     tmp=$(mktemp -d)/tmp.yaml
 
     echo "%%%%%%%%%%% remotely: Install/Setup MYSQL/MARIADB %%%%%%%%%%%%%%%"
 
-    #     cat <<EOF >"$tmp"
-    # - hosts: $ANSIBLE_TARGET
-    #   become: yes
-    #   tasks:
-    #   - name: Update MariaDB root password
-    #     mysql_user: name=root host={{item}} password=$1
-    #     with_items:
-    #       - 127.0.0.1
-    #       - ::1
-    #       - localhost
-    #   - name: Delete anonymous MySQL user
-    #     mysql_user: name="" host={{item}} state=absent
-    #     with_items:
-    #       - localhost
-    #       - "{{ansible_nodename}}"
-    #   - name: Delete Hostname based MySQL user
-    #     mysql_user: name=root host="{{ansible_nodename}}" state=absent
-    #   - name: Remove MySQL test database
-    #     mysql_db: name=test state=absent
-    #   register mysql_secured
-    # EOF
-    #     ansible-playbook "$tmp" -i "$ALBUM_SELF" # | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
-    #     echo -e
-    #     rm -r "$(dirname "$tmp")"
+    cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  become: yes
+  tasks:
+  - name: Install pexpect
+    pip:
+      name: pexpect
+  - name: Make sure a service unit is running
+    ansible.builtin.systemd_service:
+      state: started
+      name: mariadb
+  - name: check mysql
+    ansible.builtin.shell: echo exit | mysql -u root 2>/dev/null || echo -n "secured"
+    register: mysql_secured
+    ignore_errors: true
+  - name: secure mariadb
+    become: yes
+    expect:
+      command:  mysql_secure_installation
+      responses:
+        'Enter current password for root': ''
+        'Set root password': 'y'
+        'New password': '$password'
+        'Re-enter new password': '$password'
+        'Remove anonymous users': 'y'
+        'Disallow root login remotely': 'y'
+        'Remove test database': 'y'
+        'Reload privilege tables now': 'y'
+      timeout: 5
+ #   failed_when: "'... Failed!' in secure_mariadb.stdout_lines"
+    when:  (mysql_secured.stdout == "") and ( '$usr' == 'root' )
+    
+EOF
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
+    echo "MySQL/MariaDB server setted up!"
+    echo -e
+    rm -r "$(dirname "$tmp")"
 }
 
 #============== A
@@ -353,9 +369,10 @@ EOF
 EOF
     done
 
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gathering \|\[APT\|rescued=\|^ok"
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
     #cat "$tmp"
     rm -r "$(dirname "$tmp")"
+    echo "OS packages installed"
     echo -e
 }
 
