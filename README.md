@@ -2,25 +2,40 @@
 
 ### I express my deep gratitude to Amazon for providing sponsorship support of this project!
 
-Walkman is a tool for configuring and orchestrating mixed IaC projects based on
-existing code-base for Terraform, Ansible, Helm etc.  In general, Walkman 
-was conceived as a small “Swiss Army knife” for DevOps-routines. 
+Walkman is a specialized kind of Unix shell (i.e. something like Bash, ash, zsh... etc.), 
+designed to simplify a wide class of routine IaC operations for deploying and configuring 
+cloud infrastructure. Walkman allows you to create directly executable Unix scripts  with a 
+syntax that is maximally compatible with the syntax of [regular Bash](https://github.com/shakhor-shual/walkman/blob/main/examples/gcp/linux_vm/test.csh), and use them in the 
+traditional Unix-native style (i.e., like any other types of shell scripts).
+The example above shows: 
 
-It allows you to declaratively describe the process of deployment and subsequent 
-configuration of cloud infrastructure using executable scripts. In essence, Walkman 
-is a specialized form of Unix Shell with own IaC oriented DSL based on the BASH 
-syntax. A simple illustrative example would be the Walkman [deployment script](https://github.com/shakhor-shual/walkman/blob/main/examples/gcp/linux_vm/test.csh)
- which creates a virtual machine in the GKP and then configures it in a Docker-like 
- style. The example above shows: 
-
- - Customizing an existing terraform package using Walkman-variables. 
+ - Customizing an existing terraform package using script-defined variables. 
  - Ability to use native inserts in pure Bash (located in /*....*/ blocks) 
  for additional manipulation of Walkman variables and performing any other 
  actions on the local system. 
- - The ability to use helpers (functions), named in a Docker-like style, 
- to configure a deployed remote system (the actions performed by the helpers are
- similar to the actions of the Docker-file directives of the same name, but 
- they configure the entire deployed VM).
+ - The ability to use "helpers" ( i.e. internal Walkman functions),  to configure 
+a deployed remote system. Relatively speaking, Walkman "helpers" are similar to the 
+built-in commands of Unix shells, with the difference that the actions they perform are 
+focused not on managing the operating system but on IAC tasks. In terms of  implementation, 
+helpers are ordinary Bash functions predefined in Walkman itself. Therefore, the syntax 
+for calling “helpers” in Walkman scripts is completely similar to the syntax for calling 
+functions in Bash scripts. As you can see from the proposed example, еhe helpers used can be
+divided into 4 groups (by their prefixes and intended purpose):
+
+- "do_*" group with names similar to Dockerfile directives (and they perform similar 
+ operations BUT in relation to a deployed VM, not a container). This group of helpers 
+ operates a REMOTE system!
+
+- "set_*" group for simplified management of installation processes of operating system 
+packages and other software components. This group of helpers operates a REMOTE system!
+
+- "cmd_*" group of wrappers for commands/programs of the same(usually) name for example: 
+rsync, kubectl, helm... etc, for direct management of remote deployments. The parameters 
+for calling these helpers are the parameters for calling the corresponding commands/programs.
+This group of helpers  operates a REMOTE system!
+
+- "GET_" group is used to retrieve various data in the LOCAL system (for example, retrieves
+ parameters from tfstate). This group of helpers operates a LOCAL system!
 
 ## Quick Start:
 Walkman is just a single  bash script(cw4d.sh) that, when run without parameters, 
@@ -88,7 +103,9 @@ just forget 98% of what you need to know for BASH scripting and feel free
 to start writing your own deployment scripts with the remaining 2%;) The 
 deployment scripts language syntax is as compatible as possible with existing 
 shell programming support in major code editors. A nice bonus will be working 
-syntax highlighting and auto-formatting of code in VS Code etc. Have a fun ;)
+syntax highlighting and auto-formatting of code in VS Code etc. 
+
+Have a lot of fun ;)
 
 
 
