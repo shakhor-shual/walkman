@@ -19,8 +19,11 @@ built-in commands of Unix shells, with the difference that the actions they perf
 focused not on managing the operating system but on IAC tasks. In terms of  implementation, 
 helpers are ordinary Bash functions predefined in Walkman itself. Therefore, the syntax 
 for calling “helpers” in Walkman scripts is completely similar to the syntax for calling 
-functions in Bash scripts. As you can see from the proposed example, еhe helpers used can be
-divided into 4 groups (by their prefixes and intended purpose):
+functions in Bash scripts. 
+
+As you can see from the proposed example, еhe helpers used can be divided into 4 groups 
+(by their prefixes and intended purpose) and into two groups (local/remote) according 
+to target application:
 
 - "do_*" group with names similar to Dockerfile directives (and they perform similar 
  operations BUT in relation to a deployed VM, not a container). This group of helpers 
