@@ -21,7 +21,7 @@ helpers are ordinary Bash functions predefined in Walkman itself. Therefore, the
 for calling “helpers” in Walkman scripts is completely similar to the syntax for calling 
 functions in Bash scripts. 
 
-As you can see from the proposed example, еhe helpers used can be divided into 4 groups 
+As you can see from the proposed example, all used helpers can be divided into 4 groups 
 (by their prefixes and intended purpose) and into two groups (local/remote) according 
 to target application:
 
