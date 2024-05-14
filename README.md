@@ -40,6 +40,26 @@ This group of helpers  operates a REMOTE system!
 - "GET_" group is used to retrieve various data in the LOCAL system (for example, retrieves
  parameters from tfstate). This group of helpers operates a LOCAL system!
 
+
+To deploy cloud infrastructure, Walkman uses Terraform and existing HCL projects. You can 
+prepare any existing Terraform project to run under Walkman using the  command:
+- cw4d describe
+
+When you run this command in a folder containing a subfolder(s) with existing HCL project(s), 
+a Walkman script template will be generated that controls the deployment of this project (with 
+default parameters specified in the project itself). The template generator will add projects 
+to the deployment script in alphabetical order of the names of sub-folders with HCL projects. 
+The same procedure will be used in the process of subsequent infrastructure deployment. Remember 
+this when choosing the names of sub-folders that satisfy the dependencies of the deployment stages!
+
+Ansible is used to configure the deployed infrastructure: 
+- implicitly - using "helpers" that dynamically generate the necessary Ansible code 
+- explicitly - by launching existing Ansible playbooks and roles). 
+
+To do this, Walkman automatically generates a dynamic inventory for the entire infrastructure 
+deployed by it.
+
+
 ## Quick Start:
 Walkman is just a single  bash script(cw4d.sh) that, when run without parameters, 
 self-compiles itself into a Linux executable form (to ELF-file: /usr/local/bin/cw4d).
