@@ -99,8 +99,7 @@ walkman_install=@@self
 set_TARGET IP-public $ssh_user $auto_key_private
 do_FROM all
 #set_REPO $extra_repo
-set_MYSQL wordpress1 $mysql_pass
-set_MYSQL root $mysql_pass
+set_MARIADB root $mysql_pass
 
 #set_PACKAGE $http_service $extra_pkgs
 #do_WORKDIR /usr/local/bin

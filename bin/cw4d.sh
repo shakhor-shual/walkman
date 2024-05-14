@@ -28,6 +28,9 @@ ANSIBLE_WORKDIR='$HOME'
 ANSIBLE_USER=$(whoami)
 ANSIBLE_GROUP=$(whoami)
 ANSIBLE_ENTRYPOINT="nginx"
+SQL_CONTEXT=""
+SQL_USER="root"
+SQL_PASSWORD=""
 #ANSIBLE_ARG=""
 
 check_ansible_connection() {
@@ -90,55 +93,6 @@ GEN_strong_password() {
     fi
     echo "$1 $password" >"$2"
     echo "$password"
-}
-
-set_MYSQL() {
-    local tmp
-    local usr=$1
-    local password=$2
-
-    set_PACKAGE mariadb mariadb-server expect python3-pip
-    tmp=$(mktemp -d)/tmp.yaml
-
-    echo "%%%%%%%%%%% remotely: Install/Setup MYSQL/MARIADB %%%%%%%%%%%%%%%"
-
-    cat <<EOF >"$tmp"
-- hosts: $ANSIBLE_TARGET
-  become: yes
-  tasks:
-  - name: Install pexpect
-    pip:
-      name: pexpect
-  - name: Make sure a service unit is running
-    ansible.builtin.systemd_service:
-      state: started
-      name: mariadb
-  - name: check mysql
-    ansible.builtin.shell: echo exit | mysql -u root 2>/dev/null || echo -n "secured"
-    register: mysql_secured
-    ignore_errors: true
-  - name: secure mariadb
-    become: yes
-    expect:
-      command:  mysql_secure_installation
-      responses:
-        'Enter current password for root': ''
-        'Set root password': 'y'
-        'New password': '$password'
-        'Re-enter new password': '$password'
-        'Remove anonymous users': 'y'
-        'Disallow root login remotely': 'y'
-        'Remove test database': 'y'
-        'Reload privilege tables now': 'y'
-      timeout: 5
- #   failed_when: "'... Failed!' in secure_mariadb.stdout_lines"
-    when:  (mysql_secured.stdout == "") and ( '$usr' == 'root' )
-    
-EOF
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
-    echo "MySQL/MariaDB server setted up!"
-    echo -e
-    rm -r "$(dirname "$tmp")"
 }
 
 #============== A
@@ -324,6 +278,64 @@ cmd_KUBECTL() { # kubectl Wrapper
     kubectl "$@"
     echo -e
 }
+#============== M
+set_MYSQL() {
+    SQL_CONTEXT="mysql"
+    set_MARIADB "$@"
+}
+
+set_MARIADB() {
+    local tmp
+    local server_pkg="mariadb-server"
+    local client_pkg="mariadb"
+
+    [ "$SQL_CONTEXT" = "mysql" ] && server_pkg="mysql-server" && client_pkg="mysql"
+    set_PACKAGE $client_pkg $server_pkg expect python3-pip
+    SQL_USER=$1
+    SQL_PASSWORD=$2
+    SQL_CONTEXT=$client_pkg
+    tmp=$(mktemp -d)/tmp.yaml
+
+    echo "%%%%%%%%%%% remotely: Install/Setup $server_pkg %%%%%%%%%%%%%%%"
+
+    cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  become: yes
+  tasks:
+  - name: Install pexpect
+    pip:
+      name: pexpect
+  - name: Make sure a service unit is running
+    ansible.builtin.systemd_service:
+      state: started
+      name: mariadb
+  - name: check mysql
+    ansible.builtin.shell: echo exit | mysql -u root 2>/dev/null || echo -n "secured"
+    register: mysql_secured
+    ignore_errors: true
+  - name: secure mariadb
+    become: yes
+    expect:
+      command:  mysql_secure_installation
+      responses:
+        'Enter current password for root': ''
+        'Set root password': 'y'
+        'New password': '$SQL_PASSWORD'
+        'Re-enter new password': '$SQL_PASSWORD'
+        'Remove anonymous users': 'y'
+        'Disallow root login remotely': 'y'
+        'Remove test database': 'y'
+        'Reload privilege tables now': 'y'
+      timeout: 5
+ #   failed_when: "'... Failed!' in secure_mariadb.stdout_lines"
+    when:  (mysql_secured.stdout == "") and ( '$SQL_USER' == 'root' )
+    
+EOF
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
+    echo "$server_pkg server setted up!"
+    echo -e
+    rm -r "$(dirname "$tmp")"
+}
 #============== P
 set_PACKAGE() { # rpm/apt/zipper Wrapper
     [ -z "$1" ] && return
@@ -416,13 +428,26 @@ EOF
     rm -r "$(dirname "$tmp")"
     echo -e
 }
-#============== S
 cmd_RSYNC() { # rsync Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
     echo "%%%%%%%%%%% remotely: RSYNC %%%%%%%%%%%%%%%"
     rsync "$@"
     echo -e
+}
+#============== S
+set_SQL() {
+    case $SQL_CONTEXT in
+    "mysql" | "mariadb")
+        if [ -f "$1" ]; then
+            mysql -u $SQL_USER "-p$SQL_PASSWORD" "$2" <"$1"
+        else
+            mysql -u $SQL_USER "-p$SQL_PASSWORD" "$2" -Bse "$1"
+        fi
+        ;;
+    "postgress") ;;
+    *) ;;
+    esac
 }
 #============== T
 set_TARGET() { # create ssh access artefacts for target
