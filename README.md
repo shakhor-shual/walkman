@@ -41,6 +41,7 @@ This group of helpers  operates a REMOTE system!
  parameters from tfstate). This group of helpers operates a LOCAL system!
 
 
+### Walkman for cloud deployment 
 To deploy cloud infrastructure, Walkman uses Terraform and existing HCL projects. You can 
 prepare any existing Terraform project to run under Walkman using the  command:
 - cw4d describe
@@ -52,13 +53,17 @@ to the deployment script in alphabetical order of the names of sub-folders with 
 The same procedure will be used in the process of subsequent infrastructure deployment. Remember 
 this when choosing the names of sub-folders that satisfy the dependencies of the deployment stages!
 
+
+### Walkman for post-deployment setup 
 Ansible is used to configure the deployed infrastructure: 
 - implicitly - using "helpers" that dynamically generate the necessary Ansible code 
-- explicitly - by launching existing Ansible playbooks and roles). 
+- explicitly - by launching existing Ansible playbooks and roles. 
 
 To do this, Walkman automatically generates a dynamic inventory for the entire infrastructure 
 deployed by it.
 
+Walkman uses Helm and kubectl to configure Kubernetes infrastructure deployment. Importing 
+configuration for access to the cluster is recommended using Terraform
 
 ## Quick Start:
 Walkman is just a single  bash script(cw4d.sh) that, when run without parameters, 
