@@ -30,6 +30,8 @@ host=@@this
 boot_disk_size=$ext_size
 p_file=@@meta/mysql.key
 mysql_pass=$(GEN_password root $p_file)
+wp_user="my_word"
+wp_password=$(GEN_password $wp_user @@meta/wp_user.key)
 
 ######### DEPLOY GCP VM STAGE #################
 ~WP_VM:
@@ -100,12 +102,13 @@ set_TARGET IP-public $ssh_user $auto_key_private
 do_FROM all
 #set_REPO $extra_repo
 set_MARIADB root $mysql_pass
-
+cmd_SQL "CREATE DATABASE wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$wp_user'@'localhost' identified by '$wp_password';FLUSH PRIVILEGES;"
+#do_ADD http://wordpress.org/latest.tar.gz /var/www/html/
 #set_PACKAGE $http_service $extra_pkgs
 #do_WORKDIR /usr/local/bin
 #do_ADD $auto_key_public /usr/local/bin/pop/up/3/ root:root
 #do_RUN " while [[ -n $(pgrep Zypp-main) ]]; do sleep 3; done; pwd; ls -l"
-set_PACKAGE wget curl unzip gcc automake rsync python3-pip coreutils git mc nano openssl $http_service
+#set_PACKAGE wget curl unzip gcc automake rsync python3-pip coreutils git mc nano openssl $http_service
 #do_ENTRYPOINT $http_service
 #do_ENV ENV_VAR1="foo" ENV_VAR2="bar" @@meta/test_vars.env
 

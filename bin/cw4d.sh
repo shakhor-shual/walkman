@@ -31,6 +31,7 @@ ANSIBLE_ENTRYPOINT="nginx"
 SQL_CONTEXT=""
 SQL_USER="root"
 SQL_PASSWORD=""
+SQL_DATABASE=""
 #ANSIBLE_ARG=""
 
 check_ansible_connection() {
@@ -192,6 +193,9 @@ do_ARG() { # Docker ARG analogue
 #============== C
 do_COPY() { # Docker COPY analogue
     do_ADD "$@"
+}
+cmd_CONNECT() {
+    return
 }
 #============== D
 #============== E
@@ -436,18 +440,51 @@ cmd_RSYNC() { # rsync Wrapper
     echo -e
 }
 #============== S
-set_SQL() {
+cmd_SQL() {
+    echo "$@"
+    local tmp
+    local tmp_sql
+    tmp=$(mktemp -d)
+    tmp_sql=$tmp/tmp.sql
+    tmp=$tmp/tmp.yaml
+
+    if [ -f "$1" ]; then
+        for sql in "$@"; do cat "$sql" >>"$tmp_sql"; done
+    else
+        echo "$@" >"$tmp_sql"
+    fi
+    echo "%%%%%%%%%%% remotely: run SQL  %%%%%%%%%%%"
+    cat "$tmp_sql"
+    echo "=========================================="
+    cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  become: true
+  tasks:
+  - name: copy SQL-tmp 
+    ansible.builtin.copy:
+      src: $tmp_sql
+      dest: /tmp/walkman_cmd_SQL.sql
+EOF
+
     case $SQL_CONTEXT in
     "mysql" | "mariadb")
-        if [ -f "$1" ]; then
-            mysql -u $SQL_USER "-p$SQL_PASSWORD" "$2" <"$1"
-        else
-            mysql -u $SQL_USER "-p$SQL_PASSWORD" "$2" -Bse "$1"
-        fi
+        cat <<EOF >>"$tmp"
+  - name: run SQL
+    ansible.builtin.command: mysql -u $SQL_USER "-p$SQL_PASSWORD" "$SQL_DATABASE" </tmp/walkman_cmd_SQL.sql
+    register: out
+  - debug: var=out.stdout_lines
+#   - name: rm copy SQL-tmp
+#     ansible.builtin.file: /tmp/walkman_cmd_SQL.sql
+#       state: absent
+EOF
         ;;
     "postgress") ;;
     *) ;;
     esac
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+    #cat "$tmp"
+    rm -r "$(dirname "$tmp")"
+    echo -e
 }
 #============== T
 set_TARGET() { # create ssh access artefacts for target
@@ -585,7 +622,15 @@ run_helper_by_name() {
         case $1 in
         "do_"[A-Z]* | "set_"[A-Z]* | "cmd_"[A-Z]*)
             [[ "$3" =~ "env_after" ]] && case $helper_name in
-            do_RUN) do_RUN "${helper_params}" ;;
+            do_RUN)
+                helper_params=$(eval "$(echo "${helper_params}" | sed 's/^/echo "/;s/$/"/')")
+                do_RUN "${helper_params}"
+                ;;
+            cmd_SQL)
+                # shellcheck disable=SC2116
+                helper_params=$(eval "$(echo "${helper_params}" | sed 's/^/echo "/;s/$/"/')")
+                cmd_SQL "$helper_params"
+                ;;
             *) eval "$helper_name $helper_params" ;;
             esac
             ;;
