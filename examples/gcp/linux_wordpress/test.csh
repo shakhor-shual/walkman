@@ -111,10 +111,11 @@ cmd_SQL "CREATE DATABASE wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$wp_u
 #set_PACKAGE wget curl unzip gcc automake rsync python3-pip coreutils git mc nano openssl $http_service
 #do_ENTRYPOINT $http_service
 #do_ENV ENV_VAR1="foo" ENV_VAR2="bar" @@meta/test_vars.env
-
+cmd_CONNECT
 /*
 echo $mysql_pass
-
+#hhhx
+#/bin/ssh -t -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i /home/ubuntu/github/walkman/examples/gcp/linux_wordpress/.meta/private.key devops@34.65.146.167
 if [ -n "$walkman_install" ]; then
     #   echo "Wait 30 sec before Install Walkman on deployed VM"
     #   sleep 30

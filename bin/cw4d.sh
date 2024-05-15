@@ -195,7 +195,10 @@ do_COPY() { # Docker COPY analogue
     do_ADD "$@"
 }
 cmd_CONNECT() {
-    return
+    echo "%%%%%%%%%%% remotely: SSH to TARGET %%%%%%%%%%%%%%%"
+    sed <"$STAGE_TARGET_FILE" 's/^ssh /ssh -tt /' | bash
+    echo -e
+    echo -e
 }
 #============== D
 #============== E
@@ -579,7 +582,6 @@ EOF
 }
 #============== W
 set_WALKMAN() { # Walkman installer
-    [ "$1" = "test" ] && return
     echo "%%%%%%%%%%% remotely: WALKMAN INSTALL %%%%%%%%%%%%%%%"
     sed <"$STAGE_TARGET_FILE" 's/^ssh /cw4d.sh /' | bash
     echo -e
