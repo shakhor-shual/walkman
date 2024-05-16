@@ -109,7 +109,8 @@ do_ADD http://wordpress.org/latest.tar.gz /var/www/html/ $wp_owner 0755
 do_RUN "sudo find /var/www/html/wordpress -type f -exec chmod 644 {} \;"
 set_PACKAGE $extra_pkgs mc
 do_ADD @@meta/wordpress.conf /etc/httpd/conf.d/wordpress.conf root:root
-set_APACHE ENV_VAR1="foo"
+do_ADD @@meta/wp-config.php /var/www/html/wordpress/wp-config.php $wp_owner
+set_APACHE WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$wp_user" WORDPRESS_DB_PASSWORD="$wp_password" WORDPRESS_DB_NAME="wordpress"
 #do_WORKDIR /usr/local/bin
 #do_ADD $auto_key_public /usr/local/bin/pop/up/3/ root:root
 #do_RUN " while [[ -n $(pgrep Zypp-main) ]]; do sleep 3; done; pwd; ls -l"
