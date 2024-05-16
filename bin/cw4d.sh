@@ -355,8 +355,6 @@ set_SERVICE() {
   - name: Gather package facts
     ansible.builtin.package_facts:
       manager: auto
-EOF
-    cat <<EOF >>"$tmp"
   - name: install $1
     block:
       - name: $rpm_name
@@ -364,7 +362,7 @@ EOF
           disable_gpg_check: "{{ true | d(omit) }}"
           state: present
           name: $rpm_name
-        when: (ansible_os_family == 'RedHat') and ('$deb_name' not in ansible_facts.packages)
+        when: (ansible_os_family == 'RedHat') and ('$rpm_name' not in ansible_facts.packages)
       - name: $deb_name
         ansible.builtin.apt:
           update_cache: yes
@@ -376,7 +374,7 @@ EOF
           state: present
           disable_recommends: false
           name: $rpm_name
-        when: (ansible_os_family == 'Suse') && ('$rpm_name' not in ansible_facts.packages)
+        when: (ansible_os_family == 'Suse') and ('$rpm_name' not in ansible_facts.packages)
     become: true
     ignore_errors: true
 
@@ -604,7 +602,7 @@ EOF
     "postgress") ;;
     *) ;;
     esac
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$'
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$' | grep "^ERROR"
     #cat "$tmp"
     rm -r "$(dirname "$tmp")"
     echo -e
