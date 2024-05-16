@@ -283,6 +283,99 @@ cmd_KUBECTL() { # kubectl Wrapper
     echo -e
 }
 #============== M
+set_APACHE() {
+    echo "%%%%%%%%%%% remotely: Setup APACHE  %%%%%%%%%%%"
+    set_PACKAGE "httpd" # >/dev/null
+    echo "service APACHE restarted"
+}
+
+set_NGINX() {
+    echo "%%%%%%%%%%% remotely: Setup NGINX  %%%%%%%%%%%"
+    set_PACKAGE "nginx" >/dev/null
+    echo "service NGINX restarted"
+}
+
+set_PHP-FPM() {
+    echo "%%%%%%%%%%% remotely: Setup PHP-FPM  %%%%%%%%%%%"
+    set_PACKAGE "php-fpm" >/dev/null
+    echo "service PHP-FPM restarted"
+}
+
+set_NODEJS() {
+    echo "%%%%%%%%%%% remotely: Setup NODE-JS  %%%%%%%%%%%"
+    set_PACKAGE "node" >/dev/null
+    echo "service NODE-JS restarted"
+}
+
+set_SERVICE() {
+    [ -z "$1" ] && return
+    local rpm_name="httpd"
+    local deb_name="apache2"
+    local rpm_name="httpd"
+
+    [ "$1" = "apache2" ] && rpm_name="httpd" && deb_name="apache2"
+    [ "$1" = "httpd" ] && rpm_name="httpd" && deb_name="apache2"
+
+    echo "%%%%%%%%%%% remotely: Setup APACHE  %%%%%%%%%%%"
+    local tmp
+    tmp=$(mktemp -d)/tmp.yaml
+    cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  become: true
+  tasks:
+  - name: Gather package facts
+    ansible.builtin.package_facts:
+      manager: auto
+EOF
+    cat <<EOF >>"$tmp"
+  - name: install $1
+    block:
+      - name: $rpm_name
+        ansible.builtin.package:
+          disable_gpg_check: "{{ true | d(omit) }}"
+          state: present
+          name: $rpm_name
+        when: (ansible_os_family == 'RedHat') and ('$deb_name' not in ansible_facts.packages)
+      - name: $deb_name
+        ansible.builtin.apt:
+          update_cache: yes
+          state: present
+          name: $deb_name 
+        when: (ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu') and ('$deb_name' not in ansible_facts.packages)
+      - name: $rpm_name
+        community.general.zypper:
+          state: present
+          disable_recommends: false
+          name: $rpm_name
+        when: (ansible_os_family == 'Suse') && ('$rpm_name' not in ansible_facts.packages)
+    become: true
+    ignore_errors: true
+
+  - name: Make sure a $rpm_name unit is running
+    ansible.builtin.systemd_service:
+      state: restarted
+      name: $rpm_name
+    when: ansible_os_family == 'RedHat'
+  
+  - name: Make sure a $deb_name unit is running
+    ansible.builtin.systemd_service:
+      state: restarted
+      name: $deb_name
+    when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
+
+  - name: Make sure a $rpm_name unit is running
+    ansible.builtin.systemd_service:
+      state: restarted
+      name: $rpm_name
+    when: ansible_os_family == 'Suse'
+EOF
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+    #cat "$tmp"
+    rm -r "$(dirname "$tmp")"
+    echo "SERVICE $1 setted up"
+    echo -e
+}
+
 set_MYSQL() {
     SQL_CONTEXT="mysql"
     set_MARIADB "$@"
@@ -441,7 +534,6 @@ cmd_RSYNC() { # rsync Wrapper
 }
 #============== S
 cmd_SQL() {
-    echo "$@"
     local tmp
     local tmp_sql
     tmp=$(mktemp -d)
@@ -453,7 +545,7 @@ cmd_SQL() {
     else
         echo "$@" >"$tmp_sql"
     fi
-    echo "%%%%%%%%%%% remotely: run SQL  %%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: run SQL-commands on DB: $SQL_CONTEXT  %%%%%%%%%%%"
     cat "$tmp_sql"
     echo "=========================================="
     cat <<EOF >"$tmp"
@@ -470,7 +562,7 @@ EOF
     "mysql" | "mariadb")
         cat <<EOF >>"$tmp"
   - name: run SQL
-    ansible.builtin.command: mysql -u $SQL_USER "-p$SQL_PASSWORD" "$SQL_DATABASE" </tmp/walkman_cmd_SQL.sql
+    ansible.builtin.shell: mysql -u $SQL_USER "-p$SQL_PASSWORD" "$SQL_DATABASE"< /tmp/walkman_cmd_SQL.sql 2>&1 | grep ""
     register: out
   - debug: var=out.stdout_lines
 #   - name: rm copy SQL-tmp
@@ -481,7 +573,7 @@ EOF
     "postgress") ;;
     *) ;;
     esac
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$'
     #cat "$tmp"
     rm -r "$(dirname "$tmp")"
     echo -e

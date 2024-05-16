@@ -82,6 +82,7 @@ case $boot_image in
 *)
     ssh_user="devops"
     http_service=httpd
+    wp_owner="apache:apache"
     case $boot_image in
     *"-7") extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm ;;
     *"-8") extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm ;;
@@ -100,11 +101,14 @@ walkman_install=@@self
 
 set_TARGET IP-public $ssh_user $auto_key_private
 do_FROM all
-#set_REPO $extra_repo
+set_REPO $extra_repo
 set_MARIADB root $mysql_pass
 cmd_SQL "CREATE DATABASE wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$wp_user'@'localhost' identified by '$wp_password';FLUSH PRIVILEGES;"
-do_ADD http://wordpress.org/latest.tar.gz /var/www/html/
-set_PACKAGE $http_service $extra_pkgs
+set_APACHE $http_service
+do_ADD http://wordpress.org/latest.tar.gz /var/www/html/ $wp_owner 0755
+set_PACKAGE $extra_pkgs mc
+do_ADD @@meta/wordpress.conf /etc/httpd/conf.d/wordpress.conf root:root
+set_APACHE
 #do_WORKDIR /usr/local/bin
 #do_ADD $auto_key_public /usr/local/bin/pop/up/3/ root:root
 #do_RUN " while [[ -n $(pgrep Zypp-main) ]]; do sleep 3; done; pwd; ls -l"
@@ -112,6 +116,7 @@ set_PACKAGE $http_service $extra_pkgs
 #do_ENTRYPOINT $http_service
 #do_ENV ENV_VAR1="foo" ENV_VAR2="bar" @@meta/test_vars.env
 cmd_INTERACT
+
 /*
 echo $mysql_pass
 #hhhx
@@ -120,7 +125,8 @@ if [ -n "$walkman_install" ]; then
     #   echo "Wait 30 sec before Install Walkman on deployed VM"
     #   sleep 30
     #   eval $walkman_install
-    echo $walkman_install
+    echo "http://"
+
 else
     echo "Can't Install Walkman"
 fi
