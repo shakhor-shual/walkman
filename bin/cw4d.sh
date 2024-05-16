@@ -288,9 +288,9 @@ set_APACHE() {
     set_PACKAGE "httpd" >/dev/null
     if [ -n "$1" ]; then
         do_ENTRYPOINT "httpd" >/dev/null
-        do_ENV "$@" >/dev/null
+        do_ENV "$@"
         do_ENTRYPOINT "apache2" >/dev/null
-        do_ENV "$@" >/dev/null
+        do_ENV "$@"
         set_PACKAGE "httpd" >/dev/null
     fi
     echo "service APACHE setted up and restarted"
