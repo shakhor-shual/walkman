@@ -534,6 +534,8 @@ do_RUN() { # Docker RUN analogue
         echo "$@"
     } >>"$tmp_sh"
 
+    cat "$tmp_sh"
+
     tmp=$tmp/tmp.yaml
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
