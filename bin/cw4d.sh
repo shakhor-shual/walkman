@@ -194,7 +194,7 @@ do_ARG() { # Docker ARG analogue
 do_COPY() { # Docker COPY analogue
     do_ADD "$@"
 }
-cmd_CONNECT() {
+cmd_INTERACT() {
     RUN_CMD_CONNECT="yes"
 }
 #============== D
