@@ -252,7 +252,7 @@ do_ENV() { # Docker ENV analogue
           daemon_reload: true
           name: $ANSIBLE_ENTRYPOINT
     become: yes
-    when: "'$ANSIBLE_ENTRYPOINT' in services" 
+    when: "'$ANSIBLE_ENTRYPOINT.service' in services" 
 EOF
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
     echo "Entrypoint: [$ANSIBLE_ENTRYPOINT] Environment:"
