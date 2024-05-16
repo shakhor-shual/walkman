@@ -285,33 +285,36 @@ cmd_KUBECTL() { # kubectl Wrapper
 #============== M
 set_APACHE() {
     echo "%%%%%%%%%%% remotely: Setup APACHE  %%%%%%%%%%%"
-    set_PACKAGE "httpd" # >/dev/null
+    set_PACKAGE "httpd" >/dev/null
     echo "service APACHE restarted"
+    echo -e
 }
 
 set_NGINX() {
     echo "%%%%%%%%%%% remotely: Setup NGINX  %%%%%%%%%%%"
     set_PACKAGE "nginx" >/dev/null
     echo "service NGINX restarted"
+    echo -e
 }
 
 set_PHP-FPM() {
     echo "%%%%%%%%%%% remotely: Setup PHP-FPM  %%%%%%%%%%%"
     set_PACKAGE "php-fpm" >/dev/null
     echo "service PHP-FPM restarted"
+    echo -e
 }
 
 set_NODEJS() {
     echo "%%%%%%%%%%% remotely: Setup NODE-JS  %%%%%%%%%%%"
     set_PACKAGE "node" >/dev/null
     echo "service NODE-JS restarted"
+    echo -e
 }
 
 set_SERVICE() {
     [ -z "$1" ] && return
-    local rpm_name="httpd"
-    local deb_name="apache2"
-    local rpm_name="httpd"
+    local rpm_name
+    local deb_name
 
     [ "$1" = "apache2" ] && rpm_name="httpd" && deb_name="apache2"
     [ "$1" = "httpd" ] && rpm_name="httpd" && deb_name="apache2"
