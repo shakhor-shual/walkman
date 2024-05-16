@@ -104,11 +104,11 @@ do_FROM all
 set_REPO $extra_repo
 set_MARIADB root $mysql_pass
 cmd_SQL "CREATE DATABASE wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$wp_user'@'localhost' identified by '$wp_password';FLUSH PRIVILEGES;"
-set_APACHE $http_service
+set_APACHE
 do_ADD http://wordpress.org/latest.tar.gz /var/www/html/ $wp_owner 0755
 set_PACKAGE $extra_pkgs mc
 do_ADD @@meta/wordpress.conf /etc/httpd/conf.d/wordpress.conf root:root
-set_APACHE
+set_APACHE ENV_VAR1="foo"
 #do_WORKDIR /usr/local/bin
 #do_ADD $auto_key_public /usr/local/bin/pop/up/3/ root:root
 #do_RUN " while [[ -n $(pgrep Zypp-main) ]]; do sleep 3; done; pwd; ls -l"

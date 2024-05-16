@@ -286,28 +286,50 @@ cmd_KUBECTL() { # kubectl Wrapper
 set_APACHE() {
     echo "%%%%%%%%%%% remotely: Setup APACHE  %%%%%%%%%%%"
     set_PACKAGE "httpd" >/dev/null
-    echo "service APACHE restarted"
+    if [ -n "$1" ]; then
+        do_ENTRYPOINT "httpd" >/dev/null
+        do_ENV "$@" >/dev/null
+        do_ENTRYPOINT "apache2" >/dev/null
+        do_ENV "$@" >/dev/null
+        set_PACKAGE "httpd" >/dev/null
+    fi
+    echo "service APACHE setted up and restarted"
     echo -e
 }
 
 set_NGINX() {
     echo "%%%%%%%%%%% remotely: Setup NGINX  %%%%%%%%%%%"
     set_PACKAGE "nginx" >/dev/null
-    echo "service NGINX restarted"
+    echo "service NGINX setted up and restarted"
+    if [ -n "$1" ]; then
+        do_ENTRYPOINT "nginx" >/dev/null
+        do_ENV "$@" >/dev/null
+        set_PACKAGE "nginx" >/dev/null
+    fi
     echo -e
 }
 
-set_PHP-FPM() {
+set_PHP_FPM() {
     echo "%%%%%%%%%%% remotely: Setup PHP-FPM  %%%%%%%%%%%"
     set_PACKAGE "php-fpm" >/dev/null
-    echo "service PHP-FPM restarted"
+    if [ -n "$1" ]; then
+        do_ENTRYPOINT "php-fpm" >/dev/null
+        do_ENV "$@" >/dev/null
+        set_PACKAGE "php-fpm" >/dev/null
+    fi
+    echo "service PHP-FPM setted up and restarted"
     echo -e
 }
 
-set_NODEJS() {
+set_NODE_JS() {
     echo "%%%%%%%%%%% remotely: Setup NODE-JS  %%%%%%%%%%%"
     set_PACKAGE "node" >/dev/null
     echo "service NODE-JS restarted"
+    if [ -n "$1" ]; then
+        do_ENTRYPOINT "node" >/dev/null
+        do_ENV "$@" >/dev/null
+        set_PACKAGE "node" >/dev/null
+    fi
     echo -e
 }
 
