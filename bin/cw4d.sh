@@ -24,7 +24,7 @@ TF_EC=0
 RUN_LIST="init apply destroy validate describe gitops plan --list --host"
 IN_BASH=0
 ANSIBLE_TARGET=all
-ANSIBLE_WORKDIR='$HOME'
+ANSIBLE_WORKDIR='/'
 ANSIBLE_USER=$(whoami)
 ANSIBLE_GROUP=$(whoami)
 ANSIBLE_ENTRYPOINT="nginx"
@@ -412,7 +412,7 @@ set_MARIADB() {
     local client_pkg="mariadb"
 
     [ "$SQL_CONTEXT" = "mysql" ] && server_pkg="mysql-server" && client_pkg="mysql"
-    set_PACKAGE $client_pkg $server_pkg expect python3-pip
+    set_PACKAGE $client_pkg $server_pkg expect python3-pip >/dev/null
     SQL_USER=$1
     SQL_PASSWORD=$2
     SQL_CONTEXT=$client_pkg
@@ -703,7 +703,7 @@ set_WALKMAN() { # Walkman installer
 
 do_WORKDIR() { # Docker WORKDIR analogue
     if [ -z "$1" ]; then
-        ANSIBLE_WORKDIR='$HOME'
+        ANSIBLE_WORKDIR='/'
     else
         ANSIBLE_WORKDIR=$1
     fi

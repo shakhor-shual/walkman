@@ -106,6 +106,7 @@ set_MARIADB root $mysql_pass
 cmd_SQL "CREATE DATABASE wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$wp_user'@'localhost' identified by '$wp_password';FLUSH PRIVILEGES;"
 set_APACHE
 do_ADD http://wordpress.org/latest.tar.gz /var/www/html/ $wp_owner 0755
+do_RUN "sudo find /var/www/html/wordpress -type f -exec chmod 644 {} ;"
 set_PACKAGE $extra_pkgs mc
 do_ADD @@meta/wordpress.conf /etc/httpd/conf.d/wordpress.conf root:root
 set_APACHE ENV_VAR1="foo"
