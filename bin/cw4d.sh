@@ -225,30 +225,34 @@ do_ENV() { # Docker ENV analogue
     do_VOLUME "/etc/env.walkman" "root:root" 0755 >/dev/null
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
-  gather_facts: no
-  become: yes
   tasks:
-  - name: copy CONF file 
-    ansible.builtin.copy:
-      dest: /etc/systemd/system/$ANSIBLE_ENTRYPOINT.service.d/local.conf
-      owner: root
-      group: root
-      mode: 0444
-      content: |
-         [Service]
-         EnvironmentFile=/etc/env.walkman/$ANSIBLE_ENTRYPOINT.env
-  - name: copy ENV file 
-    ansible.builtin.copy:
-      src: $tmp_env
-      dest: /etc/env.walkman/$ANSIBLE_ENTRYPOINT.env
-      owner: root
-      group: root
-      mode: 0444
-  - name: Restart $ANSIBLE_ENTRYPOINT
-    ansible.builtin.systemd_service:
-      state: restarted
-      daemon_reload: true
-      name: $ANSIBLE_ENTRYPOINT
+  - name: Populate service facts
+    ansible.builtin.service_facts:
+  - name: install $ANSIBLE_ENTRYPOINT
+    block:  
+      - name: copy CONF file 
+        ansible.builtin.copy:
+          dest: /etc/systemd/system/$ANSIBLE_ENTRYPOINT.service.d/local.conf
+          owner: root
+          group: root
+          mode: 0400
+          content: |
+             [Service]
+             EnvironmentFile=/etc/env.walkman/$ANSIBLE_ENTRYPOINT.env
+      - name: copy ENV file 
+        ansible.builtin.copy:
+          src: $tmp_env
+          dest: /etc/env.walkman/$ANSIBLE_ENTRYPOINT.env
+          owner: root
+          group: root
+          mode: 0400
+      - name: Restart $ANSIBLE_ENTRYPOINT
+        ansible.builtin.systemd_service:
+          state: restarted
+          daemon_reload: true
+          name: $ANSIBLE_ENTRYPOINT
+    become: yes
+    when: "'$ANSIBLE_ENTRYPOINT' in services" 
 EOF
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
     echo "Entrypoint: [$ANSIBLE_ENTRYPOINT] Environment:"
