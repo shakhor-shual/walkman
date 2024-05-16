@@ -252,7 +252,7 @@ do_ENV() { # Docker ENV analogue
           daemon_reload: true
           name: $ANSIBLE_ENTRYPOINT
     become: yes
-    when: "'$ANSIBLE_ENTRYPOINT.service' in services" 
+    when: ansible_facts.services['$ANSIBLE_ENTRYPOINT.service'] is defined  
 EOF
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
     echo "Entrypoint: [$ANSIBLE_ENTRYPOINT] Environment:"
@@ -289,13 +289,13 @@ cmd_KUBECTL() { # kubectl Wrapper
 #============== M
 set_APACHE() {
     echo "%%%%%%%%%%% remotely: Setup APACHE  %%%%%%%%%%%"
-    set_PACKAGE "httpd" >/dev/null
+    set_SERVICE "httpd" >/dev/null
     if [ -n "$1" ]; then
+        echo "Setup service unit ENV variables"
         do_ENTRYPOINT "httpd" >/dev/null
-        do_ENV "$@"
+        do_ENV "$@" >/dev/null
         do_ENTRYPOINT "apache2" >/dev/null
-        do_ENV "$@"
-        set_PACKAGE "httpd" >/dev/null
+        do_ENV "$@" >/dev/null
     fi
     echo "service APACHE setted up and restarted"
     echo -e
@@ -303,23 +303,23 @@ set_APACHE() {
 
 set_NGINX() {
     echo "%%%%%%%%%%% remotely: Setup NGINX  %%%%%%%%%%%"
-    set_PACKAGE "nginx" >/dev/null
-    echo "service NGINX setted up and restarted"
+    set_SERVICE "nginx" >/dev/null
     if [ -n "$1" ]; then
+        echo "Setup service unit ENV variables"
         do_ENTRYPOINT "nginx" >/dev/null
         do_ENV "$@" >/dev/null
-        set_PACKAGE "nginx" >/dev/null
     fi
+    echo "service NGINX setted up and restarted"
     echo -e
 }
 
 set_PHP_FPM() {
     echo "%%%%%%%%%%% remotely: Setup PHP-FPM  %%%%%%%%%%%"
-    set_PACKAGE "php-fpm" >/dev/null
+    set_SERVICE "php-fpm" >/dev/null
     if [ -n "$1" ]; then
+        echo "Setup service unit ENV variables"
         do_ENTRYPOINT "php-fpm" >/dev/null
         do_ENV "$@" >/dev/null
-        set_PACKAGE "php-fpm" >/dev/null
     fi
     echo "service PHP-FPM setted up and restarted"
     echo -e
@@ -327,12 +327,12 @@ set_PHP_FPM() {
 
 set_NODE_JS() {
     echo "%%%%%%%%%%% remotely: Setup NODE-JS  %%%%%%%%%%%"
-    set_PACKAGE "node" >/dev/null
+    set_SERVICE "node" >/dev/null
     echo "service NODE-JS restarted"
     if [ -n "$1" ]; then
+        echo "Setup service unit ENV variables"
         do_ENTRYPOINT "node" >/dev/null
         do_ENV "$@" >/dev/null
-        set_PACKAGE "node" >/dev/null
     fi
     echo -e
 }
@@ -345,7 +345,7 @@ set_SERVICE() {
     [ "$1" = "apache2" ] && rpm_name="httpd" && deb_name="apache2"
     [ "$1" = "httpd" ] && rpm_name="httpd" && deb_name="apache2"
 
-    echo "%%%%%%%%%%% remotely: Setup APACHE  %%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: Setup $1 %%%%%%%%%%%"
     local tmp
     tmp=$(mktemp -d)/tmp.yaml
     cat <<EOF >"$tmp"
