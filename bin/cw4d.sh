@@ -195,10 +195,7 @@ do_COPY() { # Docker COPY analogue
     do_ADD "$@"
 }
 cmd_CONNECT() {
-    echo "%%%%%%%%%%% remotely: SSH to TARGET %%%%%%%%%%%%%%%"
-    sed <"$STAGE_TARGET_FILE" 's/^ssh /ssh -tt /' | bash
-    echo -e
-    echo -e
+    RUN_CMD_CONNECT="yes"
 }
 #============== D
 #============== E
@@ -1777,6 +1774,17 @@ case $RUN_MODE in
                         TF_EC=$?
                         [ "$TF_EC" -eq 1 ] && finish_grace "err_tf" "$STAGE_COUNT" "$stage_path"
                         update_variables_state "$STAGE_INIT_FILE" "env_after"
+
+                        if [ -n "$RUN_CMD_CONNECT" ] && [ "$RUN_MODE" = "apply" ] && [ -f "$STAGE_TARGET_FILE" ]; then
+                            echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                            echo "!!!!!!!!!!! STARTED INTERACTIVE SSH SESSION WITH DEPLOYED TARGET !!!!!!!!!!!"
+                            echo "!!!!!!!!!!! Perfom any task on it OR/AND run 'exit' for continue !!!!!!!!!!!"
+                            echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                            # shellcheck disable=SC1090
+                            . "$STAGE_TARGET_FILE"
+                            unset RUN_CMD_CONNECT
+                            echo "!!!!!!!!!!!!!!!!!!! TARGET SSH SESSION FINISHED !!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                        fi
                     fi
                     ;;
                 esac
@@ -1808,6 +1816,7 @@ case $RUN_MODE in
                 fi
             fi
             ((STAGE_COUNT++))
+
         done
         [ -f "$FLAG_LOCK" ] && rm -f "$FLAG_LOCK"
         [ -f "$FLAG_ERR" ] && rm -f "$FLAG_ERR"
