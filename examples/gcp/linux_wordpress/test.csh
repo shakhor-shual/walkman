@@ -49,7 +49,7 @@ boot_disk_type=@@
 #boot_image="rhel-cloud/rhel-8" #checked
 #boot_image="rhel-cloud/rhel-9" #checked
 #boot_image="centos-cloud/centos-7" #checked
-boot_image="centos-cloud/centos-stream-8" #checked
+#boot_image="centos-cloud/centos-stream-8" #checked
 #boot_image="centos-cloud/centos-stream-9" #checked
 #boot_image="fedora-cloud/fedora-cloud-34" #checked
 #boot_image="fedora-cloud/fedora-cloud-37" #checked
@@ -57,7 +57,7 @@ boot_image="centos-cloud/centos-stream-8" #checked
 #boot_image="fedora-cloud/fedora-cloud-39"
 #boot_image="rocky-linux-cloud/rocky-linux-8" #checked
 #boot_image="rocky-linux-cloud/rocky-linux-9" #checked
-#boot_image="ubuntu-os-cloud/ubuntu-2004-lts" #checked
+boot_image="ubuntu-os-cloud/ubuntu-2004-lts" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2404-lts"
 #boot_image="debian-cloud/debian-10" #checked
 #boot_image="debian-cloud/debian-11" #checked
@@ -65,11 +65,11 @@ boot_image="centos-cloud/centos-stream-8" #checked
 
 #inlined BASH
 /*
-extra_pkgs="mariadb mariadb-server php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget"
 case $boot_image in
 *"ubuntu"*)
     ssh_user="ubuntu"
     http_service=apache2
+    extra_pkgs="php libapache2-mod-php php-mysql php-curl php-pdo php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip fail2ban nano certbot wget"
     ;;
 *"debian"*)
     ssh_user="admin"
@@ -83,6 +83,7 @@ case $boot_image in
     ssh_user="devops"
     http_service=httpd
     wp_owner="apache:apache"
+    extra_pkgs="php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget"
     case $boot_image in
     *"-7") extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm ;;
     *"-8") extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm ;;
@@ -108,7 +109,7 @@ set_APACHE
 do_ADD http://wordpress.org/latest.tar.gz /var/www/html/ $wp_owner 0755
 do_RUN "sudo find /var/www/html/wordpress -type f -exec chmod 644 {} \;"
 set_PACKAGE $extra_pkgs mc
-do_ADD @@meta/wordpress.conf /etc/httpd/conf.d/wordpress.conf root:root
+do_ADD @@meta/wordpress.conf /etc/$http_service/conf.d/wordpress.conf root:root
 do_ADD @@meta/wp-config.php /var/www/html/wordpress/wp-config.php $wp_owner
 set_APACHE WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$wp_user" WORDPRESS_DB_PASSWORD="$wp_password" WORDPRESS_DB_NAME="wordpress"
 #do_WORKDIR /usr/local/bin

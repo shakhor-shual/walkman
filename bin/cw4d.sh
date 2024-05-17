@@ -432,12 +432,12 @@ set_MARIADB() {
   - name: Make sure a service unit is running
     ansible.builtin.systemd_service:
       state: started
-      name: mariadb
+      name: $SQL_CONTEXT
   - name: check mysql
     ansible.builtin.shell: echo exit | mysql -u root 2>/dev/null || echo -n "secured"
     register: mysql_secured
     ignore_errors: true
-  - name: secure mariadb
+  - name: secure $SQL_CONTEXT
     become: yes
     expect:
       command:  mysql_secure_installation
