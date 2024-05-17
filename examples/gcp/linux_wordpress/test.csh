@@ -123,9 +123,10 @@ walkman_install=@@self
 
 set_TARGET IP-public $ssh_user $auto_key_private
 do_FROM all
+do_RUN "sleep 10"
 set_REPO $extra_repo
 set_MARIADB root $mysql_pass
-cmd_SQL "CREATE DATABASE wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$wp_user'@'localhost' identified by '$wp_password';FLUSH PRIVILEGES;"
+cmd_SQL "CREATE DATABASE IF NOT EXISTS wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$wp_user'@'localhost' identified by '$wp_password';FLUSH PRIVILEGES;"
 set_APACHE
 do_ADD http://wordpress.org/latest.tar.gz $www_home/ $wp_owner 0755
 do_RUN "sudo find $www_home/wordpress -type f -exec chmod 644 {} \;"
