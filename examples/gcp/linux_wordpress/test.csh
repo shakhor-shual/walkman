@@ -53,11 +53,11 @@ boot_disk_type=@@
 #boot_image="centos-cloud/centos-stream-9" #checked
 #boot_image="fedora-cloud/fedora-cloud-34" #checked
 #boot_image="fedora-cloud/fedora-cloud-37" #checked
-#boot_image="fedora-cloud/fedora-cloud-38" #checked
+boot_image="fedora-cloud/fedora-cloud-38" #checked
 #boot_image="fedora-cloud/fedora-cloud-39"
 #boot_image="rocky-linux-cloud/rocky-linux-8" #checked
 #boot_image="rocky-linux-cloud/rocky-linux-9" #checked
-boot_image="ubuntu-os-cloud/ubuntu-2004-lts" #checked
+#boot_image="ubuntu-os-cloud/ubuntu-2004-lts" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2404-lts"
 #boot_image="debian-cloud/debian-10" #checked
 #boot_image="debian-cloud/debian-11" #checked
@@ -116,16 +116,11 @@ cmd_SQL "CREATE DATABASE wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$wp_u
 set_APACHE
 do_ADD http://wordpress.org/latest.tar.gz /var/www/html/ $wp_owner 0755
 do_RUN "sudo find /var/www/html/wordpress -type f -exec chmod 644 {} \;"
+do_RUN "[[ -d /etc/apache2/sites-available ]] && [[  ! -L /etc/apache2/sites-enabled/wordpress.conf ]] && sudo ln -s $wp_http_conf  /etc/apache2/sites-enabled/wordpress.conf"
 set_PACKAGE $extra_pkgs
-do_ADD @@meta/wordpress.conf $wp_http_conf root:root
+do_ADD @@meta/$http_service-wordpress.conf $wp_http_conf root:root
 do_ADD @@meta/wp-config.php /var/www/html/wordpress/wp-config.php $wp_owner
 set_APACHE WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$wp_user" WORDPRESS_DB_PASSWORD="$wp_password" WORDPRESS_DB_NAME="wordpress"
-#do_WORKDIR /usr/local/bin
-#do_ADD $auto_key_public /usr/local/bin/pop/up/3/ root:root
-#do_RUN " while [[ -n $(pgrep Zypp-main) ]]; do sleep 3; done; pwd; ls -l"
-#set_PACKAGE wget curl unzip gcc automake rsync python3-pip coreutils git mc nano openssl $http_service
-#do_ENTRYPOINT $http_service
-#do_ENV ENV_VAR1="foo" ENV_VAR2="bar" @@meta/test_vars.env
 cmd_INTERACT
 
 /*
