@@ -43,7 +43,7 @@ machine_type="n2-standard-2"
 boot_disk_size=@@last
 boot_disk_type=@@
 #boot_image="suse-cloud/sles-12" #checked
-#boot_image="suse-cloud/sles-15" #checked
+boot_image="suse-cloud/sles-15" #checked
 #boot_image="opensuse-cloud/opensuse-leap"
 #boot_image="rhel-cloud/rhel-7" #checked
 #boot_image="rhel-cloud/rhel-8" #checked
@@ -53,7 +53,7 @@ boot_disk_type=@@
 #boot_image="centos-cloud/centos-stream-9" #checked
 #boot_image="fedora-cloud/fedora-cloud-34" #checked
 #boot_image="fedora-cloud/fedora-cloud-37" #checked
-boot_image="fedora-cloud/fedora-cloud-38" #checked
+#boot_image="fedora-cloud/fedora-cloud-38" #checked
 #boot_image="fedora-cloud/fedora-cloud-39"
 #boot_image="rocky-linux-cloud/rocky-linux-8" #checked
 #boot_image="rocky-linux-cloud/rocky-linux-9" #checked
@@ -72,19 +72,27 @@ case $boot_image in
     wp_owner="www-data:www-data"
     extra_pkgs="php libapache2-mod-php php-mysql php-curl php-pdo php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip fail2ban nano certbot wget mc"
     wp_http_conf="/etc/apache2/sites-available/wordpress.conf"
+    www_home=/var/www/html
     ;;
 *"debian"*)
     ssh_user="admin"
     http_service=apache2
     extra_pkgs="php libapache2-mod-php php-mysql php-curl php-pdo php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip fail2ban nano certbot wget mc"
     wp_http_conf="/etc/apache2/sites-available/wordpress.conf"
+    www_home=/var/www/html
     ;;
 *"suse"*)
     ssh_user="devops"
-    http_service=httpd
-    wp_owner="apache:apache"
-    extra_pkgs="php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget mc"
+    http_service=apache2
+    wp_owner="wwwrun:www"
+    extra_pkgs="php apache2-mod_php8 php-zlib php-mbstring  php-pdo php-mysql php-opcache php-xml php-gd php-devel php-json  fail2ban nano wget mc"
     wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
+    www_home=/srv/www/htdocs
+    case $boot_image in
+    *"-14") ;;
+    *"-15") extra_repo="https://download.opensuse.org/repositories/openSUSE:Backports:SLE-15-SP4/standard/openSUSE:Backports:SLE-15-SP4.repo" ;;
+    esac
+
     ;;
 *)
     ssh_user="devops"
@@ -92,6 +100,7 @@ case $boot_image in
     wp_owner="apache:apache"
     extra_pkgs="php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget mc"
     wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
+    www_home=/var/www/html
     case $boot_image in
     *"-7") extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm ;;
     *"-8") extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm ;;
@@ -114,12 +123,12 @@ set_REPO $extra_repo
 set_MARIADB root $mysql_pass
 cmd_SQL "CREATE DATABASE wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$wp_user'@'localhost' identified by '$wp_password';FLUSH PRIVILEGES;"
 set_APACHE
-do_ADD http://wordpress.org/latest.tar.gz /var/www/html/ $wp_owner 0755
+do_ADD http://wordpress.org/latest.tar.gz $www_home/ $wp_owner 0755
 do_RUN "sudo find /var/www/html/wordpress -type f -exec chmod 644 {} \;"
 do_RUN "[[ -d /etc/apache2/sites-available ]] && [[  ! -L /etc/apache2/sites-enabled/wordpress.conf ]] && sudo ln -s $wp_http_conf  /etc/apache2/sites-enabled/wordpress.conf"
 set_PACKAGE $extra_pkgs
 do_ADD @@meta/$http_service-wordpress.conf $wp_http_conf root:root
-do_ADD @@meta/wp-config.php /var/www/html/wordpress/wp-config.php $wp_owner
+do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
 set_APACHE WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$wp_user" WORDPRESS_DB_PASSWORD="$wp_password" WORDPRESS_DB_NAME="wordpress"
 cmd_INTERACT
 

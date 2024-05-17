@@ -32,6 +32,7 @@ SQL_CONTEXT=""
 SQL_USER="root"
 SQL_PASSWORD=""
 SQL_DATABASE=""
+
 #ANSIBLE_ARG=""
 
 check_ansible_connection() {
@@ -459,6 +460,7 @@ EOF
     echo "$server_pkg server setted up!"
     echo -e
     rm -r "$(dirname "$tmp")"
+
 }
 #============== P
 set_PACKAGE() { # rpm/apt/zipper Wrapper
@@ -521,8 +523,52 @@ set_PLAY() { # ansible Wrapper
 #============== R
 set_REPO() {
     [ -z "$1" ] && return
-    set_PACKAGE "$@"
+    local repo="$1"
+
+    echo "%%%%%%%%%%% remotely: Add REPOSITORY  %%%%%%%%%%%"
+    local tmp
+    tmp=$(mktemp -d)/tmp.yaml
+    cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  become: true
+  tasks:
+  - name: APT update
+    ansible.builtin.apt:
+      update_cache: yes
+    when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
+  - name: Gather package facts
+    ansible.builtin.package_facts:
+      manager: auto
+
+  - name: install $repo
+    block:
+      - name: $repo
+        ansible.builtin.package:
+          disable_gpg_check: "{{ true | d(omit) }}"
+          state: present
+          name: $repo
+        when: ansible_os_family == 'RedHat'
+      - name: $repo
+        ansible.builtin.apt:
+          state: present
+          name: $repo
+        when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
+      - name: $repo
+        zypper_repository:
+          repo: $repo
+          auto_import_keys: yes
+        when: ansible_os_family == 'Suse'
+    become: true
+    ignore_errors: true
+EOF
+
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+    #cat "$tmp"
+    rm -r "$(dirname "$tmp")"
+    echo "OS packages installed"
+    echo -e
 }
+
 do_RUN() { # Docker RUN analogue
     [ -z "$1" ] && return
     local tmp
@@ -1782,6 +1828,8 @@ fi
 [ -n "$3" ] && it_contains "$RUN_LIST" "$3" && RUN_MODE=$3
 ! it_contains "$RUN_LIST" "$RUN_MODE" && echo "{ }" && exit
 export ANSIBLE_HOST_KEY_CHECKING=False
+export ANSIBLE_DEPRECATION_WARNINGS=False
+export ANSIBLE_ACTION_WARNINGS=False
 #echo "************$RUN_MODE *******************"
 case $RUN_MODE in
 "--host")
