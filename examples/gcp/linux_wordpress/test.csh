@@ -67,6 +67,7 @@ boot_image="suse-cloud/sles-15" #checked
 /*
 case $boot_image in
 *"ubuntu"*)
+    kind=deb
     ssh_user="ubuntu"
     http_service=apache2
     wp_owner="www-data:www-data"
@@ -75,6 +76,7 @@ case $boot_image in
     www_home=/var/www/html
     ;;
 *"debian"*)
+    kind=deb
     ssh_user="admin"
     http_service=apache2
     extra_pkgs="php libapache2-mod-php php-mysql php-curl php-pdo php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip fail2ban nano certbot wget mc"
@@ -82,10 +84,11 @@ case $boot_image in
     www_home=/var/www/html
     ;;
 *"suse"*)
+    kind=zyp
     ssh_user="devops"
     http_service=apache2
     wp_owner="wwwrun:www"
-    extra_pkgs="php apache2-mod_php8 php-zlib php-mbstring  php-pdo php-mysql php-opcache php-xml php-gd php-devel php-json  fail2ban nano wget mc"
+    extra_pkgs="php apache2-mod_php8 php-zlib php-mbstring  php-pdo php-mysql php-opcache php-xml php-gd php-devel php-json fail2ban nano wget mc"
     wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
     www_home=/srv/www/htdocs
     case $boot_image in
@@ -95,6 +98,7 @@ case $boot_image in
 
     ;;
 *)
+    kind=rpm
     ssh_user="devops"
     http_service=httpd
     wp_owner="apache:apache"
@@ -124,10 +128,10 @@ set_MARIADB root $mysql_pass
 cmd_SQL "CREATE DATABASE wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$wp_user'@'localhost' identified by '$wp_password';FLUSH PRIVILEGES;"
 set_APACHE
 do_ADD http://wordpress.org/latest.tar.gz $www_home/ $wp_owner 0755
-do_RUN "sudo find /var/www/html/wordpress -type f -exec chmod 644 {} \;"
+do_RUN "sudo find $www_home/wordpress -type f -exec chmod 644 {} \;"
 do_RUN "[[ -d /etc/apache2/sites-available ]] && [[  ! -L /etc/apache2/sites-enabled/wordpress.conf ]] && sudo ln -s $wp_http_conf  /etc/apache2/sites-enabled/wordpress.conf"
 set_PACKAGE $extra_pkgs
-do_ADD @@meta/$http_service-wordpress.conf $wp_http_conf root:root
+do_ADD @@meta/$kind-wordpress.conf $wp_http_conf root:root
 do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
 set_APACHE WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$wp_user" WORDPRESS_DB_PASSWORD="$wp_password" WORDPRESS_DB_NAME="wordpress"
 cmd_INTERACT
