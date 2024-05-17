@@ -42,9 +42,8 @@ zone=@@last
 machine_type="n2-standard-2"
 boot_disk_size=@@last
 boot_disk_type=@@
-#boot_image="suse-cloud/sles-12" #checked
-boot_image="suse-cloud/sles-15" #checked
-#boot_image="opensuse-cloud/opensuse-leap"
+#boot_image="suse-cloud/sles-15" #checked
+boot_image="opensuse-cloud/opensuse-leap"
 #boot_image="rhel-cloud/rhel-7" #checked
 #boot_image="rhel-cloud/rhel-8" #checked
 #boot_image="rhel-cloud/rhel-9" #checked
@@ -92,8 +91,13 @@ case $boot_image in
     wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
     www_home=/srv/www/htdocs
     case $boot_image in
-    *"-14") ;;
-    *"-15") extra_repo="https://download.opensuse.org/repositories/openSUSE:Backports:SLE-15-SP4/standard/openSUSE:Backports:SLE-15-SP4.repo" ;;
+    *"-leap")
+        extra_pkgs="php apache2-mod_php81 php-zlib php-mbstring  php-pdo php-mysql php-opcache php-xml php-gd php-devel php-json fail2ban nano wget mc"
+        ;;
+    *"-15")
+        extra_repo="https://download.opensuse.org/repositories/openSUSE:Backports:SLE-15-SP4/standard/openSUSE:Backports:SLE-15-SP4.repo"
+        extra_pkgs="php apache2-mod_php8 php-zlib php-mbstring  php-pdo php-mysql php-opcache php-xml php-gd php-devel php-json fail2ban nano wget mc"
+        ;;
     esac
 
     ;;
