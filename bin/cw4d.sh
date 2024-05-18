@@ -298,7 +298,7 @@ set_APACHE() {
         do_ENTRYPOINT "apache2" >/dev/null
         do_ENV "$@" >/dev/null
     fi
-    echo "service APACHE setted up and restarted"
+    echo "service APACHE configured and restarted"
     echo -e
 }
 
@@ -582,7 +582,7 @@ EOF
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
     #cat "$tmp"
     rm -r "$(dirname "$tmp")"
-    echo "OS packages installed"
+    echo "OS repository installed"
     echo -e
 }
 
