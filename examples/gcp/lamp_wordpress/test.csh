@@ -69,15 +69,15 @@ case $boot_image in
     ssh_user="ubuntu"
     http_service=apache2
     wp_owner="www-data:www-data"
-    extra_pkgs="php libapache2-mod-php php-mysql php-curl php-pdo php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip fail2ban nano certbot wget mc"
-    wp_http_conf="/etc/apache2/sites-enabled/wordpress.conf"
+    extra_pkgs="php libapache2-mod-php php-mysql php-curl php-pdo php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip fail2ban nano wget mc"
+    wp_http_conf="/etc/$http_service/sites-enabled/wordpress.conf"
     www_home=/var/www/html
     ;;
 *"debian"*)
     kind=deb
     ssh_user="admin"
     http_service=apache2
-    extra_pkgs="php libapache2-mod-php php-mysql php-curl php-pdo php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip fail2ban nano certbot wget mc"
+    extra_pkgs="php libapache2-mod-php php-mysql php-curl php-pdo php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip fail2ban nano  wget mc"
     wp_http_conf="/etc/apache2/sites-enabled/wordpress.conf"
     www_home=/var/www/html
     ;;
@@ -87,7 +87,6 @@ case $boot_image in
     ssh_user="devops"
     http_service=apache2
     wp_owner="wwwrun:www"
-    extra_pkgs="php apache2-mod_php8 php-zlib php-mbstring  php-pdo php-mysql php-opcache php-xml php-gd php-devel php-json fail2ban nano wget mc"
     wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
     www_home=/srv/www/htdocs
     case $boot_image in
@@ -98,6 +97,7 @@ case $boot_image in
         extra_repo="https://download.opensuse.org/repositories/openSUSE:Backports:SLE-15-SP4/standard/openSUSE:Backports:SLE-15-SP4.repo"
         extra_pkgs="php apache2-mod_php8 php-zlib php-mbstring  php-pdo php-mysql php-opcache php-xml php-gd php-devel php-json fail2ban nano wget mc"
         ;;
+    *) ;;
     esac
     ;;
 *)
