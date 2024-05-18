@@ -28,10 +28,10 @@ zone="$region-b"
 vpc_name="@@this-vpc"
 host=@@this
 boot_disk_size=$ext_size
-p_file=@@meta/mysql.key
-mysql_pass=$(GEN_password root $p_file)
-wp_user="my_word"
-wp_password=$(GEN_password $wp_user @@meta/wp_user.key)
+p_file=@@meta/mysql_root.key
+mysql_root_pass=$(GEN_password root $p_file)
+mysql_wp_user="my_wordpress"
+mysql_wp_pass=$(GEN_password $mysql_wp_user @@meta/mysql_wp_user.key)
 
 ######### DEPLOY GCP VM STAGE #################
 ~WP_VM:
@@ -130,8 +130,8 @@ set_TARGET IP-public $ssh_user $auto_key_private
 do_FROM all
 cmd_SLEEP $on_boot_delay
 set_REPO $extra_repo
-set_MARIADB root $mysql_pass
-cmd_SQL "CREATE DATABASE IF NOT EXISTS wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$wp_user'@'localhost' identified by '$wp_password';FLUSH PRIVILEGES;"
+set_MARIADB root $mysql_root_pass
+cmd_SQL "CREATE DATABASE IF NOT EXISTS wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$mysql_wp_user'@'localhost' identified by '$mysql_wp_pass';FLUSH PRIVILEGES;"
 set_APACHE
 do_ADD http://wordpress.org/latest.tar.gz $www_home/ $wp_owner 0755
 do_RUN "sudo find $www_home/wordpress -type f -exec chmod 644 {} \;"
@@ -139,12 +139,12 @@ set_REPO $extra_repo_php
 set_PACKAGE $extra_pkgs
 do_ADD @@meta/wordpress.conf $wp_http_conf root:root
 do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
-set_APACHE WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$wp_user" WORDPRESS_DB_PASSWORD="$wp_password" WORDPRESS_DB_NAME="wordpress" APACHE_LOG_DIR="/var/log/$http_service" APACHE_DOCUMENT_ROOT="$www_home"
+set_APACHE WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$mysql_wp_user" WORDPRESS_DB_PASSWORD="$mysql_wp_pass" WORDPRESS_DB_NAME="wordpress" APACHE_LOG_DIR="/var/log/$http_service" APACHE_DOCUMENT_ROOT="$www_home"
 
 cmd_INTERACT
 
 /*
-echo $mysql_pass
+echo $mysql_root_pass
 #hhhx
 #/bin/ssh -t -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i /home/ubuntu/github/walkman/examples/gcp/linux_wordpress/.meta/private.key devops@34.65.146.167
 if [ -n "$walkman_install" ]; then
