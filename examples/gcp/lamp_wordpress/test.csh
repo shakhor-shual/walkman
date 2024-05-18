@@ -62,8 +62,7 @@ boot_image="rhel-cloud/rhel-8" #checked
 #boot_image="debian-cloud/debian-11" #checked
 #boot_image="debian-cloud/debian-12" #checked
 
-#inlined BASH
-/*
+/* #inlined BASH
 case $boot_image in
 *"ubuntu"*)
     kind=deb
@@ -83,6 +82,7 @@ case $boot_image in
     www_home=/var/www/html
     ;;
 *"suse"*)
+    on_boot_delay=10
     kind=zyp
     ssh_user="devops"
     http_service=apache2
@@ -99,7 +99,6 @@ case $boot_image in
         extra_pkgs="php apache2-mod_php8 php-zlib php-mbstring  php-pdo php-mysql php-opcache php-xml php-gd php-devel php-json fail2ban nano wget mc"
         ;;
     esac
-
     ;;
 *)
     kind=rpm
@@ -120,6 +119,7 @@ case $boot_image in
     ;;
 esac
 */
+
 ssh_user=@@last
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
@@ -130,7 +130,7 @@ walkman_install=@@self
 
 set_TARGET IP-public $ssh_user $auto_key_private
 do_FROM all
-do_RUN "sleep 10"
+cmd_SLEEP $on_boot_delay
 set_REPO $extra_repo
 set_MARIADB root $mysql_pass
 cmd_SQL "CREATE DATABASE IF NOT EXISTS wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$wp_user'@'localhost' identified by '$wp_password';FLUSH PRIVILEGES;"

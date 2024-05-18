@@ -670,6 +670,18 @@ EOF
     rm -r "$(dirname "$tmp")"
     echo -e
 }
+
+cmd_SLEEP() {
+    case $1 in
+    '' | *[!0-9]*)
+        echo "%%%%%%%%%%% remotely: Wait $1 sec. %%%%%%%%%%%"
+        sleep "$1"
+        echo -e
+        ;;
+    *) return ;;
+    esac
+}
+
 #============== T
 set_TARGET() { # create ssh access artefacts for target
     [ -z "$1" ] && return
