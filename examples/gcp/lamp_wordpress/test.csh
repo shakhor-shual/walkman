@@ -35,6 +35,7 @@ wp_password=$(GEN_password $wp_user @@meta/wp_user.key)
 
 ######### DEPLOY GCP VM STAGE #################
 ~WP_VM:
+####################  tvfars tuning variables/values
 project_id=@@last
 region=@@last
 vpc_name=@@last
@@ -62,10 +63,9 @@ boot_image="rhel-cloud/rhel-8" #checked
 #boot_image="debian-cloud/debian-11" #checked
 #boot_image="debian-cloud/debian-12" #checked
 
-/* #inlined BASH
+/* ############# inlined BASH part
 case $boot_image in
 *"ubuntu"*)
-    kind=deb
     ssh_user="ubuntu"
     http_service=apache2
     wp_owner="www-data:www-data"
@@ -74,7 +74,6 @@ case $boot_image in
     www_home=/var/www/html
     ;;
 *"debian"*)
-    kind=deb
     ssh_user="admin"
     http_service=apache2
     extra_pkgs="php libapache2-mod-php php-mysql php-curl php-pdo php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip fail2ban nano  wget mc"
@@ -82,8 +81,6 @@ case $boot_image in
     www_home=/var/www/html
     ;;
 *"suse"*)
-    on_boot_delay=10
-    kind=zyp
     ssh_user="devops"
     http_service=apache2
     wp_owner="wwwrun:www"
@@ -94,6 +91,7 @@ case $boot_image in
         extra_pkgs="php apache2-mod_php81 php-zlib php-mbstring  php-pdo php-mysql php-opcache php-xml php-gd php-devel php-json fail2ban nano wget mc"
         ;;
     *"-15")
+        suse_boot_delay=10
         extra_repo="https://download.opensuse.org/repositories/openSUSE:Backports:SLE-15-SP4/standard/openSUSE:Backports:SLE-15-SP4.repo"
         extra_pkgs="php apache2-mod_php8 php-zlib php-mbstring  php-pdo php-mysql php-opcache php-xml php-gd php-devel php-json fail2ban nano wget mc"
         ;;
@@ -101,7 +99,6 @@ case $boot_image in
     esac
     ;;
 *)
-    kind=rpm
     ssh_user="devops"
     http_service=httpd
     wp_owner="apache:apache"
@@ -125,9 +122,10 @@ auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
 startup_script_file=@@
 
-#returned parameters
+######### TF outputs returned parameters
 walkman_install=@@self
 
+############ setup deployment via HELPERs
 set_TARGET IP-public $ssh_user $auto_key_private
 do_FROM all
 cmd_SLEEP $on_boot_delay
@@ -142,6 +140,7 @@ set_PACKAGE $extra_pkgs
 do_ADD @@meta/wordpress.conf $wp_http_conf root:root
 do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
 set_APACHE WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$wp_user" WORDPRESS_DB_PASSWORD="$wp_password" WORDPRESS_DB_NAME="wordpress" APACHE_LOG_DIR="/var/log/$http_service" APACHE_DOCUMENT_ROOT="$www_home"
+
 cmd_INTERACT
 
 /*
