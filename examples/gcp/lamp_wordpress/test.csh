@@ -71,7 +71,7 @@ case $boot_image in
     http_service=apache2
     wp_owner="www-data:www-data"
     extra_pkgs="php libapache2-mod-php php-mysql php-curl php-pdo php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip fail2ban nano certbot wget mc"
-    wp_http_conf="/etc/apache2/sites-available/wordpress.conf"
+    wp_http_conf="/etc/apache2/sites-enabled/wordpress.conf"
     www_home=/var/www/html
     ;;
 *"debian"*)
@@ -79,7 +79,7 @@ case $boot_image in
     ssh_user="admin"
     http_service=apache2
     extra_pkgs="php libapache2-mod-php php-mysql php-curl php-pdo php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip fail2ban nano certbot wget mc"
-    wp_http_conf="/etc/apache2/sites-available/wordpress.conf"
+    wp_http_conf="/etc/apache2/sites-enabled/wordpress.conf"
     www_home=/var/www/html
     ;;
 *"suse"*)
@@ -134,7 +134,6 @@ cmd_SQL "CREATE DATABASE IF NOT EXISTS wordpress;GRANT ALL PRIVILEGES on wordpre
 set_APACHE
 do_ADD http://wordpress.org/latest.tar.gz $www_home/ $wp_owner 0755
 do_RUN "sudo find $www_home/wordpress -type f -exec chmod 644 {} \;"
-do_RUN "[[ -d /etc/apache2/sites-available ]] && [[  ! -L /etc/apache2/sites-enabled/wordpress.conf ]] && sudo ln -s $wp_http_conf  /etc/apache2/sites-enabled/wordpress.conf"
 set_PACKAGE $extra_pkgs
 do_ADD @@meta/$kind-wordpress.conf $wp_http_conf root:root
 do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
