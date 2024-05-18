@@ -415,7 +415,7 @@ set_MARIADB() {
     local client_pkg="mariadb"
 
     [ "$SQL_CONTEXT" = "mysql" ] && server_pkg="mysql-server" && client_pkg="mysql"
-    set_PACKAGE $client_pkg $server_pkg expect python3-pip >/dev/null
+    set_PACKAGE $client_pkg $server_pkg expect python3 python3-pip #>/dev/null
     SQL_USER=$1
     SQL_PASSWORD=$2
     SQL_CONTEXT=$client_pkg
@@ -427,11 +427,6 @@ set_MARIADB() {
 - hosts: $ANSIBLE_TARGET
   become: yes
   tasks:
-  - name: python3
-    ansible.builtin.package:
-      state: present
-      name: python3
-    when: (ansible_os_family == 'RedHat')
   - name: Install pexpect
     pip:
       name: pexpect
@@ -441,7 +436,7 @@ set_MARIADB() {
   - name: Make sure a service unit is running
     ansible.builtin.systemd_service:
       state: started
-      name: $SQL_CONTEXT
+      name: '$SQL_CONTEXT'
   - name: check mysql
     ansible.builtin.shell: echo exit | mysql -u root 2>/dev/null || echo -n "secured"
     register: mysql_secured
@@ -466,7 +461,7 @@ set_MARIADB() {
     when:  (mysql_secured.stdout == "") and ( '$SQL_USER' == 'root' )
     
 EOF
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" #| grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
     echo "$server_pkg server setted up!"
     echo -e
     rm -r "$(dirname "$tmp")"
@@ -482,18 +477,13 @@ set_PACKAGE() { # rpm/apt/zipper Wrapper
 - hosts: $ANSIBLE_TARGET
   become: true
   tasks:
+  - name: Gather package facts
+    ansible.builtin.package_facts:
+      manager: auto
   - name: APT update
     ansible.builtin.apt:
       update_cache: yes
     when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
-  - name: Gather package facts
-    ansible.builtin.package_facts:
-      manager: auto
-  - name: redhat-lsb-core
-    ansible.builtin.package:
-      state: present
-      name: redhat-lsb-core
-    when: (ansible_os_family == 'RedHat') and ( 'redhat-lsb-core' not in ansible_facts.packages)
 EOF
     for pkg in "$@"; do
         cat <<EOF >>"$tmp"
@@ -507,7 +497,7 @@ EOF
         [ -n "$YUM_ENABLE_REPO" ] && echo "          enablerepo: $YUM_ENABLE_REPO" >>"$tmp"
 
         cat <<EOF >>"$tmp"
-        when: (ansible_os_family == 'RedHat') and (ansible_lsb.major_release|int == 7)
+        when: (ansible_os_family == 'RedHat') and ('dnf' not in ansible_facts.packages)
       - name: $pkg
         ansible.builtin.dnf:
           state: present
@@ -516,7 +506,7 @@ EOF
         [ -n "$YUM_ENABLE_REPO" ] && echo "          enablerepo: $YUM_ENABLE_REPO" >>"$tmp"
 
         cat <<EOF >>"$tmp"
-        when: (ansible_os_family == 'RedHat') and (ansible_lsb.major_release|int >= 8)
+        when: (ansible_os_family == 'RedHat') and ('dnf' in ansible_facts.packages)
       - name: $pkg
         ansible.builtin.apt:
           state: present
@@ -552,6 +542,8 @@ set_PLAY() { # ansible Wrapper
 set_REPO() {
     [ -z "$1" ] && return
     local repo="$1"
+    local deb_repo
+    deb_repo=$*
     [[ -n $2 ]] && [[ $2 =~ "enable" ]] && YUM_ENABLE_REPO=$(echo "$2" | cut -d '=' -f 2)
 
     echo "%%%%%%%%%%% remotely: Add REPOSITORY  %%%%%%%%%%%"
@@ -561,14 +553,6 @@ set_REPO() {
 - hosts: $ANSIBLE_TARGET
   become: true
   tasks:
-  - name: APT update
-    ansible.builtin.apt:
-      update_cache: yes
-    when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
-  - name: Gather package facts
-    ansible.builtin.package_facts:
-      manager: auto
-
   - name: install $repo
     block:
       - name: $repo
@@ -580,7 +564,11 @@ set_REPO() {
       - name: $repo
         ansible.builtin.apt:
           state: present
-          name: $repo
+          name: $deb_repo
+        when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
+      - name: APT update
+        ansible.builtin.apt:
+          update_cache: yes
         when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
       - name: $repo
         zypper_repository:
