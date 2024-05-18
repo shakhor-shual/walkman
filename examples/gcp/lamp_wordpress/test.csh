@@ -44,7 +44,7 @@ boot_disk_size=@@last
 boot_disk_type=@@
 #boot_image="suse-cloud/sles-15" #checked
 #boot_image="opensuse-cloud/opensuse-leap"
-#boot_image="rhel-cloud/rhel-7" #checked
+boot_image="rhel-cloud/rhel-7" #checked
 #boot_image="rhel-cloud/rhel-8" #checked
 #boot_image="rhel-cloud/rhel-9" #checked
 #boot_image="centos-cloud/centos-7" #checked
@@ -59,7 +59,7 @@ boot_disk_type=@@
 #boot_image="ubuntu-os-cloud/ubuntu-2004-lts" #checked
 #boot_image="ubuntu-os-cloud/ubuntu-2404-lts"
 #boot_image="debian-cloud/debian-10" #checked
-boot_image="debian-cloud/debian-11" #checked
+#boot_image="debian-cloud/debian-11" #checked
 #boot_image="debian-cloud/debian-12" #checked
 
 #inlined BASH
@@ -135,9 +135,9 @@ set_APACHE
 do_ADD http://wordpress.org/latest.tar.gz $www_home/ $wp_owner 0755
 do_RUN "sudo find $www_home/wordpress -type f -exec chmod 644 {} \;"
 set_PACKAGE $extra_pkgs
-do_ADD @@meta/$kind-wordpress.conf $wp_http_conf root:root
+do_ADD @@meta/wordpress.conf $wp_http_conf root:root
 do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
-set_APACHE WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$wp_user" WORDPRESS_DB_PASSWORD="$wp_password" WORDPRESS_DB_NAME="wordpress"
+set_APACHE WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$wp_user" WORDPRESS_DB_PASSWORD="$wp_password" WORDPRESS_DB_NAME="wordpress" APACHE_LOG_DIR="/var/log/$http_service"
 cmd_INTERACT
 
 /*
