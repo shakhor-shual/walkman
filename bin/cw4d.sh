@@ -106,6 +106,8 @@ do_ADD() { # Docker ADD analogue
     local grp
     local mode
     local tmp
+    local t
+    t=$(rt)
     tmp=$(mktemp -d)/tmp.yaml
 
     [ -n "$4" ] && mode=$4
@@ -183,7 +185,7 @@ EOF
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$\|ok" | grep -v '""'
     grep <"$tmp" "src\|dest\|repo\|mode\|owner\|group\|url" | tr -d ' '
     rm -r "$(dirname "$tmp")"
-    echo -e
+    rt "$t"
 }
 
 do_ARG() { # Docker ARG analogue
@@ -289,6 +291,8 @@ cmd_KUBECTL() { # kubectl Wrapper
 }
 #============== M
 set_APACHE() {
+    local t
+    t=$(rt)
     echo "%%%%%%%%%%% remotely: Setup APACHE  %%%%%%%%%%%"
     set_SERVICE "httpd" >/dev/null
     if [ -n "$1" ]; then
@@ -299,10 +303,12 @@ set_APACHE() {
         do_ENV "$@" >/dev/null
     fi
     echo "service APACHE configured and restarted"
-    echo -e
+    rt "$t"
 }
 
 set_NGINX() {
+    local t
+    t=$(rt)
     echo "%%%%%%%%%%% remotely: Setup NGINX  %%%%%%%%%%%"
     set_SERVICE "nginx" >/dev/null
     if [ -n "$1" ]; then
@@ -310,11 +316,13 @@ set_NGINX() {
         do_ENTRYPOINT "nginx" >/dev/null
         do_ENV "$@" >/dev/null
     fi
-    echo "service NGINX setted up and restarted"
-    echo -e
+    echo "service NGINX configured and restarted"
+    rt "$t"
 }
 
 set_PHP_FPM() {
+    local t
+    t=$(rt)
     echo "%%%%%%%%%%% remotely: Setup PHP-FPM  %%%%%%%%%%%"
     set_SERVICE "php-fpm" >/dev/null
     if [ -n "$1" ]; then
@@ -322,11 +330,13 @@ set_PHP_FPM() {
         do_ENTRYPOINT "php-fpm" >/dev/null
         do_ENV "$@" >/dev/null
     fi
-    echo "service PHP-FPM setted up and restarted"
-    echo -e
+    echo "service PHP-FPM configured and restarted"
+    rt "$t"
 }
 
 set_NODE_JS() {
+    local t
+    t=$(rt)
     echo "%%%%%%%%%%% remotely: Setup NODE-JS  %%%%%%%%%%%"
     set_SERVICE "node" >/dev/null
     echo "service NODE-JS restarted"
@@ -335,13 +345,15 @@ set_NODE_JS() {
         do_ENTRYPOINT "node" >/dev/null
         do_ENV "$@" >/dev/null
     fi
-    echo -e
+    rt "$t"
 }
 
 set_SERVICE() {
     [ -z "$1" ] && return
     local rpm_name
     local deb_name
+    local t
+    t=$(rt)
 
     [ "$1" = "apache2" ] && rpm_name="httpd" && deb_name="apache2"
     [ "$1" = "httpd" ] && rpm_name="httpd" && deb_name="apache2"
@@ -400,8 +412,8 @@ EOF
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
     #cat "$tmp"
     rm -r "$(dirname "$tmp")"
-    echo "SERVICE $1 setted up"
-    echo -e
+    echo "SERVICE $1 configured"
+    rt "$t"
 }
 
 set_MYSQL() {
@@ -409,10 +421,23 @@ set_MYSQL() {
     set_MARIADB "$@"
 }
 
+rt() {
+    if [ -z "$1" ]; then
+        date +%s && return
+    else
+        local end
+        end=$(date +%s)
+        echo "--$((end - $1)) sec--"
+        echo -e
+    fi
+}
+
 set_MARIADB() {
     local tmp
     local server_pkg="mariadb-server"
     local client_pkg="mariadb"
+    local t
+    t=$(rt)
 
     [ "$SQL_CONTEXT" = "mysql" ] && server_pkg="mysql-server" && client_pkg="mysql"
     set_PACKAGE $client_pkg $server_pkg expect python3 python3-pip >/dev/null
@@ -462,16 +487,19 @@ set_MARIADB() {
     
 EOF
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
-    echo "$server_pkg server setted up!"
-    echo -e
+    echo "$server_pkg server configured!"
+    rt "$t"
     rm -r "$(dirname "$tmp")"
 
 }
 #============== P
 set_PACKAGE() { # rpm/apt/zipper Wrapper
     [ -z "$1" ] && return
+    local t
+    t=$(rt)
     echo "%%%%%%%%%%% remotely: Install PACKAGE(s)  %%%%%%%%%%%"
     local tmp
+    local t
     tmp=$(mktemp -d)/tmp.yaml
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
@@ -529,7 +557,7 @@ EOF
     unset YUM_ENABLE_REPO
     rm -r "$(dirname "$tmp")"
     echo "OS packages installed"
-    echo -e
+    rt "$t"
 }
 
 set_PLAY() { # ansible Wrapper
@@ -543,6 +571,8 @@ set_REPO() {
     [ -z "$1" ] && return
     local repo="$1"
     local deb_repo
+    local t
+    t=$(rt)
     deb_repo=$*
     [[ -n $2 ]] && [[ $2 =~ "enable" ]] && YUM_ENABLE_REPO=$(echo "$2" | cut -d '=' -f 2)
 
@@ -583,13 +613,15 @@ EOF
     #cat "$tmp"
     rm -r "$(dirname "$tmp")"
     echo "OS repository installed"
-    echo -e
+    rt "$t"
 }
 
 do_RUN() { # Docker RUN analogue
     [ -z "$1" ] && return
     local tmp
     local tmp_sh
+    local t
+    t=$(rt)
     tmp=$(mktemp -d)
     tmp_sh=$tmp/tmp.sh
 
@@ -615,19 +647,21 @@ do_RUN() { # Docker RUN analogue
 EOF
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$'
     rm -r "$(dirname "$tmp")"
-    echo -e
+    rt "$t"
 }
 cmd_RSYNC() { # rsync Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
     echo "%%%%%%%%%%% remotely: RSYNC %%%%%%%%%%%%%%%"
     rsync "$@"
-    echo -e
+    rt "$t"
 }
 #============== S
 cmd_SQL() {
     local tmp
     local tmp_sql
+    local t
+    t=$(rt)
     tmp=$(mktemp -d)
     tmp_sql=$tmp/tmp.sql
     tmp=$tmp/tmp.yaml
@@ -668,7 +702,7 @@ EOF
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$' | grep "^ERROR"
     #cat "$tmp"
     rm -r "$(dirname "$tmp")"
-    echo -e
+    rt "$t"
 }
 
 cmd_SLEEP() {
@@ -690,6 +724,8 @@ set_TARGET() { # create ssh access artefacts for target
     local ips='[]'
     local user=$2
     local secret=$3
+    local t
+    t=$(rt)
     echo -e
     echo -e
     echo "%%%%%%%%%%% remotely: Init TARGET for Setup %%%%%%%%%%%"
@@ -715,7 +751,7 @@ EOF
 
     chmod 777 "$STAGE_TARGET_FILE"
     echo "Available targets: $ips"
-    echo -e
+    rt "$t"
 }
 #============== U
 do_USER() { # Docker USER analogue
