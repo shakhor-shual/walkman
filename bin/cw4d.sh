@@ -421,7 +421,7 @@ set_MARIADB() {
     SQL_CONTEXT=$client_pkg
     tmp=$(mktemp -d)/tmp.yaml
 
-    echo "%%%%%%%%%%% remotely: Install/Setup $server_pkg %%%%%%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: Setup $server_pkg %%%%%%%%%%%%%%%"
 
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
@@ -689,6 +689,8 @@ set_TARGET() { # create ssh access artefacts for target
     local ips='[]'
     local user=$2
     local secret=$3
+    echo -e
+    echo -e
     echo "%%%%%%%%%%% remotely: Init TARGET for Setup %%%%%%%%%%%"
 
     ANSIBLE_USER=$user
