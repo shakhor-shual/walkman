@@ -427,6 +427,11 @@ set_MARIADB() {
 - hosts: $ANSIBLE_TARGET
   become: yes
   tasks:
+  - name: python3
+    ansible.builtin.package:
+      state: present
+      name: python3
+    when: (ansible_os_family == 'RedHat')
   - name: Install pexpect
     pip:
       name: pexpect
