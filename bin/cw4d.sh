@@ -672,6 +672,7 @@ EOF
 }
 
 cmd_SLEEP() {
+    [ -z "$1" ] && return
     case $1 in
     *[!0-9]*)
         echo "%%%%%%%%%%% remotely: Wait $1 sec. %%%%%%%%%%%"
