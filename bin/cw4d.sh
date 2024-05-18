@@ -415,7 +415,7 @@ set_MARIADB() {
     local client_pkg="mariadb"
 
     [ "$SQL_CONTEXT" = "mysql" ] && server_pkg="mysql-server" && client_pkg="mysql"
-    set_PACKAGE $client_pkg $server_pkg expect python3 python3-pip #>/dev/null
+    set_PACKAGE $client_pkg $server_pkg expect python3 python3-pip >/dev/null
     SQL_USER=$1
     SQL_PASSWORD=$2
     SQL_CONTEXT=$client_pkg
@@ -461,7 +461,7 @@ set_MARIADB() {
     when:  (mysql_secured.stdout == "") and ( '$SQL_USER' == 'root' )
     
 EOF
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" #| grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
+    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
     echo "$server_pkg server setted up!"
     echo -e
     rm -r "$(dirname "$tmp")"

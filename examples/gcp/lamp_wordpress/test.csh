@@ -15,7 +15,7 @@
 # limitations under the License.
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
-debug@@@ 2   # possible here are 0, 1, 2, 3
+debug@@@ 0   # possible here are 0, 1, 2, 3
 
 # ROOT
 /* #Example of inlined BASH usage
@@ -45,8 +45,8 @@ boot_disk_size=@@last
 boot_disk_type=@@
 #boot_image="suse-cloud/sles-15" #checked
 #boot_image="opensuse-cloud/opensuse-leap"
-#boot_image="rhel-cloud/rhel-7" #checked
-boot_image="rhel-cloud/rhel-8" #checked
+boot_image="rhel-cloud/rhel-7" #checked
+#boot_image="rhel-cloud/rhel-8" #checked
 #boot_image="rhel-cloud/rhel-9" #checked
 #boot_image="centos-cloud/centos-7" #checked
 #boot_image="centos-cloud/centos-stream-8" #checked
