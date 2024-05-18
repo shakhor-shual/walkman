@@ -110,7 +110,10 @@ case $boot_image in
     wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
     www_home=/var/www/html
     case $boot_image in
-    *"-7") extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm ;;
+    *"-7")
+        extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+        extra_repo_php="http://rpms.remirepo.net/enterprise/remi-release-7.rpm --enablerepo=remi-php74"
+        ;;
     *"-8") extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm ;;
     *"-9") extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm ;;
     esac
@@ -134,10 +137,11 @@ cmd_SQL "CREATE DATABASE IF NOT EXISTS wordpress;GRANT ALL PRIVILEGES on wordpre
 set_APACHE
 do_ADD http://wordpress.org/latest.tar.gz $www_home/ $wp_owner 0755
 do_RUN "sudo find $www_home/wordpress -type f -exec chmod 644 {} \;"
+set_REPO $extra_repo_php
 set_PACKAGE $extra_pkgs
 do_ADD @@meta/wordpress.conf $wp_http_conf root:root
 do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
-set_APACHE WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$wp_user" WORDPRESS_DB_PASSWORD="$wp_password" WORDPRESS_DB_NAME="wordpress" APACHE_LOG_DIR="/var/log/$http_service"
+set_APACHE WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$wp_user" WORDPRESS_DB_PASSWORD="$wp_password" WORDPRESS_DB_NAME="wordpress" APACHE_LOG_DIR="/var/log/$http_service" APACHE_DOCUMENT_ROOT="$www_home"
 cmd_INTERACT
 
 /*

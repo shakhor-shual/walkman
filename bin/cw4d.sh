@@ -430,6 +430,9 @@ set_MARIADB() {
   - name: Install pexpect
     pip:
       name: pexpect
+      executable: pip3
+    vars:
+      ansible_python_interpreter: /usr/bin/python3
   - name: Make sure a service unit is running
     ansible.builtin.systemd_service:
       state: started
@@ -452,6 +455,8 @@ set_MARIADB() {
         'Remove test database': 'y'
         'Reload privilege tables now': 'y'
       timeout: 5
+    vars:
+      ansible_python_interpreter: /usr/bin/python3
  #   failed_when: "'... Failed!' in secure_mariadb.stdout_lines"
     when:  (mysql_secured.stdout == "") and ( '$SQL_USER' == 'root' )
     
@@ -479,17 +484,34 @@ set_PACKAGE() { # rpm/apt/zipper Wrapper
   - name: Gather package facts
     ansible.builtin.package_facts:
       manager: auto
+  - name: redhat-lsb-core
+    ansible.builtin.package:
+      state: present
+      name: redhat-lsb-core
+    when: (ansible_os_family == 'RedHat') and ( 'redhat-lsb-core' not in ansible_facts.packages)
 EOF
     for pkg in "$@"; do
         cat <<EOF >>"$tmp"
   - name: install $pkg
     block:
       - name: $pkg
-        ansible.builtin.package:
-          disable_gpg_check: "{{ true | d(omit) }}"
+        ansible.builtin.yum:
           state: present
           name: $pkg
-        when: ansible_os_family == 'RedHat'
+EOF
+        [ -n "$YUM_ENABLE_REPO" ] && echo "          enablerepo: $YUM_ENABLE_REPO" >>"$tmp"
+
+        cat <<EOF >>"$tmp"
+        when: (ansible_os_family == 'RedHat') and (ansible_lsb.major_release|int == 7)
+      - name: $pkg
+        ansible.builtin.dnf:
+          state: present
+          name: $pkg
+EOF
+        [ -n "$YUM_ENABLE_REPO" ] && echo "          enablerepo: $YUM_ENABLE_REPO" >>"$tmp"
+
+        cat <<EOF >>"$tmp"
+        when: (ansible_os_family == 'RedHat') and (ansible_lsb.major_release|int >= 8)
       - name: $pkg
         ansible.builtin.apt:
           state: present
@@ -509,6 +531,7 @@ EOF
 
     ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
     #cat "$tmp"
+    unset YUM_ENABLE_REPO
     rm -r "$(dirname "$tmp")"
     echo "OS packages installed"
     echo -e
@@ -524,6 +547,7 @@ set_PLAY() { # ansible Wrapper
 set_REPO() {
     [ -z "$1" ] && return
     local repo="$1"
+    [[ -n $2 ]] && [[ $2 =~ "enable" ]] && YUM_ENABLE_REPO=$(echo "$2" | cut -d '=' -f 2)
 
     echo "%%%%%%%%%%% remotely: Add REPOSITORY  %%%%%%%%%%%"
     local tmp
