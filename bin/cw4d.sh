@@ -40,8 +40,10 @@ STEP_BY_STEP="yes"
 check_ansible_connection() {
     local group=${1:-"all"}
     local delay=${2:-"30"}
+    local t
+    t=$(rt)
     local tmp
-    tmp=$(mktemp -d)/tmp.yaml
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
     cat <<EOF >"$tmp"
 - hosts: $group
   gather_facts: no
@@ -54,6 +56,16 @@ EOF
 
 }
 
+rt() {
+    if [ -z "$1" ]; then
+        date +%s && return
+    else
+        local end
+        end=$(date +%s)
+        echo "--$((end - $1)) sec--"
+    fi
+}
+
 play_this() {
     local tmp=$1
     local timer=$2
@@ -62,7 +74,7 @@ play_this() {
         rt "$timer"
     fi
     cat "$tmp" >>$FULL_PLAYBOOK_TMP
-    rm -r "$(dirname "$tmp")"
+    rm -f "$tmp"
 }
 ################ EXTENTION HELPERS LIBRARY #############################
 GET_from_state_by_type() {
@@ -120,7 +132,7 @@ do_ADD() { # Docker ADD analogue
     local tmp
     local t
     t=$(rt)
-    tmp=$(mktemp -d)/tmp.yaml
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
 
     [ -n "$4" ] && mode=$4
     case $3 in
@@ -225,8 +237,8 @@ do_ENV() { # Docker ENV analogue
     local tmp
     local tmp_env
     tmp=$(mktemp -d)
-    tmp_env=$tmp/tmp.env
-    tmp=$tmp/tmp.yaml
+    tmp_env=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.env)
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
 
     for param in "$@"; do
         if [[ $param =~ "=" ]]; then
@@ -273,8 +285,6 @@ EOF
     echo "Entrypoint: [$ANSIBLE_ENTRYPOINT] Environment:"
     cut <"$tmp_env" -d "=" -f 1 | sed 's/^/[/;s/$/]/'
     play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
-    echo -e
-
 }
 #============== F
 do_FROM() { # Docker FROM analogue
@@ -283,7 +293,6 @@ do_FROM() { # Docker FROM analogue
     echo -e
     echo "%%%%%%%%%%% remotely: FROM chosen Target(s) %%%%%%%%%%%%%%%"
     check_ansible_connection "$ANSIBLE_TARGET" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | sed 's/^ok/Target(s) chosen/'
-    echo -e
 }
 
 #============== H
@@ -380,7 +389,7 @@ set_SERVICE() {
     echo -e
     echo "%%%%%%%%%%% remotely: Setup $1 %%%%%%%%%%%"
     local tmp
-    tmp=$(mktemp -d)/tmp.yaml
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: true
@@ -438,16 +447,6 @@ set_MYSQL() {
     set_MARIADB "$@"
 }
 
-rt() {
-    if [ -z "$1" ]; then
-        date +%s && return
-    else
-        local end
-        end=$(date +%s)
-        echo "--$((end - $1)) sec--"
-    fi
-}
-
 set_MARIADB() {
     local tmp
     local server_pkg="mariadb-server"
@@ -460,27 +459,29 @@ set_MARIADB() {
     SQL_USER=$1
     SQL_PASSWORD=$2
     SQL_CONTEXT=$client_pkg
-    tmp=$(mktemp -d)/tmp.yaml
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
     echo -e
     echo "%%%%%%%%%%% remotely: Setup $server_pkg %%%%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
-  become: yes
   tasks:
   - name: Install pexpect
+    become: yes
     pip:
       name: pexpect
       executable: pip3
     vars:
       ansible_python_interpreter: /usr/bin/python3
   - name: Make sure a service unit is running
+    become: yes
     ansible.builtin.systemd_service:
       state: started
       name: '$SQL_CONTEXT'
   - name: check mysql
-    ansible.builtin.shell: echo exit | mysql -u root 2>/dev/null || echo -n "secured"
+    ansible.builtin.shell: echo "exit" | mysql -u root >> /dev/null 2>&1 || echo "secured"
     register: mysql_secured
     ignore_errors: true
+  - debug: var=mysql_secured
   - name: secure $SQL_CONTEXT
     become: yes
     expect:
@@ -495,10 +496,9 @@ set_MARIADB() {
         'Remove test database': 'y'
         'Reload privilege tables now': 'y'
       timeout: 5
+    when:  (mysql_secured.stdout == "") and ( '$SQL_USER' == 'root' )
     vars:
       ansible_python_interpreter: /usr/bin/python3
- #   failed_when: "'... Failed!' in secure_mariadb.stdout_lines"
-    when:  (mysql_secured.stdout == "") and ( '$SQL_USER' == 'root' )
 EOF
     play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
     echo "$server_pkg server configured!"
@@ -513,7 +513,7 @@ set_PACKAGE() { # rpm/apt/zipper Wrapper
     echo "%%%%%%%%%%% remotely: Install PACKAGE(s)  %%%%%%%%%%%"
     local tmp
     local t
-    tmp=$(mktemp -d)/tmp.yaml
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: true
@@ -570,10 +570,13 @@ EOF
 }
 
 set_PLAY() { # ansible Wrapper
-    [ -z "$1" ] && return
+    local playbook=$1
+    local t
+    t=$(rt)
+    [ -z "$1" ] && playbook=$FULL_PLAYBOOK_TMP
     echo -e
-    echo "%%%%%%%%%%% remotely: PLAY: $1 %%%%%%%%%%%%%%%"
-    ansible-playbook "$1" -i "$ALBUM_SELF" | grep -v "^PLAY \|^[[:space:]]*$"
+    echo "%%%%%%%%%%% remotely: PLAY: $playbook %%%%%%%%%%%%%%%"
+    play_this "$playbook" "$t" #| grep -v "^PLAY \|^[[:space:]]*$"
 }
 #============== R
 set_REPO() {
@@ -587,7 +590,7 @@ set_REPO() {
     echo -e
     echo "%%%%%%%%%%% remotely: Add REPOSITORY  %%%%%%%%%%%"
     local tmp
-    tmp=$(mktemp -d)/tmp.yaml
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: true
@@ -627,8 +630,8 @@ do_RUN() { # Docker RUN analogue
     local tmp_sh
     local t
     t=$(rt)
-    tmp=$(mktemp -d)
-    tmp_sh=$tmp/tmp.sh
+
+    tmp_sh=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.sh)
     echo -e
     echo "%%%%%%%%%%% remotely: Script RUN %%%%%%%%%%%"
     {
@@ -638,7 +641,7 @@ do_RUN() { # Docker RUN analogue
 
     cat "$tmp_sh"
 
-    tmp=$tmp/tmp.yaml
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   gather_facts: no
@@ -666,9 +669,9 @@ cmd_SQL() {
     local tmp_sql
     local t
     t=$(rt)
-    tmp=$(mktemp -d)
-    tmp_sql=$tmp/tmp.sql
-    tmp=$tmp/tmp.yaml
+
+    tmp_sql=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.sql)
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
 
     if [ -f "$1" ]; then
         for sql in "$@"; do cat "$sql" >>"$tmp_sql"; done
@@ -773,7 +776,7 @@ do_VOLUME() { # Docker VOLUME analogue
     local grp
     local mode="'0755'"
     local tmp
-    tmp=$(mktemp -d)/tmp.yaml
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
 
     [ -n "$3" ] && mode=$3
     case $2 in
