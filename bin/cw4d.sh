@@ -143,6 +143,7 @@ do_ADD() { # Docker ADD analogue
         ;;
     esac
 
+    echo -e
     echo "%%%%%%%%%%% remotely: Content ADD/COPY %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
@@ -234,6 +235,7 @@ do_ENV() { # Docker ENV analogue
             [ -s "$param" ] && cat "$param" >>"$tmp_env"
         fi
     done
+    echo -e
     echo "%%%%%%%%%%% remotely: Entrypoint ENV %%%%%%%%%%%%%%%"
     do_VOLUME "/etc/systemd/system/$ANSIBLE_ENTRYPOINT.service.d" "root:root" 0755 >/dev/null
     do_VOLUME "/etc/env.walkman" "root:root" 0755 >/dev/null
@@ -278,6 +280,7 @@ EOF
 do_FROM() { # Docker FROM analogue
     ANSIBLE_TARGET=all
     [ -n "$1" ] && ANSIBLE_TARGET=$1
+    echo -e
     echo "%%%%%%%%%%% remotely: FROM chosen Target(s) %%%%%%%%%%%%%%%"
     check_ansible_connection "$ANSIBLE_TARGET" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | sed 's/^ok/Target(s) chosen/'
     echo -e
@@ -287,6 +290,7 @@ do_FROM() { # Docker FROM analogue
 cmd_HELM() { # helm Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
+    echo -e
     echo "%%%%%%%%%%% remotely: HELM %%%%%%%%%%%%%%%"
     helm "$@"
     echo -e
@@ -295,6 +299,7 @@ cmd_HELM() { # helm Wrapper
 cmd_KUBECTL() { # kubectl Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
+    echo -e
     echo "%%%%%%%%%%% remotely: KUBECTL %%%%%%%%%%%%%%%"
     kubectl "$@"
     echo -e
@@ -303,6 +308,7 @@ cmd_KUBECTL() { # kubectl Wrapper
 set_APACHE() {
     local t
     t=$(rt)
+    echo -e
     echo "%%%%%%%%%%% remotely: Setup APACHE  %%%%%%%%%%%"
     set_SERVICE "httpd" >/dev/null
     if [ -n "$1" ]; then
@@ -319,6 +325,7 @@ set_APACHE() {
 set_NGINX() {
     local t
     t=$(rt)
+    echo -e
     echo "%%%%%%%%%%% remotely: Setup NGINX  %%%%%%%%%%%"
     set_SERVICE "nginx" >/dev/null
     if [ -n "$1" ]; then
@@ -333,6 +340,7 @@ set_NGINX() {
 set_PHP_FPM() {
     local t
     t=$(rt)
+    echo -e
     echo "%%%%%%%%%%% remotely: Setup PHP-FPM  %%%%%%%%%%%"
     set_SERVICE "php-fpm" >/dev/null
     if [ -n "$1" ]; then
@@ -347,6 +355,7 @@ set_PHP_FPM() {
 set_NODE_JS() {
     local t
     t=$(rt)
+    echo -e
     echo "%%%%%%%%%%% remotely: Setup NODE-JS  %%%%%%%%%%%"
     set_SERVICE "node" >/dev/null
     echo "service NODE-JS restarted"
@@ -368,6 +377,7 @@ set_SERVICE() {
     [ "$1" = "apache2" ] && rpm_name="httpd" && deb_name="apache2"
     [ "$1" = "httpd" ] && rpm_name="httpd" && deb_name="apache2"
 
+    echo -e
     echo "%%%%%%%%%%% remotely: Setup $1 %%%%%%%%%%%"
     local tmp
     tmp=$(mktemp -d)/tmp.yaml
@@ -454,6 +464,7 @@ set_MARIADB() {
     SQL_CONTEXT=$client_pkg
     tmp=$(mktemp -d)/tmp.yaml
 
+    echo -e
     echo "%%%%%%%%%%% remotely: Setup $server_pkg %%%%%%%%%%%%%%%"
 
     cat <<EOF >"$tmp"
@@ -503,6 +514,7 @@ set_PACKAGE() { # rpm/apt/zipper Wrapper
     [ -z "$1" ] && return
     local t
     t=$(rt)
+    echo -e
     echo "%%%%%%%%%%% remotely: Install PACKAGE(s)  %%%%%%%%%%%"
     local tmp
     local t
@@ -564,6 +576,7 @@ EOF
 
 set_PLAY() { # ansible Wrapper
     [ -z "$1" ] && return
+    echo -e
     echo "%%%%%%%%%%% remotely: PLAY: $1 %%%%%%%%%%%%%%%"
     ansible-playbook "$1" -i "$ALBUM_SELF" | grep -v "^PLAY \|^[[:space:]]*$"
 }
@@ -577,6 +590,7 @@ set_REPO() {
     deb_repo=$*
     [[ -n $2 ]] && [[ $2 =~ "enable" ]] && YUM_ENABLE_REPO=$(echo "$2" | cut -d '=' -f 2)
 
+    echo -e
     echo "%%%%%%%%%%% remotely: Add REPOSITORY  %%%%%%%%%%%"
     local tmp
     tmp=$(mktemp -d)/tmp.yaml
@@ -625,6 +639,7 @@ do_RUN() { # Docker RUN analogue
     tmp=$(mktemp -d)
     tmp_sh=$tmp/tmp.sh
 
+    echo -e
     echo "%%%%%%%%%%% remotely: Script RUN %%%%%%%%%%%"
     {
         echo "#!/bin/bash"
@@ -651,6 +666,7 @@ EOF
 cmd_RSYNC() { # rsync Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
+    echo -e
     echo "%%%%%%%%%%% remotely: RSYNC %%%%%%%%%%%%%%%"
     rsync "$@"
 }
@@ -669,6 +685,7 @@ cmd_SQL() {
     else
         echo "$@" >"$tmp_sql"
     fi
+    echo -e
     echo "%%%%%%%%%%% remotely: run SQL-commands on DB: $SQL_CONTEXT  %%%%%%%%%%%"
     cat "$tmp_sql"
     echo "=========================================="
@@ -704,6 +721,7 @@ cmd_SLEEP() {
     [ -z "$1" ] && return
     case $1 in
     *[!0-9]*)
+        echo -e
         echo "%%%%%%%%%%% remotely: Wait $1 sec. %%%%%%%%%%%"
         sleep "$1"
         echo -e
@@ -719,6 +737,7 @@ set_TARGET() { # create ssh access artefacts for target
     local ips='[]'
     local user=$2
     local secret=$3
+    echo -e
     echo -e
     echo -e
     echo "%%%%%%%%%%% remotely: Init TARGET for Setup %%%%%%%%%%%"
@@ -789,6 +808,7 @@ do_VOLUME() { # Docker VOLUME analogue
         ;;
     esac
 
+    echo -e
     echo "%%%%%%%%%%% remotely: Create VOLUME(directory) %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
@@ -808,6 +828,7 @@ EOF
 }
 #============== W
 set_WALKMAN() { # Walkman installer
+    echo -e
     echo "%%%%%%%%%%% remotely: WALKMAN INSTALL %%%%%%%%%%%%%%%"
     sed <"$STAGE_TARGET_FILE" 's/^ssh /cw4d.sh /' | bash
     echo -e
@@ -958,6 +979,7 @@ init_bash_inline_vars() {
 }
 
 run_bash_inlined_part() {
+    echo -e
     echo "%%%%%%%%%%%% locally: RUN INLINED BASH  %%%%%%%%%%%%"
     # echo "mode:$2"
     /bin/bash "$BASH_INLINE"
