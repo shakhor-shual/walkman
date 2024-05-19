@@ -32,6 +32,8 @@ SQL_CONTEXT=""
 SQL_USER="root"
 SQL_PASSWORD=""
 SQL_DATABASE=""
+FULL_PLAYBOOK_TMP=/tmp/full_playbook.yaml
+STEP_BY_STEP="yes"
 
 #ANSIBLE_ARG=""
 
@@ -48,10 +50,20 @@ check_ansible_connection() {
     ansible.builtin.wait_for_connection:
       timeout: $delay
 EOF
-    ansible-playbook -i "$ALBUM_SELF" "$tmp"
-    rm -r "$(dirname "$tmp")"
+    play_this "$tmp" "$t"
+
 }
 
+play_this() {
+    local tmp=$1
+    local timer=$2
+    if [ -n "$STEP_BY_STEP" ]; then
+        ansible-playbook "$tmp" -i "$ALBUM_SELF"
+        rt "$timer"
+    fi
+    cat "$tmp" >>$FULL_PLAYBOOK_TMP
+    rm -r "$(dirname "$tmp")"
+}
 ################ EXTENTION HELPERS LIBRARY #############################
 GET_from_state_by_type() {
     local val
@@ -182,10 +194,9 @@ EOF
     [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
     [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
     [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$\|ok" | grep -v '""'
+
     grep <"$tmp" "src\|dest\|repo\|mode\|owner\|group\|url" | tr -d ' '
-    rm -r "$(dirname "$tmp")"
-    rt "$t"
+    play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$\|ok" | grep -v '""'
 }
 
 do_ARG() { # Docker ARG analogue
@@ -257,12 +268,11 @@ do_ENV() { # Docker ENV analogue
     become: yes
     when: ansible_facts.services['$ANSIBLE_ENTRYPOINT.service'] is defined  
 EOF
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
     echo "Entrypoint: [$ANSIBLE_ENTRYPOINT] Environment:"
     cut <"$tmp_env" -d "=" -f 1 | sed 's/^/[/;s/$/]/'
+    play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
     echo -e
 
-    rm -r "$(dirname "$tmp")"
 }
 #============== F
 do_FROM() { # Docker FROM analogue
@@ -303,7 +313,7 @@ set_APACHE() {
         do_ENV "$@" >/dev/null
     fi
     echo "service APACHE configured and restarted"
-    rt "$t"
+
 }
 
 set_NGINX() {
@@ -317,7 +327,7 @@ set_NGINX() {
         do_ENV "$@" >/dev/null
     fi
     echo "service NGINX configured and restarted"
-    rt "$t"
+
 }
 
 set_PHP_FPM() {
@@ -331,7 +341,7 @@ set_PHP_FPM() {
         do_ENV "$@" >/dev/null
     fi
     echo "service PHP-FPM configured and restarted"
-    rt "$t"
+
 }
 
 set_NODE_JS() {
@@ -345,7 +355,7 @@ set_NODE_JS() {
         do_ENTRYPOINT "node" >/dev/null
         do_ENV "$@" >/dev/null
     fi
-    rt "$t"
+
 }
 
 set_SERVICE() {
@@ -409,11 +419,10 @@ set_SERVICE() {
       name: $rpm_name
     when: ansible_os_family == 'Suse'
 EOF
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
-    #cat "$tmp"
-    rm -r "$(dirname "$tmp")"
+    play_this "$tmp" "$t" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+
     echo "SERVICE $1 configured"
-    rt "$t"
+
 }
 
 set_MYSQL() {
@@ -428,7 +437,6 @@ rt() {
         local end
         end=$(date +%s)
         echo "--$((end - $1)) sec--"
-        echo -e
     fi
 }
 
@@ -486,12 +494,10 @@ set_MARIADB() {
     when:  (mysql_secured.stdout == "") and ( '$SQL_USER' == 'root' )
     
 EOF
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
+    play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
     echo "$server_pkg server configured!"
-    rt "$t"
-    rm -r "$(dirname "$tmp")"
-
 }
+
 #============== P
 set_PACKAGE() { # rpm/apt/zipper Wrapper
     [ -z "$1" ] && return
@@ -551,18 +557,13 @@ EOF
     when: ('$pkg' not in ansible_facts.packages)
 EOF
     done
-
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
-    #cat "$tmp"
+    play_this "$tmp" "$t" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
     unset YUM_ENABLE_REPO
-    rm -r "$(dirname "$tmp")"
     echo "OS packages installed"
-    rt "$t"
 }
 
 set_PLAY() { # ansible Wrapper
     [ -z "$1" ] && return
-    [ "$1" = "test" ] && return
     echo "%%%%%%%%%%% remotely: PLAY: $1 %%%%%%%%%%%%%%%"
     ansible-playbook "$1" -i "$ALBUM_SELF" | grep -v "^PLAY \|^[[:space:]]*$"
 }
@@ -609,11 +610,10 @@ set_REPO() {
     ignore_errors: true
 EOF
 
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
-    #cat "$tmp"
-    rm -r "$(dirname "$tmp")"
+    play_this "$tmp" "$t" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+
     echo "OS repository installed"
-    rt "$t"
+
 }
 
 do_RUN() { # Docker RUN analogue
@@ -645,16 +645,14 @@ do_RUN() { # Docker RUN analogue
     register: out
   - debug: var=out.stdout_lines
 EOF
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$'
-    rm -r "$(dirname "$tmp")"
-    rt "$t"
+    play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$'
+
 }
 cmd_RSYNC() { # rsync Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
     echo "%%%%%%%%%%% remotely: RSYNC %%%%%%%%%%%%%%%"
     rsync "$@"
-    rt "$t"
 }
 #============== S
 cmd_SQL() {
@@ -699,10 +697,7 @@ EOF
     "postgress") ;;
     *) ;;
     esac
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$' | grep "^ERROR"
-    #cat "$tmp"
-    rm -r "$(dirname "$tmp")"
-    rt "$t"
+    play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$' | grep "^ERROR"
 }
 
 cmd_SLEEP() {
@@ -724,11 +719,10 @@ set_TARGET() { # create ssh access artefacts for target
     local ips='[]'
     local user=$2
     local secret=$3
-    local t
-    t=$(rt)
     echo -e
     echo -e
     echo "%%%%%%%%%%% remotely: Init TARGET for Setup %%%%%%%%%%%"
+    echo "#full album playbook" >$FULL_PLAYBOOK_TMP
 
     ANSIBLE_USER=$user
     ANSIBLE_GROUP=$user
@@ -751,7 +745,7 @@ EOF
 
     chmod 777 "$STAGE_TARGET_FILE"
     echo "Available targets: $ips"
-    rt "$t"
+
 }
 #============== U
 do_USER() { # Docker USER analogue
@@ -808,8 +802,8 @@ do_VOLUME() { # Docker VOLUME analogue
       owner: $usr
       group: $grp
 EOF
-    ansible-playbook "$tmp" -i "$ALBUM_SELF" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | grep -v '""'
-    rm -r "$(dirname "$tmp")"
+    play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | grep -v '""'
+
     echo -e
 }
 #============== W
