@@ -141,7 +141,7 @@ do_ADD @@meta/wordpress.conf $wp_http_conf root:root
 do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
 set_APACHE WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$mysql_wp_user" WORDPRESS_DB_PASSWORD="$mysql_wp_pass" WORDPRESS_DB_NAME="wordpress" APACHE_LOG_DIR="/var/log/$http_service" APACHE_DOCUMENT_ROOT="$www_home"
 
-#set_PLAY
+set_PLAY
 cmd_INTERACT
 
 /*

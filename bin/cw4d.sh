@@ -481,7 +481,6 @@ set_MARIADB() {
     ansible.builtin.shell: echo "exit" | mysql -u root >> /dev/null 2>&1 || echo "secured"
     register: mysql_secured
     ignore_errors: true
-  - debug: var=mysql_secured
   - name: secure $SQL_CONTEXT
     become: yes
     expect:
