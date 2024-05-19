@@ -318,8 +318,8 @@ set_APACHE() {
         do_ENTRYPOINT "apache2" >/dev/null
         do_ENV "$@" >/dev/null
     fi
+    rt "$t"
     echo "service APACHE configured and restarted"
-
 }
 
 set_NGINX() {
@@ -333,8 +333,8 @@ set_NGINX() {
         do_ENTRYPOINT "nginx" >/dev/null
         do_ENV "$@" >/dev/null
     fi
+    rt "$t"
     echo "service NGINX configured and restarted"
-
 }
 
 set_PHP_FPM() {
@@ -348,8 +348,8 @@ set_PHP_FPM() {
         do_ENTRYPOINT "php-fpm" >/dev/null
         do_ENV "$@" >/dev/null
     fi
+    rt "$t"
     echo "service PHP-FPM configured and restarted"
-
 }
 
 set_NODE_JS() {
@@ -364,7 +364,7 @@ set_NODE_JS() {
         do_ENTRYPOINT "node" >/dev/null
         do_ENV "$@" >/dev/null
     fi
-
+    rt "$t"
 }
 
 set_SERVICE() {
@@ -430,9 +430,7 @@ set_SERVICE() {
     when: ansible_os_family == 'Suse'
 EOF
     play_this "$tmp" "$t" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
-
     echo "SERVICE $1 configured"
-
 }
 
 set_MYSQL() {
@@ -463,10 +461,8 @@ set_MARIADB() {
     SQL_PASSWORD=$2
     SQL_CONTEXT=$client_pkg
     tmp=$(mktemp -d)/tmp.yaml
-
     echo -e
     echo "%%%%%%%%%%% remotely: Setup $server_pkg %%%%%%%%%%%%%%%"
-
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: yes
@@ -503,7 +499,6 @@ set_MARIADB() {
       ansible_python_interpreter: /usr/bin/python3
  #   failed_when: "'... Failed!' in secure_mariadb.stdout_lines"
     when:  (mysql_secured.stdout == "") and ( '$SQL_USER' == 'root' )
-    
 EOF
     play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
     echo "$server_pkg server configured!"
@@ -589,7 +584,6 @@ set_REPO() {
     t=$(rt)
     deb_repo=$*
     [[ -n $2 ]] && [[ $2 =~ "enable" ]] && YUM_ENABLE_REPO=$(echo "$2" | cut -d '=' -f 2)
-
     echo -e
     echo "%%%%%%%%%%% remotely: Add REPOSITORY  %%%%%%%%%%%"
     local tmp
@@ -623,11 +617,8 @@ set_REPO() {
     become: true
     ignore_errors: true
 EOF
-
     play_this "$tmp" "$t" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
-
     echo "OS repository installed"
-
 }
 
 do_RUN() { # Docker RUN analogue
@@ -638,7 +629,6 @@ do_RUN() { # Docker RUN analogue
     t=$(rt)
     tmp=$(mktemp -d)
     tmp_sh=$tmp/tmp.sh
-
     echo -e
     echo "%%%%%%%%%%% remotely: Script RUN %%%%%%%%%%%"
     {
@@ -661,8 +651,8 @@ do_RUN() { # Docker RUN analogue
   - debug: var=out.stdout_lines
 EOF
     play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$'
-
 }
+
 cmd_RSYNC() { # rsync Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
@@ -724,7 +714,6 @@ cmd_SLEEP() {
         echo -e
         echo "%%%%%%%%%%% remotely: Wait $1 sec. %%%%%%%%%%%"
         sleep "$1"
-        echo -e
         ;;
     *) return ;;
     esac
@@ -764,7 +753,6 @@ EOF
 
     chmod 777 "$STAGE_TARGET_FILE"
     echo "Available targets: $ips"
-
 }
 #============== U
 do_USER() { # Docker USER analogue
@@ -807,7 +795,6 @@ do_VOLUME() { # Docker VOLUME analogue
         grp=$2
         ;;
     esac
-
     echo -e
     echo "%%%%%%%%%%% remotely: Create VOLUME(directory) %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
@@ -823,8 +810,6 @@ do_VOLUME() { # Docker VOLUME analogue
       group: $grp
 EOF
     play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | grep -v '""'
-
-    echo -e
 }
 #============== W
 set_WALKMAN() { # Walkman installer
@@ -840,7 +825,6 @@ do_WORKDIR() { # Docker WORKDIR analogue
     else
         ANSIBLE_WORKDIR=$1
     fi
-
 }
 
 ############### HELPERS EXECUTOR ##############
