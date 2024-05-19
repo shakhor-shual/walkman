@@ -484,7 +484,7 @@ set_MARIADB() {
   - name: secure $SQL_CONTEXT
     become: yes
     expect:
-      command:  mysql_secure_installation
+      command: sudo mysql_secure_installation
       responses:
         'Enter current password for root': ''
         'Set root password': 'y'
@@ -494,6 +494,7 @@ set_MARIADB() {
         'Disallow root login remotely': 'y'
         'Remove test database': 'y'
         'Reload privilege tables now': 'y'
+        'Switch to unix_socket authentication': 'y'
       timeout: 5
     when:  (mysql_secured.stdout == "") and ( '$SQL_USER' == 'root' )
     vars:
@@ -695,7 +696,9 @@ EOF
     "mysql" | "mariadb")
         cat <<EOF >>"$tmp"
   - name: run SQL
+    become: true
     ansible.builtin.shell: mysql -u $SQL_USER "-p$SQL_PASSWORD" "$SQL_DATABASE"< /tmp/walkman_cmd_SQL.sql 2>&1 | grep ""
+    ignore_errors: true
     register: out
   - debug: var=out.stdout_lines
 #   - name: rm copy SQL-tmp
@@ -706,7 +709,7 @@ EOF
     "postgress") ;;
     *) ;;
     esac
-    play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$' | grep "^ERROR"
+    play_this "$tmp" "$t" # | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$' | grep "^ERROR"
 }
 
 cmd_SLEEP() {
