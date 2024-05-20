@@ -492,16 +492,16 @@ set_MARIADB() {
       executable: pip3
     vars:
       ansible_python_interpreter: /usr/bin/python3
-  - name: Make sure a service unit is running
+  - name: Start $SQL_CONTEXT service
     ansible.builtin.systemd_service:
       state: started
       name: '$SQL_CONTEXT'
-  - name: check mysql
+  - name: Check $SQL_CONTEXT secure
     ansible.builtin.shell: echo "exit" | mysql -u root >> /dev/null 2>&1 || echo "secured"
     register: mysql_secured
     become: false
     ignore_errors: true
-  - name: secure $SQL_CONTEXT
+  - name: Secure $SQL_CONTEXT
     expect:
       command: sudo mysql_secure_installation
       responses:
@@ -513,6 +513,7 @@ set_MARIADB() {
         'Disallow root login remotely': 'y'
         'Remove test database': 'y'
         'Reload privilege tables now': 'y'
+        'Change the root password': 'y'
         'Switch to unix_socket authentication': 'y'
       timeout: 5
     when:  (mysql_secured.stdout == "") and ( '$SQL_USER' == 'root' )
@@ -593,11 +594,11 @@ set_PLAY() { # ansible Wrapper
     t=$(rt)
     [ -z "$1" ] && playbook=$FULL_PLAYBOOK_TMP
     echo -e
-    echo "%%%%%%%%%%%%%%%%% used PLAYBOOK:  %%%%%%%%%%%%%%%%%%%"
+    #echo "%%%%%%%%%%%%%%%%% used PLAYBOOK:  %%%%%%%%%%%%%%%%%%%"
     #cat "$playbook"
     echo "%%%%%%%%%%% remotely: PLAY: $playbook %%%%%%%%%%%%%%%"
     #   play_this "$playbook" "$t" #| grep -v "^PLAY \|^[[:space:]]*$"
-    ansible-playbook "$playbook" -i "$ALBUM_SELF"
+    ansible-playbook "$playbook" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g' | tr -s " " | grep -v "skipping:"
     rt "$t"
 }
 #============== R
@@ -718,7 +719,7 @@ EOF
     "mysql" | "mariadb")
         cat <<EOF >>"$tmp"
   - name: run SQL
-    ansible.builtin.shell: cat /tmp/walkman_cmd_SQL.sql | mysql -u $SQL_USER "-p$SQL_PASSWORD" "$SQL_DATABASE" 2>&1 | grep ""
+    ansible.builtin.shell:  mysql -u $SQL_USER "-p$SQL_PASSWORD" "$SQL_DATABASE" 2>&1  < /tmp/walkman_cmd_SQL.sql | tee /dev/null
     ignore_errors: true
     register: out
   - debug: var=out.stdout_lines

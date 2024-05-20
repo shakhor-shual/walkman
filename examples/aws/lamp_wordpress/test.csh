@@ -100,7 +100,7 @@ esac
 walkman_install=@@self
 
 ############ setup deployment via HELPERs
-set_FLOW
+set_FLOW fast
 set_TARGET "IP-public" "ec2-user" $auto_key_private
 #set_TARGET IP-public $ssh_user $auto_key_private
 do_FROM all
