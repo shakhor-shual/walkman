@@ -15,112 +15,81 @@
 # limitations under the License.
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
-debug@@@ 0   # possible here are 0, 1, 2, 3
+debug@@@ 1   # possible here are 0, 1, 2, 3
 
-# ROOT
-/* #Example of inlined BASH usage
-ext_size=30
-((ext_size++))
-*/
-project_id="foxy-test-415019"
-region="europe-west6"
-zone="$region-b"
-vpc_name="@@this-vpc"
-host=@@this
-boot_disk_size=$ext_size
-p_file=@@meta/mysql_root.key
-mysql_root_pass=$(GEN_password root $p_file)
-mysql_wp_user="my_wordpress"
-mysql_wp_pass=$(GEN_password $mysql_wp_user @@meta/mysql_wp_user.key)
-
-######### DEPLOY GCP VM STAGE #################
-~WP_VM:
-####################  tvfars tuning variables/values
-project_id=@@last
-region=@@last
-vpc_name=@@last
-zone=@@last
-machine_type="n2-standard-4"
-boot_disk_size=@@last
-boot_disk_type=@@
-#boot_image="suse-cloud/sles-15" #checked #checked on 18.05.2024
-#boot_image="opensuse-cloud/opensuse-leap" #checked on 18.05.2024
-#boot_image="rhel-cloud/rhel-7" #checked on 18.05.2024
-#boot_image="rhel-cloud/rhel-8" #checked on 18.05.2024
-#boot_image="rhel-cloud/rhel-9" #checked on 18.05.2024
-#boot_image="centos-cloud/centos-7" #checked on 18.05.2024
-#boot_image="centos-cloud/centos-stream-8" #checked on 18.05.2024
-#boot_image="centos-cloud/centos-stream-9" #checked on 18.05.2024
-#boot_image="fedora-cloud/fedora-cloud-34" #????
-#boot_image="fedora-cloud/fedora-cloud-37" #checked on 18.05.2024
-#boot_image="fedora-cloud/fedora-cloud-38" #checked on 18.05.2024
-#boot_image="fedora-cloud/fedora-cloud-39" #checked on 18.05.2024
-boot_image="rocky-linux-cloud/rocky-linux-8" #checked on 18.05.2024
-#boot_image="rocky-linux-cloud/rocky-linux-9" #checked on 18.05.2024
-#boot_image="ubuntu-os-cloud/ubuntu-2004-lts" #checked on 18.05.2024
-#boot_image="ubuntu-os-cloud/ubuntu-2204-lts" #checked on 18.05.2024
-#boot_image="debian-cloud/debian-10" #checked on 18.05.2024
-#boot_image="debian-cloud/debian-11" #checked on 18.05.2024
-#boot_image="debian-cloud/debian-12" #checked on 18.05.2024
+~INSTACE_1:
+region=eu-north-1
+namespace=foxy
+vpc_cidr_block=@@
+subnet_cidr_block=@@
+#ami="ami-0506d6d51f1916a96" #Debian 12
+#ami="ami-010b74bc1a8b29122" #Ubuntu 20-04
+#ami="ami-0914547665e6a707c" #Ubuntu 22-04
+#ami="ami-02c621fe0333f4afb" #SUSE SLES-15
+ami="ami-03035978b5aeb1274" #RHEL-9
+#ami="ami-029e4db491be76287" # Amazon Linux 2023
+#ami="ami-0f0ec0d37d04440e3" # Amazon Linux 2
+volume_size=@@
+auto_key_public=@@meta/public.key
+auto_key_private=@@meta/private.key
+instance_type="t3.micro"
 
 /* ############# inlined BASH part
 case $boot_image in
-*"ubuntu"*)
-    ssh_user="ubuntu"
+"ami-010b74bc1a8b29122" | "ami-0914547665e6a707c")
+    ssh_user="ubuntu" #Ubuntu 20-04 & 22-04
     http_service=apache2
     wp_owner="www-data:www-data"
     extra_pkgs="php libapache2-mod-php php-mysql php-curl php-pdo php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip fail2ban nano wget mc"
     wp_http_conf="/etc/$http_service/sites-enabled/wordpress.conf"
     www_home=/var/www/html
     ;;
-*"debian"*)
-    ssh_user="admin"
+"ami-0506d6d51f1916a96")
+    ssh_user="ec2-user" #SUSE SLES-15
     http_service=apache2
     extra_pkgs="php libapache2-mod-php php-mysql php-curl php-pdo php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip fail2ban nano  wget mc"
     wp_http_conf="/etc/apache2/sites-enabled/wordpress.conf"
     www_home=/var/www/html
     ;;
-*"suse"*)
-    ssh_user="devops"
+"ami-02c621fe0333f4afb")
+    ssh_user="admin" # Debian-12
     http_service=apache2
     wp_owner="wwwrun:www"
     wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
     www_home=/srv/www/htdocs
-    case $boot_image in
-    *"-leap")
-        extra_pkgs="php apache2-mod_php81 php-zlib php-mbstring  php-pdo php-mysql php-opcache php-xml php-gd php-devel php-json fail2ban nano wget mc"
-        ;;
-    *"-15")
-        suse_boot_delay=10
-        extra_repo="https://download.opensuse.org/repositories/openSUSE:Backports:SLE-15-SP4/standard/openSUSE:Backports:SLE-15-SP4.repo"
-        extra_pkgs="php apache2-mod_php8 php-zlib php-mbstring  php-pdo php-mysql php-opcache php-xml php-gd php-devel php-json fail2ban nano wget mc"
-        ;;
-    *) ;;
-    esac
+    suse_boot_delay=10
+    extra_repo="https://download.opensuse.org/repositories/openSUSE:Backports:SLE-15-SP4/standard/openSUSE:Backports:SLE-15-SP4.repo"
+    extra_pkgs="php apache2-mod_php8 php-zlib php-mbstring  php-pdo php-mysql php-opcache php-xml php-gd php-devel php-json fail2ban nano wget mc"
     ;;
-*)
-    ssh_user="devops"
+"ami-03035978b5aeb1274")
+    ssh_user="ec2-user" #RHEL-9
     http_service=httpd
     wp_owner="apache:apache"
     extra_pkgs="php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget mc"
     wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
     www_home=/var/www/html
-    case $boot_image in
-    *"-7")
-        extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-        extra_repo_php="http://rpms.remirepo.net/enterprise/remi-release-7.rpm --enablerepo=remi-php74"
-        ;;
-    *"-8") extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm ;;
-    *"-9") extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm ;;
-    esac
+    extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+    ;;
+"ami-0f0ec0d37d04440e3")
+    ssh_user="ec2-user" # Amazon Linux 2
+    http_service=httpd
+    wp_owner="apache:apache"
+    extra_pkgs="php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget mc"
+    wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
+    www_home=/var/www/html
+    amazon_extras="sudo amazon-linux-extras install epel -y"
+    ;;
+"ami-029e4db491be76287")
+    ssh_user="ec2-user" #  # Amazon Linux 2023
+    http_service=httpd
+    wp_owner="apache:apache"
+    extra_pkgs="php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget mc"
+    wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
+    www_home=/var/www/html
+    amazon_extras="sudo amazon-linux-extras install epel -y"
     ;;
 esac
 */
-
-ssh_user=@@last
-auto_key_public=@@meta/public.key
-auto_key_private=@@meta/private.key
-startup_script_file=@@
 
 ######### TF outputs returned parameters
 walkman_install=@@self

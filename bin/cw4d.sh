@@ -46,13 +46,13 @@ check_ansible_connection() {
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
     cat <<EOF >"$tmp"
 - hosts: $group
-  gather_facts: no
+  become: true
   tasks:
   - name: Wait for hosts become reachable
     ansible.builtin.wait_for_connection:
       timeout: $delay
 EOF
-    play_this "$tmp" "$t"
+    play_this "$tmp" "$t" 1
 
 }
 
@@ -73,7 +73,11 @@ play_this() {
         ansible-playbook "$tmp" -i "$ALBUM_SELF"
         rt "$timer"
     fi
-    cat "$tmp" >>$FULL_PLAYBOOK_TMP
+    if [ -z "$3" ]; then
+        grep <"$tmp" -v "^  tasks:\|^- hosts:\|  become:" >>$FULL_PLAYBOOK_TMP
+    else
+        cat "$tmp" >>$FULL_PLAYBOOK_TMP
+    fi
     rm -f "$tmp"
 }
 ################ EXTENTION HELPERS LIBRARY #############################
@@ -121,6 +125,15 @@ GEN_strong_password() {
     echo "$password"
 }
 
+set_FLOW() {
+    case $1 in
+    *"fast"*)
+        unset STEP_BY_STEP
+        ;;
+    *) STEP_BY_STEP="yes" ;;
+    esac
+}
+
 #============== A
 do_ADD() { # Docker ADD analogue
     [ -z "$1" ] && return
@@ -159,7 +172,7 @@ do_ADD() { # Docker ADD analogue
     echo "%%%%%%%%%%% remotely: Content ADD/COPY %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
-  become: yes
+  become: true
   tasks:
 EOF
     case $src in
@@ -253,6 +266,7 @@ do_ENV() { # Docker ENV analogue
     do_VOLUME "/etc/env.walkman" "root:root" 0755 >/dev/null
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
+  become: true
   tasks:
   - name: Populate service facts
     ansible.builtin.service_facts:
@@ -279,7 +293,6 @@ do_ENV() { # Docker ENV analogue
           state: restarted
           daemon_reload: true
           name: $ANSIBLE_ENTRYPOINT
-    become: yes
     when: ansible_facts.services['$ANSIBLE_ENTRYPOINT.service'] is defined  
 EOF
     echo "Entrypoint: [$ANSIBLE_ENTRYPOINT] Environment:"
@@ -417,7 +430,6 @@ set_SERVICE() {
           disable_recommends: false
           name: $rpm_name
         when: (ansible_os_family == 'Suse') and ('$rpm_name' not in ansible_facts.packages)
-    become: true
     ignore_errors: true
 
   - name: Make sure a $rpm_name unit is running
@@ -464,25 +476,24 @@ set_MARIADB() {
     echo "%%%%%%%%%%% remotely: Setup $server_pkg %%%%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
+  become: true
   tasks:
   - name: Install pexpect
-    become: yes
     pip:
       name: pexpect
       executable: pip3
     vars:
       ansible_python_interpreter: /usr/bin/python3
   - name: Make sure a service unit is running
-    become: yes
     ansible.builtin.systemd_service:
       state: started
       name: '$SQL_CONTEXT'
   - name: check mysql
     ansible.builtin.shell: echo "exit" | mysql -u root >> /dev/null 2>&1 || echo "secured"
     register: mysql_secured
+    become: false
     ignore_errors: true
   - name: secure $SQL_CONTEXT
-    become: yes
     expect:
       command: sudo mysql_secure_installation
       responses:
@@ -559,7 +570,6 @@ EOF
           disable_recommends: false
           name: $pkg
         when: ansible_os_family == 'Suse'
-    become: true
     ignore_errors: true
     when: ('$pkg' not in ansible_facts.packages)
 EOF
@@ -575,8 +585,12 @@ set_PLAY() { # ansible Wrapper
     t=$(rt)
     [ -z "$1" ] && playbook=$FULL_PLAYBOOK_TMP
     echo -e
+    echo "%%%%%%%%%%%%%%%%% used PLAYBOOK:  %%%%%%%%%%%%%%%%%%%"
+    #cat "$playbook"
     echo "%%%%%%%%%%% remotely: PLAY: $playbook %%%%%%%%%%%%%%%"
-    play_this "$playbook" "$t" #| grep -v "^PLAY \|^[[:space:]]*$"
+    #   play_this "$playbook" "$t" #| grep -v "^PLAY \|^[[:space:]]*$"
+    ansible-playbook "$playbook" -i "$ALBUM_SELF"
+    rt "$t"
 }
 #============== R
 set_REPO() {
@@ -617,7 +631,6 @@ set_REPO() {
           repo: $repo
           auto_import_keys: yes
         when: ansible_os_family == 'Suse'
-    become: true
     ignore_errors: true
 EOF
     play_this "$tmp" "$t" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
@@ -644,13 +657,14 @@ do_RUN() { # Docker RUN analogue
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
-  gather_facts: no
+  become: true
   tasks:
   - name: commands RUN 
     ansible.builtin.script:
      chdir: $ANSIBLE_WORKDIR 
      cmd: $tmp_sh
     register: out
+    become: false
   - debug: var=out.stdout_lines
 EOF
     play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$'
@@ -696,8 +710,7 @@ EOF
     "mysql" | "mariadb")
         cat <<EOF >>"$tmp"
   - name: run SQL
-    become: true
-    ansible.builtin.shell: mysql -u $SQL_USER "-p$SQL_PASSWORD" "$SQL_DATABASE"< /tmp/walkman_cmd_SQL.sql 2>&1 | grep ""
+    ansible.builtin.shell: cat /tmp/walkman_cmd_SQL.sql | mysql -u $SQL_USER "-p$SQL_PASSWORD" "$SQL_DATABASE" 2>&1 | grep ""
     ignore_errors: true
     register: out
   - debug: var=out.stdout_lines
@@ -804,7 +817,7 @@ do_VOLUME() { # Docker VOLUME analogue
     echo "%%%%%%%%%%% remotely: Create VOLUME(directory) %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
-  become: yes
+  become: true
   tasks:
   - name: Create DIRECTORY
     ansible.builtin.file:
