@@ -77,7 +77,7 @@ case $boot_image in
     extra_pkgs="php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget mc"
     wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
     www_home=/var/www/html
-    amazon_extras="sudo amazon-linux-extras install epel -y"
+    amazon2_extras="sudo amazon-linux-extras install epel -y"
     ;;
 "ami-029e4db491be76287")
     ssh_user="ec2-user" #  # Amazon Linux 2023
