@@ -39,21 +39,29 @@ STEP_BY_STEP="yes"
 
 check_ansible_connection() {
     local group=${1:-"all"}
-    local delay=${2:-"30"}
+    #  local delay=${2:-"120"}
     local t
     t=$(rt)
     local tmp
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
     cat <<EOF >"$tmp"
 - hosts: $group
-  become: true
+  gather_facts: no
   tasks:
   - name: Wait for hosts become reachable
     ansible.builtin.wait_for_connection:
-      timeout: $delay
+      timeout: 120
 EOF
-    play_this "$tmp" "$t" 1
+    ansible-playbook "$tmp" -i "$ALBUM_SELF"
 
+    cat <<EOF >$FULL_PLAYBOOK_TMP
+- hosts: $group
+  become: true
+  tasks:
+EOF
+
+    rt "$t"
+    rm -f "$tmp"
 }
 
 rt() {
@@ -222,7 +230,7 @@ EOF
     [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
 
     grep <"$tmp" "src\|dest\|repo\|mode\|owner\|group\|url" | tr -d ' '
-    play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|^[[:space:]]*$\|ok" | grep -v '""'
+    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|^[[:space:]]*$\|ok" | grep -v '""'
 }
 
 do_ARG() { # Docker ARG analogue
@@ -297,7 +305,7 @@ do_ENV() { # Docker ENV analogue
 EOF
     echo "Entrypoint: [$ANSIBLE_ENTRYPOINT] Environment:"
     cut <"$tmp_env" -d "=" -f 1 | sed 's/^/[/;s/$/]/'
-    play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
+    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
 }
 #============== F
 do_FROM() { # Docker FROM analogue
@@ -450,7 +458,7 @@ set_SERVICE() {
       name: $rpm_name
     when: ansible_os_family == 'Suse'
 EOF
-    play_this "$tmp" "$t" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+    play_this "$tmp" "$t" #| grep  -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
     echo "SERVICE $1 configured"
 }
 
@@ -511,7 +519,7 @@ set_MARIADB() {
     vars:
       ansible_python_interpreter: /usr/bin/python3
 EOF
-    play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
+    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
     echo "$server_pkg server configured!"
 }
 
@@ -574,7 +582,7 @@ EOF
     when: ('$pkg' not in ansible_facts.packages)
 EOF
     done
-    play_this "$tmp" "$t" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+    play_this "$tmp" "$t" #| grep  -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
     unset YUM_ENABLE_REPO
     echo "OS packages installed"
 }
@@ -633,7 +641,7 @@ set_REPO() {
         when: ansible_os_family == 'Suse'
     ignore_errors: true
 EOF
-    play_this "$tmp" "$t" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+    play_this "$tmp" "$t" #| grep  -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
     echo "OS repository installed"
 }
 
@@ -667,7 +675,7 @@ do_RUN() { # Docker RUN analogue
     become: false
   - debug: var=out.stdout_lines
 EOF
-    play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$'
+    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$'
 }
 
 cmd_RSYNC() { # rsync Wrapper
@@ -827,7 +835,7 @@ do_VOLUME() { # Docker VOLUME analogue
       owner: $usr
       group: $grp
 EOF
-    play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | grep -v '""'
+    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | grep -v '""'
 }
 #============== W
 set_WALKMAN() { # Walkman installer

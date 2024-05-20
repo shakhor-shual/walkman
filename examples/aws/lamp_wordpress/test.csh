@@ -17,9 +17,14 @@
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ 1   # possible here are 0, 1, 2, 3
 
+p_file=@@meta/mysql_root.key
+mysql_root_pass=$(GEN_password root $p_file)
+mysql_wp_user="my_wordpress"
+mysql_wp_pass=$(GEN_password $mysql_wp_user @@meta/mysql_wp_user.key)
+
 ~INSTACE_1:
 region=eu-north-1
-namespace=foxy
+namespace=foxy2
 vpc_cidr_block=@@
 subnet_cidr_block=@@
 #ami="ami-0506d6d51f1916a96" #Debian 12
@@ -95,8 +100,9 @@ esac
 walkman_install=@@self
 
 ############ setup deployment via HELPERs
-set_FLOW fast
-set_TARGET IP-public $ssh_user $auto_key_private
+set_FLOW
+set_TARGET "IP-public" "ec2-user" $auto_key_private
+#set_TARGET IP-public $ssh_user $auto_key_private
 do_FROM all
 cmd_SLEEP $on_boot_delay
 set_REPO $extra_repo
