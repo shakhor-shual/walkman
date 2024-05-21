@@ -40,7 +40,7 @@ auto_key_private=@@meta/private.key
 instance_type="t3.micro"
 
 /* ############# inlined BASH part
-case $boot_image in
+case $ami in
 "ami-010b74bc1a8b29122" | "ami-0914547665e6a707c")
     ssh_user="ubuntu" #Ubuntu 20-04 & 22-04
     http_service=apache2
