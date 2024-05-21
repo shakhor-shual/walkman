@@ -134,15 +134,6 @@ GEN_strong_password() {
     echo "$password"
 }
 
-set_FLOW() {
-    case $1 in
-    *"fast"*)
-        unset STEP_BY_STEP
-        ;;
-    *) STEP_BY_STEP="yes" ;;
-    esac
-}
-
 #============== A
 do_ADD() { # Docker ADD analogue
     [ -z "$1" ] && return
@@ -239,12 +230,26 @@ do_ARG() { # Docker ARG analogue
     [ -z "$1" ] && return
     #  ANSIBLE_ARG=$1
 }
+
+set_APACHE() {
+    local t
+    t=$(rt)
+    echo -e
+    echo "%%%%%%%%%%% remotely: Setup APACHE  %%%%%%%%%%%"
+    set_SERVICE "httpd" >/dev/null
+    if [ -n "$1" ]; then
+        echo "Setup service unit ENV variables"
+        do_ENTRYPOINT "httpd" >/dev/null
+        do_ENV "$@" >/dev/null
+        do_ENTRYPOINT "apache2" >/dev/null
+        do_ENV "$@" >/dev/null
+    fi
+    rt "$t"
+    echo "service APACHE configured and restarted"
+}
 #============== C
 do_COPY() { # Docker COPY analogue
     do_ADD "$@"
-}
-cmd_INTERACT() {
-    RUN_CMD_CONNECT="yes"
 }
 #============== D
 #============== E
@@ -309,6 +314,15 @@ EOF
     play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
 }
 #============== F
+set_FLOW() {
+    case $1 in
+    *"fast"*)
+        unset STEP_BY_STEP
+        ;;
+    *) STEP_BY_STEP="yes" ;;
+    esac
+}
+
 do_FROM() { # Docker FROM analogue
     ANSIBLE_TARGET=all
     [ -n "$1" ] && ANSIBLE_TARGET=$1
@@ -316,7 +330,6 @@ do_FROM() { # Docker FROM analogue
     echo "%%%%%%%%%%% remotely: FROM chosen Target(s) %%%%%%%%%%%%%%%"
     check_ansible_connection "$ANSIBLE_TARGET" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | sed 's/^ok/Target(s) chosen/'
 }
-
 #============== H
 cmd_HELM() { # helm Wrapper
     [ -z "$1" ] && return
@@ -325,6 +338,10 @@ cmd_HELM() { # helm Wrapper
     echo "%%%%%%%%%%% remotely: HELM %%%%%%%%%%%%%%%"
     helm "$@"
     echo -e
+}
+#============== I
+cmd_INTERACT() {
+    RUN_CMD_CONNECT="yes"
 }
 #============== K
 cmd_KUBECTL() { # kubectl Wrapper
@@ -335,133 +352,17 @@ cmd_KUBECTL() { # kubectl Wrapper
     kubectl "$@"
     echo -e
 }
+#============== L
 #============== M
-set_APACHE() {
+set_MARIADB() {
+    SQL_CONTEXT="mariadb"
     local t
     t=$(rt)
-    echo -e
-    echo "%%%%%%%%%%% remotely: Setup APACHE  %%%%%%%%%%%"
-    set_SERVICE "httpd" >/dev/null
-    if [ -n "$1" ]; then
-        echo "Setup service unit ENV variables"
-        do_ENTRYPOINT "httpd" >/dev/null
-        do_ENV "$@" >/dev/null
-        do_ENTRYPOINT "apache2" >/dev/null
-        do_ENV "$@" >/dev/null
-    fi
+    echo "%%%%%%%%%%% remotely: Setup mariadb-server %%%%%%%%%%%%%%%"
+    set_PACKAGE mariadb mariadb-server >/dev/null
+    set_PACKAGE mariadb105 mariadb105-server >/dev/null
+    set_MYSQL_SECURE "$1" "$2" >/dev/null
     rt "$t"
-    echo "service APACHE configured and restarted"
-}
-
-set_NGINX() {
-    local t
-    t=$(rt)
-    echo -e
-    echo "%%%%%%%%%%% remotely: Setup NGINX  %%%%%%%%%%%"
-    set_SERVICE "nginx" >/dev/null
-    if [ -n "$1" ]; then
-        echo "Setup service unit ENV variables"
-        do_ENTRYPOINT "nginx" >/dev/null
-        do_ENV "$@" >/dev/null
-    fi
-    rt "$t"
-    echo "service NGINX configured and restarted"
-}
-
-set_PHP_FPM() {
-    local t
-    t=$(rt)
-    echo -e
-    echo "%%%%%%%%%%% remotely: Setup PHP-FPM  %%%%%%%%%%%"
-    set_SERVICE "php-fpm" >/dev/null
-    if [ -n "$1" ]; then
-        echo "Setup service unit ENV variables"
-        do_ENTRYPOINT "php-fpm" >/dev/null
-        do_ENV "$@" >/dev/null
-    fi
-    rt "$t"
-    echo "service PHP-FPM configured and restarted"
-}
-
-set_NODE_JS() {
-    local t
-    t=$(rt)
-    echo -e
-    echo "%%%%%%%%%%% remotely: Setup NODE-JS  %%%%%%%%%%%"
-    set_SERVICE "node" >/dev/null
-    echo "service NODE-JS restarted"
-    if [ -n "$1" ]; then
-        echo "Setup service unit ENV variables"
-        do_ENTRYPOINT "node" >/dev/null
-        do_ENV "$@" >/dev/null
-    fi
-    rt "$t"
-}
-
-set_SERVICE() {
-    [ -z "$1" ] && return
-    local rpm_name
-    local deb_name
-    local t
-    t=$(rt)
-
-    [ "$1" = "apache2" ] && rpm_name="httpd" && deb_name="apache2"
-    [ "$1" = "httpd" ] && rpm_name="httpd" && deb_name="apache2"
-
-    echo -e
-    echo "%%%%%%%%%%% remotely: Setup $1 %%%%%%%%%%%"
-    local tmp
-    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
-    cat <<EOF >"$tmp"
-- hosts: $ANSIBLE_TARGET
-  become: true
-  gather_facts: yes
-  tasks:
-  - name: Gather package facts
-    ansible.builtin.package_facts:
-      manager: auto
-  - name: install $1
-    block:
-      - name: $rpm_name
-        ansible.builtin.package:
-          disable_gpg_check: "{{ true | d(omit) }}"
-          state: present
-          name: $rpm_name
-        when: (ansible_os_family == 'RedHat') and ('$rpm_name' not in ansible_facts.packages)
-      - name: $deb_name
-        ansible.builtin.apt:
-          update_cache: yes
-          state: present
-          name: $deb_name 
-        when: (ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu') and ('$deb_name' not in ansible_facts.packages)
-      - name: $rpm_name
-        community.general.zypper:
-          state: present
-          disable_recommends: false
-          name: $rpm_name
-        when: (ansible_os_family == 'Suse') and ('$rpm_name' not in ansible_facts.packages)
-    ignore_errors: true
-
-  - name: Make sure a $rpm_name unit is running
-    ansible.builtin.systemd_service:
-      state: restarted
-      name: $rpm_name
-    when: ansible_os_family == 'RedHat'
-  
-  - name: Make sure a $deb_name unit is running
-    ansible.builtin.systemd_service:
-      state: restarted
-      name: $deb_name
-    when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
-
-  - name: Make sure a $rpm_name unit is running
-    ansible.builtin.systemd_service:
-      state: restarted
-      name: $rpm_name
-    when: ansible_os_family == 'Suse'
-EOF
-    play_this "$tmp" "$t" #| grep  -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
-    echo "SERVICE $1 configured"
 }
 
 set_MYSQL() {
@@ -471,17 +372,6 @@ set_MYSQL() {
     echo -e
     echo "%%%%%%%%%%% remotely: Setup mysql-server %%%%%%%%%%%%%%%"
     set_PACKAGE mysql mysql-server >/dev/null
-    set_MYSQL_SECURE "$1" "$2" >/dev/null
-    rt "$t"
-}
-
-set_MARIADB() {
-    SQL_CONTEXT="mariadb"
-    local t
-    t=$(rt)
-    echo "%%%%%%%%%%% remotely: Setup mariadb-server %%%%%%%%%%%%%%%"
-    set_PACKAGE mariadb mariadb-server >/dev/null
-    set_PACKAGE mariadb105 mariadb105-server >/dev/null
     set_MYSQL_SECURE "$1" "$2" >/dev/null
     rt "$t"
 }
@@ -536,6 +426,36 @@ set_MYSQL_SECURE() {
 EOF
     play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
     echo "$SQL_CONTEXT-server secured!"
+}
+#============== N
+set_NGINX() {
+    local t
+    t=$(rt)
+    echo -e
+    echo "%%%%%%%%%%% remotely: Setup NGINX  %%%%%%%%%%%"
+    set_SERVICE "nginx" >/dev/null
+    if [ -n "$1" ]; then
+        echo "Setup service unit ENV variables"
+        do_ENTRYPOINT "nginx" >/dev/null
+        do_ENV "$@" >/dev/null
+    fi
+    rt "$t"
+    echo "service NGINX configured and restarted"
+}
+
+set_NODE_JS() {
+    local t
+    t=$(rt)
+    echo -e
+    echo "%%%%%%%%%%% remotely: Setup NODE-JS  %%%%%%%%%%%"
+    set_SERVICE "node" >/dev/null
+    echo "service NODE-JS restarted"
+    if [ -n "$1" ]; then
+        echo "Setup service unit ENV variables"
+        do_ENTRYPOINT "node" >/dev/null
+        do_ENV "$@" >/dev/null
+    fi
+    rt "$t"
 }
 
 #============== P
@@ -601,6 +521,21 @@ EOF
     play_this "$tmp" "$t" #| grep  -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
     unset YUM_ENABLE_REPO
     echo "OS packages installed"
+}
+
+set_PHP_FPM() {
+    local t
+    t=$(rt)
+    echo -e
+    echo "%%%%%%%%%%% remotely: Setup PHP-FPM  %%%%%%%%%%%"
+    set_SERVICE "php-fpm" >/dev/null
+    if [ -n "$1" ]; then
+        echo "Setup service unit ENV variables"
+        do_ENTRYPOINT "php-fpm" >/dev/null
+        do_ENV "$@" >/dev/null
+    fi
+    rt "$t"
+    echo "service PHP-FPM configured and restarted"
 }
 
 set_PLAY() { # ansible Wrapper
@@ -709,6 +644,84 @@ cmd_RSYNC() { # rsync Wrapper
     rsync "$@"
 }
 #============== S
+set_SERVICE() {
+    [ -z "$1" ] && return
+    local rpm_name
+    local deb_name
+    local t
+    t=$(rt)
+
+    [ "$1" = "apache2" ] && rpm_name="httpd" && deb_name="apache2"
+    [ "$1" = "httpd" ] && rpm_name="httpd" && deb_name="apache2"
+
+    echo -e
+    echo "%%%%%%%%%%% remotely: Setup $1 %%%%%%%%%%%"
+    local tmp
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
+    cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  become: true
+  gather_facts: yes
+  tasks:
+  - name: Gather package facts
+    ansible.builtin.package_facts:
+      manager: auto
+  - name: install $1
+    block:
+      - name: $rpm_name
+        ansible.builtin.package:
+          disable_gpg_check: "{{ true | d(omit) }}"
+          state: present
+          name: $rpm_name
+        when: (ansible_os_family == 'RedHat') and ('$rpm_name' not in ansible_facts.packages)
+      - name: $deb_name
+        ansible.builtin.apt:
+          update_cache: yes
+          state: present
+          name: $deb_name 
+        when: (ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu') and ('$deb_name' not in ansible_facts.packages)
+      - name: $rpm_name
+        community.general.zypper:
+          state: present
+          disable_recommends: false
+          name: $rpm_name
+        when: (ansible_os_family == 'Suse') and ('$rpm_name' not in ansible_facts.packages)
+    ignore_errors: true
+
+  - name: Make sure a $rpm_name unit is running
+    ansible.builtin.systemd_service:
+      state: restarted
+      name: $rpm_name
+    when: ansible_os_family == 'RedHat'
+  
+  - name: Make sure a $deb_name unit is running
+    ansible.builtin.systemd_service:
+      state: restarted
+      name: $deb_name
+    when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
+
+  - name: Make sure a $rpm_name unit is running
+    ansible.builtin.systemd_service:
+      state: restarted
+      name: $rpm_name
+    when: ansible_os_family == 'Suse'
+EOF
+    play_this "$tmp" "$t" #| grep  -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+    echo "SERVICE $1 configured"
+}
+
+cmd_SLEEP() {
+    [ -z "$1" ] && return
+    case $1 in
+    *[!0-9]*)
+        echo -e
+        echo "%%%%%%%%%%% remotely: Wait $1 sec. %%%%%%%%%%%"
+        sleep "$1"
+        ;;
+    *) return ;;
+    esac
+}
+
 cmd_SQL() {
     local tmp
     local tmp_sql
@@ -755,19 +768,6 @@ EOF
     esac
     play_this "$tmp" "$t" # | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$' | grep "^ERROR"
 }
-
-cmd_SLEEP() {
-    [ -z "$1" ] && return
-    case $1 in
-    *[!0-9]*)
-        echo -e
-        echo "%%%%%%%%%%% remotely: Wait $1 sec. %%%%%%%%%%%"
-        sleep "$1"
-        ;;
-    *) return ;;
-    esac
-}
-
 #============== T
 set_TARGET() { # create ssh access artefacts for target
     [ -z "$1" ] && return
