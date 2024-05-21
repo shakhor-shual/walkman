@@ -79,11 +79,11 @@ play_this() {
     local tmp=$1
     local timer=$2
     if [ -n "$STEP_BY_STEP" ]; then
-        ansible-playbook "$tmp" -i "$ALBUM_SELF" | sed '/\*$/N;s/\n/\t/;s/\*//g' | grep -v 'skipping:\|^[[:space:]]*$\|^PLAY\|^TASK \[Gather]'
+        ansible-playbook "$tmp" -i "$ALBUM_SELF" | sed ':a;N;$!ba;s/\*\n/\*\t/g' | sed 's/\*//g' | grep -v 'skipping:\|^[[:space:]]*$\|^PLAY\|^TASK \[Gather'
         rt "$timer"
     fi
     if [ -z "$3" ]; then
-        grep <"$tmp" -v "^  tasks:\|^- hosts:\|  become:" >>$FULL_PLAYBOOK_TMP
+        grep <"$tmp" -v "^  tasks:\|^- hosts:\|^  become:\|^  gather_facts:" >>$FULL_PLAYBOOK_TMP
     else
         cat "$tmp" >>$FULL_PLAYBOOK_TMP
     fi
@@ -613,7 +613,7 @@ set_PLAY() { # ansible Wrapper
     #cat "$playbook"
     echo "%%%%%%%%%%% remotely: PLAY: $playbook %%%%%%%%%%%%%%%"
     #   play_this "$playbook" "$t" #| grep -v "^PLAY \|^[[:space:]]*$"
-    ansible-playbook "$playbook" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g' | tr -s " " | grep -v "skipping:"
+    ansible-playbook "$playbook" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | sed ':a;N;$!ba;s/\*\n/\*\t/g' | sed 's/\*//g' | grep -v "skipping:"
     rt "$t"
 }
 #============== R
@@ -626,7 +626,7 @@ set_REPO() {
     repos_string=$*
     if [[ $repos_string =~ "amazon-linux-extras" ]]; then
         repos_string=$(echo "$repos_string" | sed 's/sudo//g;s/amazon-linux-extras/sudo amazon-linux-extras/g')
-        do_RUN "$repos_string; sudo yum clean metadata"
+        do_RUN "$repos_string; sudo yum clean metadata" >/dev/null
     else
 
         [[ -n $2 ]] && [[ $2 =~ "enable" ]] && YUM_ENABLE_REPO=$(echo "$2" | cut -d '=' -f 2)
