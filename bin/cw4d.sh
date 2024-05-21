@@ -79,7 +79,7 @@ play_this() {
     local tmp=$1
     local timer=$2
     if [ -n "$STEP_BY_STEP" ]; then
-        ansible-playbook "$tmp" -i "$ALBUM_SELF"
+        ansible-playbook "$tmp" -i "$ALBUM_SELF" | sed '/\*$/N;s/\n/\t/;s/\*//g' | grep -v 'skipping:\|^[[:space:]]*$\|^PLAY\|^TASK \[Gather]'
         rt "$timer"
     fi
     if [ -z "$3" ]; then
