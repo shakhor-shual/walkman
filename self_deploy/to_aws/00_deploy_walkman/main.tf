@@ -89,10 +89,10 @@ resource "aws_route_table_association" "subnet-association" {
 }
 
 resource "aws_instance" "walkman_instance" {
-  ami             = var.ami
-  instance_type   = var.instance_type
-  subnet_id       = aws_subnet.walkman_subnet.id
-  security_groups = [aws_security_group.walkman_ssh.id]
+  ami                    = var.ami
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.walkman_subnet.id
+  vpc_security_group_ids = [aws_security_group.walkman_ssh.id]
 
   # Attaching public key to instance
   key_name = aws_key_pair.walkman_key_pair.key_name

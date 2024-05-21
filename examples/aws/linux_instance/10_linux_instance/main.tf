@@ -39,7 +39,7 @@ resource "aws_subnet" "my_project_subnet" {
 
 resource "aws_security_group" "my_project_ssh" {
   vpc_id      = aws_vpc.project_vpc.id
-  name        = "$(var.namespace)-security-group"
+  name        = "${var.namespace}-security-group"
   description = "Allow SSH and ICMP traffic"
 
   ingress {
@@ -65,7 +65,7 @@ resource "aws_security_group" "my_project_ssh" {
 }
 
 resource "aws_key_pair" "my_key_pair" {
-  key_name   = "$(var.namespace)-key-pair"
+  key_name   = "${var.namespace}-key-pair"
   public_key = local_file.public_key.content
 }
 
@@ -89,10 +89,10 @@ resource "aws_route_table_association" "subnet-association" {
 }
 
 resource "aws_instance" "my_project_instance" {
-  ami             = var.ami
-  instance_type   = var.instance_type
-  subnet_id       = aws_subnet.my_project_subnet.id
-  security_groups = [aws_security_group.my_project_ssh.id]
+  ami                    = var.ami
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.my_project_subnet.id
+  vpc_security_group_ids = [aws_security_group.my_project_ssh.id]
 
   # Attaching public key to instance
   key_name = aws_key_pair.my_key_pair.key_name
