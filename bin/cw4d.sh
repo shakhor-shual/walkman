@@ -620,14 +620,13 @@ set_PLAY() { # ansible Wrapper
 set_REPO() {
     [ -z "$1" ] && return
     local repo="$1"
-    local deb_repo
+    local repos_string
     local t
     t=$(rt)
-    deb_repo=$*
-    if [[ $deb_repo =~ "amazon-linux-extras" ]]; then
-        do_USER root
-        do_RUN "$deb_repo"
-        do_RUN "sudo yum clean metadata"
+    repos_string=$*
+    if [[ $repos_string =~ "amazon-linux-extras" ]]; then
+        repos_string=$(echo "$repos_string" | sed 's/sudo//g;s/amazon-linux-extras/sudo amazon-linux-extras/g')
+        do_RUN "$repos_string; sudo yum clean metadata"
     else
 
         [[ -n $2 ]] && [[ $2 =~ "enable" ]] && YUM_ENABLE_REPO=$(echo "$2" | cut -d '=' -f 2)
@@ -651,7 +650,7 @@ set_REPO() {
       - name: $repo
         ansible.builtin.apt:
           state: present
-          name: $deb_repo
+          name: $repos_string
         when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
       - name: APT update
         ansible.builtin.apt:
