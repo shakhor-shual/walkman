@@ -57,6 +57,7 @@ EOF
     cat <<EOF >$FULL_PLAYBOOK_TMP
 - hosts: $group
   become: true
+  gather_facts: yes
   tasks:
 EOF
 
@@ -414,6 +415,7 @@ set_SERVICE() {
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: true
+  gather_facts: yes
   tasks:
   - name: Gather package facts
     ansible.builtin.package_facts:
@@ -464,24 +466,36 @@ EOF
 
 set_MYSQL() {
     SQL_CONTEXT="mysql"
-    set_MARIADB "$@"
+    local t
+    t=$(rt)
+    echo -e
+    echo "%%%%%%%%%%% remotely: Setup mysql-server %%%%%%%%%%%%%%%"
+    set_PACKAGE mysql mysql-server >/dev/null
+    set_MYSQL_SECURE "$1" "$2" >/dev/null
+    rt "$t"
 }
 
 set_MARIADB() {
-    local tmp
-    local server_pkg="mariadb-server"
-    local client_pkg="mariadb"
+    SQL_CONTEXT="mariadb"
     local t
     t=$(rt)
+    echo "%%%%%%%%%%% remotely: Setup mariadb-server %%%%%%%%%%%%%%%"
+    set_PACKAGE mariadb mariadb-server >/dev/null
+    set_PACKAGE mariadb105 mariadb105-server >/dev/null
+    set_MYSQL_SECURE "$1" "$2" >/dev/null
+    rt "$t"
+}
 
-    [ "$SQL_CONTEXT" = "mysql" ] && server_pkg="mysql-server" && client_pkg="mysql"
-    set_PACKAGE $client_pkg $server_pkg expect python3 python3-pip >/dev/null
+set_MYSQL_SECURE() {
+    local tmp
+    local t
+    t=$(rt)
+    set_PACKAGE expect python3 python3-pip >/dev/null
     SQL_USER=$1
     SQL_PASSWORD=$2
-    SQL_CONTEXT=$client_pkg
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
     echo -e
-    echo "%%%%%%%%%%% remotely: Setup $server_pkg %%%%%%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: Secure $SQL_CONTEXT %%%%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: true
@@ -521,7 +535,7 @@ set_MARIADB() {
       ansible_python_interpreter: /usr/bin/python3
 EOF
     play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
-    echo "$server_pkg server configured!"
+    echo "$SQL_CONTEXT-server secured!"
 }
 
 #============== P
@@ -537,6 +551,7 @@ set_PACKAGE() { # rpm/apt/zipper Wrapper
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: true
+  gather_facts: yes
   tasks:
   - name: Gather package facts
     ansible.builtin.package_facts:
@@ -609,14 +624,21 @@ set_REPO() {
     local t
     t=$(rt)
     deb_repo=$*
-    [[ -n $2 ]] && [[ $2 =~ "enable" ]] && YUM_ENABLE_REPO=$(echo "$2" | cut -d '=' -f 2)
-    echo -e
-    echo "%%%%%%%%%%% remotely: Add REPOSITORY  %%%%%%%%%%%"
-    local tmp
-    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
-    cat <<EOF >"$tmp"
+    if [[ $deb_repo =~ "amazon-linux-extras" ]]; then
+        do_USER root
+        do_RUN "$deb_repo"
+        do_RUN "sudo yum clean metadata"
+    else
+
+        [[ -n $2 ]] && [[ $2 =~ "enable" ]] && YUM_ENABLE_REPO=$(echo "$2" | cut -d '=' -f 2)
+        echo -e
+        echo "%%%%%%%%%%% remotely: Add REPOSITORY  %%%%%%%%%%%"
+        local tmp
+        tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
+        cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: true
+  gather_facts: yes
   tasks:
   - name: install $repo
     block:
@@ -642,7 +664,8 @@ set_REPO() {
         when: ansible_os_family == 'Suse'
     ignore_errors: true
 EOF
-    play_this "$tmp" "$t" #| grep  -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+        play_this "$tmp" "$t" #| grep  -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+    fi
     echo "OS repository installed"
 }
 

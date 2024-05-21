@@ -31,9 +31,9 @@ subnet_cidr_block=@@
 #ami="ami-010b74bc1a8b29122" #Ubuntu 20-04
 #ami="ami-0914547665e6a707c" #Ubuntu 22-04
 #ami="ami-02c621fe0333f4afb" #SUSE SLES-15
-ami="ami-03035978b5aeb1274" #RHEL-9
+#ami="ami-03035978b5aeb1274" #RHEL-9
 #ami="ami-029e4db491be76287" # Amazon Linux 2023
-#ami="ami-0f0ec0d37d04440e3" # Amazon Linux 2
+ami="ami-0f0ec0d37d04440e3" # Amazon Linux 2
 volume_size=@@
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
@@ -82,7 +82,8 @@ case $ami in
     extra_pkgs="php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget mc"
     wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
     www_home=/var/www/html
-    amazon2_extras="sudo amazon-linux-extras install epel -y"
+    extra_repo="amazon-linux-extras install epel -y"
+    extra_repo_php="amazon-linux-extras enable php8.2; amazon-linux-extras enable mariadb10.5"
     ;;
 "ami-029e4db491be76287")
     ssh_user="ec2-user" #  # Amazon Linux 2023
@@ -91,7 +92,6 @@ case $ami in
     extra_pkgs="php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget mc"
     wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
     www_home=/var/www/html
-    amazon_extras="sudo amazon-linux-extras install epel -y"
     ;;
 esac
 */
@@ -104,14 +104,14 @@ set_FLOW
 set_TARGET "IP-public" "ec2-user" $auto_key_private
 #set_TARGET IP-public $ssh_user $auto_key_private
 do_FROM all
-cmd_SLEEP $on_boot_delay
 set_REPO $extra_repo
+set_REPO $extra_repo_php
+#do_RUN "sudo amazon-linux-extras enable php8.2 && sudo amazon-linux-extras enable mariadb10.5 && sudo yum clean metadata"
 set_MARIADB root $mysql_root_pass
 cmd_SQL "CREATE DATABASE IF NOT EXISTS wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$mysql_wp_user'@'localhost' identified by '$mysql_wp_pass';FLUSH PRIVILEGES;"
 set_APACHE
 do_ADD http://wordpress.org/latest.tar.gz $www_home/ $wp_owner 0755
 do_RUN "sudo find $www_home/wordpress -type f -exec chmod 644 {} \;"
-set_REPO $extra_repo_php
 set_PACKAGE $extra_pkgs
 do_ADD @@meta/wordpress.conf $wp_http_conf root:root
 do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
