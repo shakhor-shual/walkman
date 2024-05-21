@@ -67,7 +67,7 @@ ssh_key_private=@@meta/private.key
 startup_script=@@meta/init.sh
 tags="{master, $tag_allow_ssh }"
 #ACCESS_ip=@@self/nat_ip
-<<<do_TARGET | nat_ip | $ssh_user | $ssh_key_private
+set_TARGET nat_ip $ssh_user $ssh_key_private
 
 ~SLAVESOUP:
 group_size=2
@@ -88,16 +88,16 @@ ssh_key_private=@@last
 startup_script=@@last
 tags="{slaves, $tag_allow_ssh, $tag_allow_web }"
 #ACCESS_ip=@@self/nat_ip
-<<<do_TARGET | nat_ip | $ssh_user | $ssh_key_private
+set_TARGET nat_ip $ssh_user $ssh_key_private
 
 ~SETUP_SLAVES
 host=@@all
-<<<SET_ansible_ready | $host | 20
+do_FROM $host
 playbooks="{init_slaves }"
 
 ~SETUP_MASTER:
 host= ~MASTER_NODE_OF_CLUSTER
-<<<SET_ansible_ready | $host | 20
+do_FROM $host
 playbooks="{init_master }"
 
 #this initial dynamic-inventory settings for fifth SINGLE (for Ansible)

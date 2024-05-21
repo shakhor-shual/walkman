@@ -51,4 +51,5 @@ nfs_pv_size =30                                               # @@=50
 ddns_domain_ingress="none"
 ddns_domain_bastion="none"
 ddns_access_token="none"
-<<<do_TARGET | nat_ip | $ssh_user | $auto_key_privare
+
+set_TARGET nat_ip $ssh_user $auto_key_privare
