@@ -89,6 +89,41 @@ play_this() {
     fi
     rm -f "$tmp"
 }
+
+is_hashed() {
+    local haslist="/tmp/stage_haslist"
+    local hashed=1
+    local md5
+
+    md5=$(echo -n "$*" | md5sum | awk '{print $1}')
+    grep -q "$md5" <$haslist && echo "$md5" >>$haslist && hashed=0
+
+    for pm in "$@"; do
+        if [[ $pm =~ "://" ]]; then    # is url
+            if [[ $pm = *.git ]]; then # is git url
+                hashed=0
+            else # is non git url
+                md5=$(echo "$pm" | md5sum | awk '{print $1}')
+                grep -q "$md5" <$haslist && echo "$md5" >>$haslist && hashed=0
+            fi
+        else                      # is non url
+            if [ -f "$pm" ]; then # is file
+                md5=$(stat "$pm" -c %Y | sort -n | tail -n 1 | md5sum | awk '{print $1}')
+                grep -q "$md5" <$haslist && echo "$md5" >>$haslist && hashed=0
+            else                      # is non file
+                if [ -d "$pm" ]; then # is dir
+                    md5=$(stat "$pm/*" -c %Y | sort -n | tail -n 1 | md5sum | awk '{print $1}')
+                    grep -q "$md5" <$haslist && echo "$md5" >>$haslist && hashed=0
+                else # is non dir, non url, non file
+                    hashed=$hashed
+                fi
+            fi
+        fi
+    done
+    return $hashed
+}
+#
+#find /home -exec  stat  -c %Y  {}  \;
 ################ EXTENTION HELPERS LIBRARY #############################
 GET_from_state_by_type() {
     local val
@@ -559,14 +594,14 @@ set_REPO() {
     local t
     t=$(rt)
     repos_string=$*
+    echo -e
+    echo "%%%%%%%%%%% remotely: Add REPOSITORY  %%%%%%%%%%%"
+
     if [[ $repos_string =~ "amazon-linux-extras" ]]; then
         repos_string=$(echo "$repos_string" | sed 's/sudo//g;s/amazon-linux-extras/sudo amazon-linux-extras/g')
         do_RUN "$repos_string; sudo yum clean metadata" >/dev/null
     else
-
         [[ -n $2 ]] && [[ $2 =~ "enable" ]] && YUM_ENABLE_REPO=$(echo "$2" | cut -d '=' -f 2)
-        echo -e
-        echo "%%%%%%%%%%% remotely: Add REPOSITORY  %%%%%%%%%%%"
         local tmp
         tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
         cat <<EOF >"$tmp"
