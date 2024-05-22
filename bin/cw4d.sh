@@ -120,7 +120,6 @@ is_hashed() {
             fi
         fi
     done
-    cat "$hashlist"
     return $hashed
 }
 #
