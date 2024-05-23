@@ -93,16 +93,17 @@ play_this() {
 }
 
 is_hashed() {
-    [ -z "$HASHED_MODE" ] && return 1
     local helper=$1
     local hashlist="/tmp/stage_hashlist"
-    local hashed=1
+    local hashed=0
     local md5
     local cnt=$#
 
     touch "$hashlist"
+    echo "#############################$1#############AAAAAAAAAAAAAAA#"
+    echo "$*"
     md5=$(echo -n "$*" | md5sum | awk '{print $1}')
-    ! grep -q "$md5" <$hashlist && echo "$md5" >>$hashlist && hashed=0
+    ! grep -q "$md5" <$hashlist && echo "$md5" >>$hashlist && hashed=1 && echo "=0====$hashed======"
 
     case $helper in
     "do_RUN") return $hashed ;;
@@ -120,22 +121,24 @@ is_hashed() {
                 hashed=0
             else # is non git url
                 md5=$(echo "$pm" | md5sum | awk '{print $1}')
-                ! grep -q "$md5" <$hashlist && echo "$md5" >>$hashlist && hashed=0
+                ! grep -q "$md5" <$hashlist && echo "$md5" >>$hashlist && hashed=1 && echo "=1====$hashed======"
             fi
         else                      # is non url
             if [ -f "$pm" ]; then # is file
                 md5=$(stat "$pm" -c %Y | sort -n | tail -n 1 | md5sum | awk '{print $1}')
-                ! grep -q "$md5" <$hashlist && echo "$md5" >>$hashlist && hashed=0
+                ! grep -q "$md5" <$hashlist && echo "$md5" >>$hashlist && hashed=1 && echo "=2====$hashed======"
             else                      # is non file
                 if [ -d "$pm" ]; then # is dir
                     md5=$(stat "$pm/*" -c %Y | sort -n | tail -n 1 | md5sum | awk '{print $1}')
-                    ! grep -q "$md5" <$hashlist && echo "$md5" >>$hashlist && hashed=0
+                    ! grep -q "$md5" <$hashlist && echo "$md5" >>$hashlist && hashed=1 && echo "=3====$hashed======"
                 else # is non dir, non url, non file
-                    hashed=$hashed
+                    md5=$(echo -n "$pm" | md5sum | awk '{print $1}')
+                    ! grep -q "$md5" <$hashlist && echo "$md5" >>$hashlist && hashed=1 && echo "=4==exit==$hashed======"
                 fi
             fi
         fi
     done
+    echo "=final====$hashed======"
     return $hashed
 }
 #
@@ -930,13 +933,6 @@ run_helper_by_name() {
         helper_call_string="$(echo "$2" | tr -d ' ' | sed 's/<<<//; s/|/ /g;')"
         ;;
     "do_"[A-Z]* | "set_"[A-Z]* | "cmd_"[A-Z]*)
-        if [ "$PLAY_SPEED" -ge 3 ] && is_hashed "$2"; then
-            echo "%%%%%%%%%%%%%%%%%%% accelerated: Hased HELPER: %%%%%%%%%%%%%%%%%%%%%%%%%%%%"
-            echo "$2"
-            echo "Local params shanges not detected execution skipped!"
-            echo -e
-            return
-        fi
         helper_call_string=$2
         ;;
     ^\$\(*)
@@ -950,6 +946,24 @@ run_helper_by_name() {
     helper_params="$(echo "$helper_call_string" | sed "s/^$helper_name//")"
 
     if helper_exists "$helper_name"; then
+        case $1 in
+        "do_"[A-Z]* | "set_"[A-Z]* | "cmd_"[A-Z]*)
+
+            if [ "$PLAY_SPEED" -ge 3 ] && [[ "$3" =~ "env_after" ]]; then
+                echo "%%%%%%%%%%%%%%%%%%% accelertion: Check HELPER hash changes: %%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+                local hp="$helper_name "$(eval "$(echo "${helper_params}" | sed 's/^/echo "/;s/$/"/')")
+                echo "$hp"
+                if is_hashed ${hp}; then
+                    echo "Helper params changes not detected execution skipped!"
+                    echo -e
+                    return
+                else
+                    echo "Helper params changes detected execution required"
+                fi
+            fi
+            ;;
+        esac
+
         case $1 in
         "do_"[A-Z]* | "set_"[A-Z]* | "cmd_"[A-Z]*)
             [[ "$3" =~ "env_after" ]] && case $helper_name in
