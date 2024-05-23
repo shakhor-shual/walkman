@@ -99,11 +99,8 @@ is_hashed() {
     local cnt=$#
 
     touch "$STAGE_HASH_FILE"
-    echo "#############################$1#############AAAAAAAAAAAAAAA#"
-    echo "$*"
     md5=$(echo -n "$*" | md5sum | awk '{print $1}')
-    ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1 && echo "=0====$hashed======"
-
+    ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
     case $helper in
     "do_RUN") return $hashed ;;
     "set_FLOW" | "set_TARGET" | "set_FROM") return 1 ;;
@@ -120,24 +117,23 @@ is_hashed() {
                 hashed=0
             else # is non git url
                 md5=$(echo "$pm" | md5sum | awk '{print $1}')
-                ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1 && echo "=1=$pm===$hashed======"
+                ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
             fi
         else                      # is non url
             if [ -f "$pm" ]; then # is file
                 md5=$(stat "$pm" -c %Y | sort -n | tail -n 1 | md5sum | awk '{print $1}')
-                ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1 && echo "=2==$pm==$hashed======"
+                ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
             else                      # is non file
                 if [ -d "$pm" ]; then # is dir
                     md5=$(stat "$pm/*" -c %Y | sort -n | tail -n 1 | md5sum | awk '{print $1}')
-                    ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1 && echo "=3=$pm===$hashed======"
+                    ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
                 else # is non dir, non url, non file
                     md5=$(echo -n "$pm" | md5sum | awk '{print $1}')
-                    ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1 && echo "=4==$pm==$hashed======"
+                    ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
                 fi
             fi
         fi
     done
-    echo "=final====$hashed======"
     return $hashed
 }
 #
