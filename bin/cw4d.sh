@@ -102,39 +102,44 @@ is_hashed() {
     md5=$(echo -n "$*" | md5sum | awk '{print $1}')
     ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
     case $helper in
-    "do_RUN") return $hashed ;;
-    "set_FLOW" | "set_TARGET" | "set_FROM") return 1 ;;
-    "do_ADD" | "do_COPY") cnt=2 ;;
-    *) ;;
-    esac
-
-    cnt=2
-    local i=0
-    for pm in "$@"; do
-        [ $i -ge $cnt ] && break
-        if [[ $pm =~ "://" ]]; then    # is url
-            if [[ $pm = *.git ]]; then # is git url
-                hashed=0
-            else # is non git url
-                md5=$(echo "$pm" | md5sum | awk '{print $1}')
-                ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
-            fi
-        else                      # is non url
-            if [ -f "$pm" ]; then # is file
-                md5=$(stat "$pm" -c %Y | sort -n | tail -n 1 | md5sum | awk '{print $1}')
-                ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
-            else                      # is non file
-                if [ -d "$pm" ]; then # is dir
-                    md5=$(stat "$pm/*" -c %Y | sort -n | tail -n 1 | md5sum | awk '{print $1}')
-                    ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
-                else # is non dir, non url, non file
-                    md5=$(echo -n "$pm" | md5sum | awk '{print $1}')
+    "set_TARGET" | "do_FROM") return 1 ;;
+    "do_RUN") ;;
+    "do_ADD" | "do_COPY") cnt=2 ;&
+    *)
+        local i=0
+        for pm in "$@"; do
+            [ $i -ge $cnt ] && break
+            if [[ $pm =~ "://" ]]; then    # is url
+                if [[ $pm = *.git ]]; then # is git url
+                    hashed=0
+                else # is non git url
+                    md5=$(echo "$pm" | md5sum | awk '{print $1}')
                     ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
                 fi
+            else                      # is non url
+                if [ -f "$pm" ]; then # is file
+                    md5=$(stat "$pm" -c %Y | sort -n | tail -n 1 | md5sum | awk '{print $1}')
+                    ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
+                else                      # is non file
+                    if [ -d "$pm" ]; then # is dir
+                        md5=$(stat "$pm/*" -c %Y | sort -n | tail -n 1 | md5sum | awk '{print $1}')
+                        ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
+                    else # is non dir, non url, non file
+                        md5=$(echo -n "$pm" | md5sum | awk '{print $1}')
+                        ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
+                    fi
+                fi
             fi
-        fi
-    done
-    return $hashed
+        done
+        ;;
+    esac
+    echo "------------$hashed------------"
+    if [[ -f $STAGE_REHASH_FILE ]]; then
+        [ $hashed -eq 1 ] && rm -f "$STAGE_REHASH_FILE" && echo "REEEEEEEEEEEEEEEEEEEEEEEEEEMMMMMMMMMMMMMMMMMMMOOOOOOOOOOOOVE"
+        return $hashed
+    fi
+    echo "NNNNNNNNNNNNNNNNNNNNNNNNOOOOOOOOOOOOOOOOOOOO"
+    return 1
 }
 #
 #find /home -exec  stat  -c %Y  {}  \;
@@ -2093,6 +2098,8 @@ case $RUN_MODE in
             STAGE_LABEL=$(head <"$STAGE_INIT_FILE" -n 1 | sed 's/#//g;s/ //g;s/://g;s/~//g;')
             STAGE_TARGET_FILE=$DIR_ALBUM_META/ssh-to-$WS_NAME-$STAGE_LABEL.sh
             STAGE_HASH_FILE=$DIR_WS_HASH/$STAGE_LABEL.hash
+            STAGE_REHASH_FILE=$DIR_WS_HASH/$STAGE_LABEL.rehash
+            touch "$STAGE_REHASH_FILE"
 
             echo
             echo "############################## Stage-$STAGE_COUNT ################################"

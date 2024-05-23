@@ -106,13 +106,13 @@ set_TARGET "IP-public" "ec2-user" $auto_key_private
 do_FROM all
 set_REPO $extra_repo
 set_REPO $extra_repo_php
+set_PACKAGE $extra_pkgs
 #do_RUN "sudo amazon-linux-extras enable php8.2 && sudo amazon-linux-extras enable mariadb10.5 && sudo yum clean metadata"
 set_MARIADB root $mysql_root_pass
 cmd_SQL "CREATE DATABASE IF NOT EXISTS wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$mysql_wp_user'@'localhost' identified by '$mysql_wp_pass';FLUSH PRIVILEGES;"
 set_APACHE
 do_ADD http://wordpress.org/latest.tar.gz $www_home/ $wp_owner 0755
-do_RUN "sudo find $www_home/wordpress -type f -exec chmod 644 {} \;"
-set_PACKAGE $extra_pkgs
+do_RUN "sudo find $www_home/wordpress -type f -exec chmod 666 {} \;"
 do_ADD @@meta/wordpress.conf $wp_http_conf root:root
 do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
 set_APACHE WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$mysql_wp_user" WORDPRESS_DB_PASSWORD="$mysql_wp_pass" WORDPRESS_DB_NAME="wordpress" APACHE_LOG_DIR="/var/log/$http_service" APACHE_DOCUMENT_ROOT="$www_home"
