@@ -35,7 +35,6 @@ SQL_PASSWORD=""
 SQL_DATABASE=""
 PLAYBOOK_SHADOW_TMP=/tmp/full_playbook.yaml
 
-STEP_BY_STEP="yes"
 ALLWAYS_RUN=1
 
 #ANSIBLE_ARG=""
@@ -821,7 +820,7 @@ set_TARGET() { # create ssh access artefacts for target
     echo -e
     echo -e
     echo -e
-    echo "%%%%%%%%%%% remotely: Init TARGET for Setup %%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: Init TARGET for Setup %%%%%%%%%%% speed: $PLAY_SPEED"
     echo "#full album playbook" >$PLAYBOOK_SHADOW_TMP
 
     ANSIBLE_USER=$user
@@ -931,6 +930,13 @@ run_helper_by_name() {
         helper_call_string="$(echo "$2" | tr -d ' ' | sed 's/<<<//; s/|/ /g;')"
         ;;
     "do_"[A-Z]* | "set_"[A-Z]* | "cmd_"[A-Z]*)
+        if [ "$PLAY_SPEED" -ge 3 ] && is_hashed "$2"; then
+            echo "%%%%%%%%%%%%%%%%%%% accelerated: Hased HELPER: %%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+            echo "$2"
+            echo "Local params shanges not detected execution skipped!"
+            echo -e
+            return
+        fi
         helper_call_string=$2
         ;;
     ^\$\(*)
