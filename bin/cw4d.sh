@@ -94,16 +94,15 @@ play_this() {
 
 is_hashed() {
     local helper=$1
-    local hashlist="/tmp/stage_hashlist"
     local hashed=0
     local md5
     local cnt=$#
 
-    touch "$hashlist"
+    touch "$STAGE_HASH_FILE"
     echo "#############################$1#############AAAAAAAAAAAAAAA#"
     echo "$*"
     md5=$(echo -n "$*" | md5sum | awk '{print $1}')
-    ! grep -q "$md5" <$hashlist && echo "$md5" >>$hashlist && hashed=1 && echo "=0====$hashed======"
+    ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1 && echo "=0====$hashed======"
 
     case $helper in
     "do_RUN") return $hashed ;;
@@ -121,19 +120,19 @@ is_hashed() {
                 hashed=0
             else # is non git url
                 md5=$(echo "$pm" | md5sum | awk '{print $1}')
-                ! grep -q "$md5" <$hashlist && echo "$md5" >>$hashlist && hashed=1 && echo "=1====$hashed======"
+                ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1 && echo "=1=$pm===$hashed======"
             fi
         else                      # is non url
             if [ -f "$pm" ]; then # is file
                 md5=$(stat "$pm" -c %Y | sort -n | tail -n 1 | md5sum | awk '{print $1}')
-                ! grep -q "$md5" <$hashlist && echo "$md5" >>$hashlist && hashed=1 && echo "=2====$hashed======"
+                ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1 && echo "=2==$pm==$hashed======"
             else                      # is non file
                 if [ -d "$pm" ]; then # is dir
                     md5=$(stat "$pm/*" -c %Y | sort -n | tail -n 1 | md5sum | awk '{print $1}')
-                    ! grep -q "$md5" <$hashlist && echo "$md5" >>$hashlist && hashed=1 && echo "=3====$hashed======"
+                    ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1 && echo "=3=$pm===$hashed======"
                 else # is non dir, non url, non file
                     md5=$(echo -n "$pm" | md5sum | awk '{print $1}')
-                    ! grep -q "$md5" <$hashlist && echo "$md5" >>$hashlist && hashed=1 && echo "=4==exit==$hashed======"
+                    ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1 && echo "=4==$pm==$hashed======"
                 fi
             fi
         fi
@@ -1317,8 +1316,10 @@ init_album_home() {
         ALBUM_SELF="$DIR_ALBUM_HOME/$album_name"
         DIR_ALBUM_META="$DIR_ALBUM_HOME/.meta"
         DIR_WS_TMP="$DIR_ALBUM_META/$WS_NAME/tmp"
+        DIR_WS_HASH="$DIR_ALBUM_META/$WS_NAME/hash"
         BASH_INLINE="$DIR_WS_TMP/bash_inline.sh"
         mkdir -p "$DIR_WS_TMP"
+        mkdir -p "$DIR_WS_HASH"
         FLAG_LOCK="$DIR_ALBUM_HOME/.album.lock"
         FLAG_ERR="$DIR_ALBUM_HOME/.album.err"
         FLAG_OK="$DIR_ALBUM_HOME/.album.$WS_NAME.ok"
@@ -2041,6 +2042,7 @@ case $RUN_MODE in
         grep <"$album_script" -q "^~" || continue
         init_album_home "$album_script"
         destroy_deployment
+        rm -rf "$DIR_WS_HASH"
     done
     ;;
 
@@ -2094,6 +2096,7 @@ case $RUN_MODE in
             STAGE_INIT_FILE="$DIR_WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
             STAGE_LABEL=$(head <"$STAGE_INIT_FILE" -n 1 | sed 's/#//g;s/ //g;s/://g;s/~//g;')
             STAGE_TARGET_FILE=$DIR_ALBUM_META/ssh-to-$WS_NAME-$STAGE_LABEL.sh
+            STAGE_HASH_FILE=$DIR_WS_HASH/$STAGE_LABEL.hash
 
             echo
             echo "############################## Stage-$STAGE_COUNT ################################"
