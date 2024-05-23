@@ -20,6 +20,7 @@ K9S_v="0.32.4"
 ENV_PREFIX="CW4D_"
 START_POINT=$PWD
 DEBUG=0
+PLAY_SPEED=1
 TF_EC=0
 RUN_LIST="init apply destroy validate describe gitops plan --list --host"
 IN_BASH=0
@@ -32,8 +33,10 @@ SQL_CONTEXT=""
 SQL_USER="root"
 SQL_PASSWORD=""
 SQL_DATABASE=""
-FULL_PLAYBOOK_TMP=/tmp/full_playbook.yaml
+PLAYBOOK_SHADOW_TMP=/tmp/full_playbook.yaml
+
 STEP_BY_STEP="yes"
+ALLWAYS_RUN=1
 
 #ANSIBLE_ARG=""
 
@@ -54,7 +57,7 @@ check_ansible_connection() {
 EOF
     ansible-playbook "$tmp" -i "$ALBUM_SELF"
 
-    cat <<EOF >$FULL_PLAYBOOK_TMP
+    cat <<EOF >$PLAYBOOK_SHADOW_TMP
 - hosts: $group
   become: true
   gather_facts: yes
@@ -78,27 +81,41 @@ rt() {
 play_this() {
     local tmp=$1
     local timer=$2
-    if [ -n "$STEP_BY_STEP" ]; then
+    if [ "$PLAY_SPEED" -ne 2 ]; then
         ansible-playbook "$tmp" -i "$ALBUM_SELF" | sed ':a;N;$!ba;s/\*\n/\*\t/g' | sed 's/\*//g' | grep -v 'skipping:\|^[[:space:]]*$\|^PLAY\|^TASK \[Gather'
         rt "$timer"
     fi
     if [ -z "$3" ]; then
-        grep <"$tmp" -v "^  tasks:\|^- hosts:\|^  become:\|^  gather_facts:" >>$FULL_PLAYBOOK_TMP
+        grep <"$tmp" -v "^  tasks:\|^- hosts:\|^  become:\|^  gather_facts:" >>$PLAYBOOK_SHADOW_TMP
     else
-        cat "$tmp" >>$FULL_PLAYBOOK_TMP
+        cat "$tmp" >>$PLAYBOOK_SHADOW_TMP
     fi
     rm -f "$tmp"
 }
 
 is_hashed() {
+    [ -z "$HASHED_MODE" ] && return 1
+    local helper=$1
     local hashlist="/tmp/stage_hashlist"
     local hashed=1
     local md5
+    local cnt=$#
+
     touch "$hashlist"
     md5=$(echo -n "$*" | md5sum | awk '{print $1}')
     ! grep -q "$md5" <$hashlist && echo "$md5" >>$hashlist && hashed=0
 
+    case $helper in
+    "do_RUN") return $hashed ;;
+    "set_FLOW" | "set_TARGET" | "set_FROM") return 1 ;;
+    "do_ADD" | "do_COPY") cnt=2 ;;
+    *) ;;
+    esac
+
+    cnt=2
+    local i=0
     for pm in "$@"; do
+        [ $i -ge $cnt ] && break
         if [[ $pm =~ "://" ]]; then    # is url
             if [[ $pm = *.git ]]; then # is git url
                 hashed=0
@@ -349,15 +366,6 @@ EOF
     play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
 }
 #============== F
-set_FLOW() {
-    case $1 in
-    *"fast"*)
-        unset STEP_BY_STEP
-        ;;
-    *) STEP_BY_STEP="yes" ;;
-    esac
-}
-
 do_FROM() { # Docker FROM analogue
     ANSIBLE_TARGET=all
     [ -n "$1" ] && ANSIBLE_TARGET=$1
@@ -577,7 +585,7 @@ set_PLAY() { # ansible Wrapper
     local playbook=$1
     local t
     t=$(rt)
-    [ -z "$1" ] && playbook=$FULL_PLAYBOOK_TMP
+    [ -z "$1" ] && playbook=$PLAYBOOK_SHADOW_TMP
     echo -e
     #echo "%%%%%%%%%%%%%%%%% used PLAYBOOK:  %%%%%%%%%%%%%%%%%%%"
     #cat "$playbook"
@@ -814,7 +822,7 @@ set_TARGET() { # create ssh access artefacts for target
     echo -e
     echo -e
     echo "%%%%%%%%%%% remotely: Init TARGET for Setup %%%%%%%%%%%"
-    echo "#full album playbook" >$FULL_PLAYBOOK_TMP
+    echo "#full album playbook" >$PLAYBOOK_SHADOW_TMP
 
     ANSIBLE_USER=$user
     ANSIBLE_GROUP=$user
@@ -1258,9 +1266,14 @@ show_run_parameters() {
 
 set_debug_mode() {
     local debug
+    local speed
     local re='^[0-9]+$'
     debug="$(sed <"$ALBUM_SELF" 's/#.*$//;/^$/d' | grep 'debug@@@' | tr -d ' ' | sed 's/^debug@@@=//; s/^debug@@@//' | tail -n 1)"
+    speed="$(sed <"$ALBUM_SELF" 's/#.*$//;/^$/d' | grep 'speed@@@' | tr -d ' ' | sed 's/^speed@@@=//; s/^speed@@@//' | tail -n 1)"
     [[ $debug =~ $re ]] && DEBUG=$debug
+    [[ $speed =~ $re ]] && PLAY_SPEED=$speed
+    [[ $PLAY_SPEED -gt 3 ]] && PLAY_SPEED=3
+    [[ $PLAY_SPEED -lt 1 ]] && PLAY_SPEED=1
 }
 
 init_album_home() {
@@ -2096,6 +2109,9 @@ case $RUN_MODE in
                         [ "$TF_EC" -eq 1 ] && finish_grace "err_tf" "$STAGE_COUNT" "$stage_path"
                         update_variables_state "$STAGE_INIT_FILE" "env_after"
 
+                        if [ "$RUN_MODE" = "apply" ] || [ "$RUN_MODE" = "gitops" ]; then
+                            [ "$PLAY_SPEED" -eq 2 ] && [ -s "$PLAYBOOK_SHADOW_TMP" ] && do_PLAY
+                        fi
                         if [ -n "$RUN_CMD_CONNECT" ] && [ "$RUN_MODE" = "apply" ] && [ -f "$STAGE_TARGET_FILE" ]; then
                             echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
                             echo "!!!!!!!!!!! STARTED INTERACTIVE SSH SESSION WITH DEPLOYED TARGET !!!!!!!!!!!"

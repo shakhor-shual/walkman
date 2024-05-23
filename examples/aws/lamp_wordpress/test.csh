@@ -16,6 +16,7 @@
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ 1   # possible here are 0, 1, 2, 3
+speed@@@ 1
 
 p_file=@@meta/mysql_root.key
 mysql_root_pass=$(GEN_password root $p_file)
@@ -100,7 +101,6 @@ esac
 walkman_install=@@self
 
 ############ setup deployment via HELPERs
-set_FLOW
 set_TARGET "IP-public" "ec2-user" $auto_key_private
 #set_TARGET IP-public $ssh_user $auto_key_private
 do_FROM all
