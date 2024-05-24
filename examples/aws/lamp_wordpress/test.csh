@@ -16,7 +16,7 @@
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ 1   # possible here are 0, 1, 2, 3
-speed@@@ 3
+speed@@@ 1
 
 p_file=@@meta/mysql_root.key
 mysql_root_pass=$(GEN_password root $p_file)
@@ -41,6 +41,9 @@ auto_key_private=@@meta/private.key
 instance_type="t3.micro"
 
 /* ############# inlined BASH part
+db_pkgs="mariadb mariadb-server"
+db_service="mariadb"
+
 case $ami in
 "ami-010b74bc1a8b29122" | "ami-0914547665e6a707c")
     ssh_user="ubuntu" #Ubuntu 20-04 & 22-04
@@ -65,13 +68,13 @@ case $ami in
     www_home=/srv/www/htdocs
     suse_boot_delay=10
     extra_repo="https://download.opensuse.org/repositories/openSUSE:Backports:SLE-15-SP4/standard/openSUSE:Backports:SLE-15-SP4.repo"
-    extra_pkgs="php apache2-mod_php8 php-zlib php-mbstring  php-pdo php-mysql php-opcache php-xml php-gd php-devel php-json fail2ban nano wget mc"
+    extra_pkgs="$http_service $db_pkgs php apache2-mod_php8 php-zlib php-mbstring  php-pdo php-mysql php-opcache php-xml php-gd php-devel php-json fail2ban nano wget mc"
     ;;
 "ami-03035978b5aeb1274")
     ssh_user="ec2-user" #RHEL-9
     http_service=httpd
     wp_owner="apache:apache"
-    extra_pkgs="php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget mc"
+    extra_pkgs="$http_service $db_pkgs php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget mc"
     wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
     www_home=/var/www/html
     extra_repo=https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
@@ -80,7 +83,7 @@ case $ami in
     ssh_user="ec2-user" # Amazon Linux 2
     http_service=httpd
     wp_owner="apache:apache"
-    extra_pkgs="php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget mc"
+    extra_pkgs="$http_service $db_pkgs php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget mc"
     wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
     www_home=/var/www/html
     extra_repo="amazon-linux-extras install epel -y"
@@ -89,8 +92,10 @@ case $ami in
 "ami-029e4db491be76287")
     ssh_user="ec2-user" #  # Amazon Linux 2023
     http_service=httpd
+    db_pkgs="mariadb105 mariadb105-server"
+    db_service="mariadb"
     wp_owner="apache:apache"
-    extra_pkgs="php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget mc"
+    extra_pkgs="$http_service $db_pkgs php php-common php-gd php-xml php-mbstring mod_ssl php php-pdo php-mysqlnd php-opcache php-xml php-gd php-devel php-json mod_ssl fail2ban nano certbot wget mc"
     wp_http_conf="/etc/$http_service/conf.d/wordpress.conf"
     www_home=/var/www/html
     ;;
@@ -104,18 +109,19 @@ walkman_install=@@self
 set_TARGET "IP-public" "ec2-user" $auto_key_private
 #set_TARGET IP-public $ssh_user $auto_key_private
 do_FROM all
-set_REPO $extra_repo
-set_REPO $extra_repo_php
-set_PACKAGE $extra_pkgs
+do_REPO $extra_repo
+do_REPO $extra_repo_php
+do_PACKAGE $extra_pkgs
 #do_RUN "sudo amazon-linux-extras enable php8.2 && sudo amazon-linux-extras enable mariadb10.5 && sudo yum clean metadata"
-set_MARIADB root $mysql_root_pass
-cmd_SQL "CREATE DATABASE IF NOT EXISTS wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$mysql_wp_user'@'localhost' identified by '$mysql_wp_pass';FLUSH PRIVILEGES;"
-set_APACHE
+do_ENTRYPOINT $db_service
+cmd_MYSQL_SECURE root $mysql_root_pass
+cmd_MYSQL "CREATE DATABASE IF NOT EXISTS wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$mysql_wp_user'@'localhost' identified by '$mysql_wp_pass';FLUSH PRIVILEGES;"
+do_ENV $http_service WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$mysql_wp_user" WORDPRESS_DB_PASSWORD="$mysql_wp_pass" WORDPRESS_DB_NAME="wordpress" APACHE_LOG_DIR="/var/log/$http_service" APACHE_DOCUMENT_ROOT="$www_home"
 do_ADD http://wordpress.org/latest.tar.gz $www_home/ $wp_owner 0755
-do_RUN "sudo find $www_home/wordpress -type f -exec chmod 666 {} \;"
+do_RUN "sudo find $www_home/wordpress -type f -exec chmod 644 {} \;"
 do_ADD @@meta/wordpress.conf $wp_http_conf root:root
 do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
-set_APACHE WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$mysql_wp_user" WORDPRESS_DB_PASSWORD="$mysql_wp_pass" WORDPRESS_DB_NAME="wordpress" APACHE_LOG_DIR="/var/log/$http_service" APACHE_DOCUMENT_ROOT="$www_home"
+do_ENTRYPOINT $http_service
 
 #set_PLAY
 cmd_INTERACT

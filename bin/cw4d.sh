@@ -80,8 +80,8 @@ rt() {
 play_this() {
     local tmp=$1
     local timer=$2
-    if [ "$PLAY_SPEED" -ne 2 ]; then
-        ansible-playbook "$tmp" -i "$ALBUM_SELF" | sed ':a;N;$!ba;s/\*\n/\*\t/g' | sed 's/\*//g' | grep -v 'skipping:\|^[[:space:]]*$\|^PLAY\|^TASK \[Gather'
+    if [ "$PLAY_SPEED" -eq 1 ]; then
+        ansible-playbook "$tmp" -i "$ALBUM_SELF" | sed ':a;N;$!ba;s/\*\n/\*\t/g' | grep -v 'skipping:\|^[[:space:]]*$\|^PLAY\|^TASK \[Gather'
         rt "$timer"
     fi
     if [ -z "$3" ]; then
@@ -133,12 +133,10 @@ is_hashed() {
         done
         ;;
     esac
-    echo "------------$hashed------------"
     if [[ -f $STAGE_REHASH_FILE ]]; then
-        [ $hashed -eq 1 ] && rm -f "$STAGE_REHASH_FILE" && echo "REEEEEEEEEEEEEEEEEEEEEEEEEEMMMMMMMMMMMMMMMMMMMOOOOOOOOOOOOVE"
+        [ $hashed -eq 1 ] && rm -f "$STAGE_REHASH_FILE"
         return $hashed
     fi
-    echo "NNNNNNNNNNNNNNNNNNNNNNNNOOOOOOOOOOOOOOOOOOOO"
     return 1
 }
 #
@@ -290,13 +288,15 @@ set_APACHE() {
     t=$(rt)
     echo -e
     echo "%%%%%%%%%%% remotely: Setup APACHE  %%%%%%%%%%%"
-    set_SERVICE "httpd" >/dev/null
+
     if [ -n "$1" ]; then
         echo "Setup service unit ENV variables"
         do_ENTRYPOINT "httpd" >/dev/null
         do_ENV "$@" >/dev/null
         do_ENTRYPOINT "apache2" >/dev/null
         do_ENV "$@" >/dev/null
+    else
+        set_SERVICE "httpd" >/dev/null
     fi
     rt "$t"
     echo "service APACHE configured and restarted"
@@ -309,7 +309,25 @@ do_COPY() { # Docker COPY analogue
 #============== E
 do_ENTRYPOINT() { # Docker ENTRYPOINT analogue
     [ -z "$1" ] && return
-    ANSIBLE_ENTRYPOINT=$1
+    local tmp
+    tmp=$(mktemp -d)
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
+    echo -e
+    echo "%%%%%%%%%%% remotely: setup Service $1 ENV %%%%%%%%%%%%%%%"
+    cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  become: true
+  tasks:
+  - name: Populate service facts
+    ansible.builtin.service_facts:
+  - name: Start $1 service
+    ansible.builtin.systemd_service:
+      state: restarted
+      daemon_reload: true
+      name: $1
+    when: ansible_facts.services['$1.service'] is defined  
+EOF
+    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
 }
 
 do_ENV() { # Docker ENV analogue
@@ -317,11 +335,16 @@ do_ENV() { # Docker ENV analogue
     [ -z "$ANSIBLE_ENTRYPOINT" ] && return
     local tmp
     local tmp_env
+    local cnt=0
+    local t
+    t=$(rt)
     tmp=$(mktemp -d)
     tmp_env=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.env)
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
 
     for param in "$@"; do
+        ((cnt++))
+        [[ $cnt -eq 1 ]] && continue
         if [[ $param =~ "=" ]]; then
             echo "$param" | sed 's/=/="/;s/$/"/' >>"$tmp_env"
         else
@@ -329,8 +352,8 @@ do_ENV() { # Docker ENV analogue
         fi
     done
     echo -e
-    echo "%%%%%%%%%%% remotely: Entrypoint ENV %%%%%%%%%%%%%%%"
-    do_VOLUME "/etc/systemd/system/$ANSIBLE_ENTRYPOINT.service.d" "root:root" 0755 >/dev/null
+    echo "%%%%%%%%%%% remotely: setup $1.service %%%%%%%%%%%%%%%"
+    do_VOLUME "/etc/systemd/system/$1.service.d" "root:root" 0755 >/dev/null
     do_VOLUME "/etc/env.walkman" "root:root" 0755 >/dev/null
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
@@ -338,34 +361,38 @@ do_ENV() { # Docker ENV analogue
   tasks:
   - name: Populate service facts
     ansible.builtin.service_facts:
-  - name: install $ANSIBLE_ENTRYPOINT
+  - name: setup Service $1
     block:  
+EOF
+    [[ -n $2 ]] && cat <<EOF >>"$tmp"
       - name: copy CONF file 
         ansible.builtin.copy:
-          dest: /etc/systemd/system/$ANSIBLE_ENTRYPOINT.service.d/local.conf
+          dest: /etc/systemd/system/$1.service.d/local.conf
           owner: root
           group: root
           mode: 0400
           content: |
              [Service]
-             EnvironmentFile=/etc/env.walkman/$ANSIBLE_ENTRYPOINT.env
+             EnvironmentFile=/etc/env.walkman/$1.env
       - name: copy ENV file 
         ansible.builtin.copy:
           src: $tmp_env
-          dest: /etc/env.walkman/$ANSIBLE_ENTRYPOINT.env
+          dest: /etc/env.walkman/$1.env
           owner: root
           group: root
           mode: 0400
-      - name: Restart $ANSIBLE_ENTRYPOINT
+EOF
+    cat <<EOF >>"$tmp"
+      - name: Restart $1
         ansible.builtin.systemd_service:
           state: restarted
           daemon_reload: true
-          name: $ANSIBLE_ENTRYPOINT
-    when: ansible_facts.services['$ANSIBLE_ENTRYPOINT.service'] is defined  
+          name: $1
+    when: ansible_facts.services['$1.service'] is defined  
 EOF
-    echo "Entrypoint: [$ANSIBLE_ENTRYPOINT] Environment:"
+    echo "Entrypoint: [$1] Environment:"
     cut <"$tmp_env" -d "=" -f 1 | sed 's/^/[/;s/$/]/'
-    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
+    play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
 }
 #============== F
 do_FROM() { # Docker FROM analogue
@@ -410,18 +437,7 @@ set_MARIADB() {
     rt "$t"
 }
 
-set_MYSQL() {
-    SQL_CONTEXT="mysql"
-    local t
-    t=$(rt)
-    echo -e
-    echo "%%%%%%%%%%% remotely: Setup mysql-server %%%%%%%%%%%%%%%"
-    set_PACKAGE mysql mysql-server >/dev/null
-    set_MYSQL_SECURE "$1" "$2" >/dev/null
-    rt "$t"
-}
-
-set_MYSQL_SECURE() {
+cmd_MYSQL_SECURE() {
     local tmp
     local t
     t=$(rt)
@@ -504,6 +520,9 @@ set_NODE_JS() {
 }
 
 #============== P
+do_PACKAGE() {
+    set_PACKAGE "$@"
+}
 set_PACKAGE() { # rpm/apt/zipper Wrapper
     [ -z "$1" ] && return
     local t
@@ -597,6 +616,9 @@ set_PLAY() { # ansible Wrapper
     rt "$t"
 }
 #============== R
+do_REPO() {
+    set_REPO "$@"
+}
 set_REPO() {
     [ -z "$1" ] && return
     local repo="$1"
@@ -772,7 +794,7 @@ cmd_SQL() {
     local tmp_sql
     local t
     t=$(rt)
-
+    SQL_CONTEXT="mysql"
     tmp_sql=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.sql)
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
 
@@ -783,6 +805,7 @@ cmd_SQL() {
     fi
     echo -e
     echo "%%%%%%%%%%% remotely: run SQL-commands on DB: $SQL_CONTEXT  %%%%%%%%%%%"
+    echo "$@"
     cat "$tmp_sql"
     echo "=========================================="
     cat <<EOF >"$tmp"
@@ -813,6 +836,16 @@ EOF
     esac
     play_this "$tmp" "$t" # | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$' | grep "^ERROR"
 }
+cmd_MYSQL() {
+    SQL_CONTEXT="mysql"
+    cmd_SQL "$@" | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$' | grep "^ERROR"
+}
+
+cmd_PGSQL() {
+    SQL_CONTEXT="pgsql"
+    cmd_SQL "$@"
+}
+
 #============== T
 set_TARGET() { # create ssh access artefacts for target
     [ -z "$1" ] && return
@@ -975,6 +1008,16 @@ run_helper_by_name() {
                 # shellcheck disable=SC2116
                 helper_params=$(eval "$(echo "${helper_params}" | sed 's/^/echo "/;s/$/"/')")
                 cmd_SQL "$helper_params"
+                ;;
+            cmd_MYSQL)
+                # shellcheck disable=SC2116
+                helper_params=$(eval "$(echo "${helper_params}" | sed 's/^/echo "/;s/$/"/')")
+                cmd_MYSQL "$helper_params"
+                ;;
+            cmd_PGSQL)
+                # shellcheck disable=SC2116
+                helper_params=$(eval "$(echo "${helper_params}" | sed 's/^/echo "/;s/$/"/')")
+                cmd_PGSQL "$helper_params"
                 ;;
             *) eval "$helper_name $helper_params" ;;
             esac
@@ -2136,7 +2179,7 @@ case $RUN_MODE in
                         update_variables_state "$STAGE_INIT_FILE" "env_after"
 
                         if [ "$RUN_MODE" = "apply" ] || [ "$RUN_MODE" = "gitops" ]; then
-                            [ "$PLAY_SPEED" -eq 2 ] && [ -s "$PLAYBOOK_SHADOW_TMP" ] && do_PLAY
+                            [ "$PLAY_SPEED" -ge 2 ] && [ -s "$PLAYBOOK_SHADOW_TMP" ] && set_PLAY
                         fi
                         if [ -n "$RUN_CMD_CONNECT" ] && [ "$RUN_MODE" = "apply" ] && [ -f "$STAGE_TARGET_FILE" ]; then
                             echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
