@@ -231,7 +231,7 @@ EOF
     # for any archived source
     *".zip" | *".tar.gz" | *".tgz")
         set_PACKAGE zip unzip tar >/dev/null
-        do_VOLUME "$dst" "$usr:$grp" 0755 >/dev/null
+        do_VOLUME "$(dirname "$dst")" "$usr:$grp" 0755 >/dev/null
         cat <<EOF >>"$tmp"
   - name: ADD archived
     ansible.builtin.unarchive:
@@ -303,7 +303,58 @@ set_APACHE() {
 }
 #============== C
 do_COPY() { # Docker COPY analogue
-    do_ADD "$@"
+    [ -z "$1" ] && return
+    local src=$1
+    local dst=$2
+    local usr
+    local grp
+    local mode
+    local tmp
+    local t
+    t=$(rt)
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
+
+    [ -n "$4" ] && mode=$4
+    case $3 in
+    *":"*)
+        usr=$(echo "$3" | cut -d ':' -f 1)
+        grp=$(echo "$3" | cut -d ':' -f 2)
+        ;;
+    [0-9][0-9][0-9]*)
+        mode=$3
+        usr=$ANSIBLE_USER
+        grp=$ANSIBLE_GROUP
+        ;;
+    "")
+        usr=$ANSIBLE_USER
+        grp=$ANSIBLE_GROUP
+        ;;
+    *)
+        usr=$3
+        grp=$3
+        ;;
+    esac
+
+    echo -e
+    echo "%%%%%%%%%%% remotely: Content COPY %%%%%%%%%%%%%"
+    cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  become: true
+  tasks:
+  - name: COPY remote content 
+    ansible.builtin.copy:
+      src: $src
+      dest: $dst
+      remote_src: true
+
+EOF
+    [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
+    [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
+    [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
+    echo "    ignore_errors: true" >>"$tmp"
+
+    grep <"$tmp" "src\|dest\|repo\|mode\|owner\|group\|url" | tr -d ' '
+    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|^[[:space:]]*$\|ok" | grep -v '""'
 }
 #============== D
 #============== E
