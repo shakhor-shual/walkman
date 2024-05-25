@@ -2322,11 +2322,9 @@ case $RUN_MODE in
                         TF_EC=$?
                         [ "$TF_EC" -eq 1 ] && finish_grace "err_tf" "$STAGE_COUNT" "$stage_path"
                         update_variables_state "$STAGE_INIT_FILE" "env_after"
-                        echo "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
                         if [ "$RUN_MODE" = "apply" ] || [ "$RUN_MODE" = "gitops" ]; then
                             [ "$PLAY_SPEED" -ge 2 ] && [ -s "$PLAYBOOK_SHADOW_TMP" ] && set_PLAY
                         fi
-                        echo "BBBBB$RUN_CMD_CONNECT=BBBBBBB$RUN_MODE-BBBBBBBBBBBBB$STAGE_TARGET_FILE%BBBBBBBBBB"
                         if [ -n "$RUN_CMD_CONNECT" ] && [ "$RUN_MODE" = "apply" ] && [ -f "$STAGE_TARGET_FILE" ]; then
                             echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
                             echo "!!!!!!!!!!! STARTED INTERACTIVE SSH SESSION WITH DEPLOYED TARGET !!!!!!!!!!!"
