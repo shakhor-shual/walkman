@@ -16,16 +16,16 @@
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ 1   # possible here are 0, 1, 2, 3
-speed@@@ 3
+speed@@@ 1
 
 p_file=@@meta/mysql_root.key
 mysql_root_pass=$(GEN_password root $p_file)
-mysql_wp_user="my_wordpress"
+mysql_wp_user="my_wordpf"
 mysql_wp_pass=$(GEN_password $mysql_wp_user @@meta/mysql_wp_user.key)
 
 ~INSTACE_1:
 region=eu-north-1
-namespace=foxy2
+namespace=foxy3
 vpc_cidr_block=@@
 subnet_cidr_block=@@
 #ami="ami-0506d6d51f1916a96" #Debian 12
