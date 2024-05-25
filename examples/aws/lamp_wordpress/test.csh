@@ -122,13 +122,13 @@ do_FROM all
 #do_ADD @@meta/wordpress.conf $wp_http_conf root:root
 #do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
 #do_ENTRYPOINT $http_service
-do_ADD https://github.com/prometheus/prometheus/releases/download/v2.37.0/prometheus-2.37.0.linux-amd64.tar.gz /etc/prometheus root:root
-do_VOLUME /var/lib/prometheus
-do_MOVE /etc/prometheus/prometheus /usr/local/bin/prometheus
-do_MOVE /etc/prometheus/promtool /usr/local/bin/promtool
-#do_COPY /etc/prometheus/
-#set_PLAY
-cmd_INTERACT
+# do_ADD https://github.com/prometheus/prometheus/releases/download/v2.37.0/prometheus-2.37.0.linux-amd64.tar.gz /etc/prometheus root:root
+# do_VOLUME /var/lib/prometheus
+# do_MOVE /etc/prometheus/prometheus /usr/local/bin/prometheus
+# do_MOVE /etc/prometheus/promtool /usr/local/bin/promtool
+# #do_COPY /etc/prometheus/
+# #set_PLAY
+# cmd_INTERACT
 
 /*
 echo $mysql_root_pass

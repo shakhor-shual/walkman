@@ -80,8 +80,8 @@ rt() {
 play_this() {
     local tmp=$1
     local timer=$2
-    if [ "$PLAY_SPEED" -eq 1 ]; then
-        ansible-playbook "$tmp" -i "$ALBUM_SELF" | sed ':a;N;$!ba;s/\*\n/\*\t/g' | grep -v 'skipping:\|^[[:space:]]*$\|^PLAY\|^TASK \[Gather'
+    if [ "$PLAY_SPEED" -le 1 ]; then
+        ansible-playbook "$tmp" -i "$ALBUM_SELF" | sed ':a;N;$!ba;s/\*\n/\*\t/g' | grep -v "skipping:\|^[[:space:]]*$\|^PLAY\|^TASK "
         rt "$timer"
     fi
     if [ -z "$3" ]; then
@@ -90,6 +90,22 @@ play_this() {
         cat "$tmp" >>$PLAYBOOK_SHADOW_TMP
     fi
     rm -f "$tmp"
+}
+
+tf_hashed() {
+    local hashed=0
+    local md5
+    md5=$(find . -type f \( -name \*.tf -o -name \*.tfvars \) -exec cat {} \; | md5sum)
+    if [[ $PLAY_SPEED -ge 1 ]]; then
+        ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
+    else
+        hashed=1
+    fi
+    if [[ -f $STAGE_REHASH_FILE ]]; then
+        [ $hashed -eq 1 ] && rm -f "$STAGE_REHASH_FILE"
+        return $hashed
+    fi
+    return 1
 }
 
 is_hashed() {
@@ -219,7 +235,7 @@ EOF
     #   echo "    when: foo_stat.stat.exists" >>"$tmp"
     # cat "$tmp"
     grep <"$tmp" "src\|dest\|repo\|mode\|owner\|group\|url" | tr -d ' '
-    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|^[[:space:]]*$\|ok" | grep -v '""'
+    play_this "$tmp" "$t"
 }
 
 #============== A
@@ -1070,6 +1086,7 @@ do_WORKDIR() { # Docker WORKDIR analogue
     else
         ANSIBLE_WORKDIR=$1
     fi
+    do_VOLUME "$@"
 }
 
 ############### HELPERS EXECUTOR ##############
@@ -1454,7 +1471,7 @@ set_debug_mode() {
     [[ $debug =~ $re ]] && DEBUG=$debug
     [[ $speed =~ $re ]] && PLAY_SPEED=$speed
     [[ $PLAY_SPEED -gt 3 ]] && PLAY_SPEED=3
-    [[ $PLAY_SPEED -lt 1 ]] && PLAY_SPEED=1
+    [[ $PLAY_SPEED -lt 0 ]] && PLAY_SPEED=0
 }
 
 init_album_home() {
@@ -2287,11 +2304,16 @@ case $RUN_MODE in
                     fi
                     ;;
                 "apply" | "gitops")
+                    STAGE_HASH=$(find . -type f \( -name \*.tf -o -name \*.tfvars \) -exec cat {} \; | md5sum)
+                    ! grep -q "$STAGE_HASH" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && STAGE_HASH=1
+
                     touch "$FLAG_LOCK"
-                    echo "------------------ Refresh TERRAFORM with init -----------------------------"
-                    if terraform init --upgrade; then
-                        echo "---------------------- Run TERRAFORM apply ---------------------------------"
-                        terraform apply -auto-approve
+                    tf_hashed && echo "!!!!!!!!!!!!!!!! No changes, TERRAFORM execution skipped !!!!!!!!!!!!!!!!!!!"
+                    tf_hashed || echo "------------------ Refresh TERRAFORM with init -----------------------------"
+                    if tf_hashed || terraform init --upgrade; then
+
+                        tf_hashed || echo "---------------------- Run TERRAFORM apply ---------------------------------"
+                        tf_hashed || terraform apply -auto-approve
                         TF_EC=$?
                         [ "$TF_EC" -eq 1 ] && finish_grace "err_tf" "$STAGE_COUNT" "$stage_path"
                         update_variables_state "$STAGE_INIT_FILE" "env_after"

@@ -30,17 +30,17 @@ variable "volume_size" {
 }
 
 variable "ami" {
-  description = "AMI for the instance !!!default-> AmazonLinux 2 Linux AMI in Stockholm, replace with the appropriate one for your region"
+  description = "AMI for the instance !!!default-> AmazonLinux 2 Linux AMI in Stockholm,  replace with the appropriate one for your region"
   default     = "ami-0f0ec0d37d04440e3"
 }
 
 variable "custom_key_public" {
-  description = "Path-to-my existing user-defined SSH public key (my use for simplify ssh access to VM) "
+  description = "Path-to-my existing user-defined SSH public key (my use for simplify ssh access to VM ) "
   default     = ""
 }
 
 variable "auto_key_public" {
-  description = "File name/place for auto-generated SSH public key (general ssh access to VM)"
+  description = "File name/place for auto-generated SSH public key ( general ssh access to VM )"
   default     = "../.meta/public.key"
 }
 
