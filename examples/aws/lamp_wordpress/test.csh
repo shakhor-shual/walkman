@@ -16,7 +16,7 @@
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ 1   # possible here are 0, 1, 2, 3
-speed@@@ 2
+speed@@@ 3
 
 p_file=@@meta/mysql_root.key
 mysql_root_pass=$(GEN_password root $p_file)

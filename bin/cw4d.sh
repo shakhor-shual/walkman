@@ -1127,7 +1127,7 @@ run_helper_by_name() {
                 local hp="$helper_name "$(eval "$(echo "${helper_params}" | sed 's/^/echo "/;s/$/"/')")
                 echo "$hp"
                 if ans_hashed ${hp}; then
-                    echo "Helper params changes not detected execution skipped!"
+                    echo "!!! NO CHANGES: ANSIBLE execution skipped !!!"
                     echo -e
                     return
                 else
@@ -2313,7 +2313,7 @@ case $RUN_MODE in
                     ! grep -q "$STAGE_HASH" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && STAGE_HASH=1
 
                     touch "$FLAG_LOCK"
-                    tf_hashed && echo "!!!!!!!!!!!!!!!! No changes, TERRAFORM execution skipped !!!!!!!!!!!!!!!!!!!"
+                    tf_hashed && echo "!!!!!!!!! NO CHANGES: TERRAFORM execution skipped !!!!!!!!!"
                     tf_hashed || echo "------------------ Refresh TERRAFORM with init -----------------------------"
                     if tf_hashed || terraform init --upgrade; then
 
