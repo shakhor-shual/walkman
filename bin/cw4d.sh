@@ -186,15 +186,53 @@ GEN_strong_password() {
     echo "$password"
 }
 
+do_MOVE() {
+    [ -z "$1" ] && return
+    local src=$1
+    local dst=$2
+    local dst_dir
+    local tmp
+    local t
+    t=$(rt)
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
+    dst_dir=$(dirname "$dst")
+
+    echo -e
+    echo "%%%%%%%%%%% remotely: MOVE content on remote %%%%%%%%%%%%%"
+    cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  become: true
+  tasks:
+  - name: stat foo
+    stat: path=$dst_dir
+    register: foo_stat
+  - name: Delete existing dist folder
+    file:
+      path: "$dst"
+      state: absent
+  - name: Move foo to bar
+    command: mv $src $dst
+    args:
+      creates: $dst
+      removes: $src
+EOF
+    #   echo "    when: foo_stat.stat.exists" >>"$tmp"
+    # cat "$tmp"
+    grep <"$tmp" "src\|dest\|repo\|mode\|owner\|group\|url" | tr -d ' '
+    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|^[[:space:]]*$\|ok" | grep -v '""'
+}
+
 #============== A
 do_ADD() { # Docker ADD analogue
     [ -z "$1" ] && return
     local src=$1
     local dst=$2
+    local dst_dir
     local usr
     local grp
     local mode
     local tmp
+    local remote="no"
     local t
     t=$(rt)
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
@@ -219,26 +257,47 @@ do_ADD() { # Docker ADD analogue
         grp=$3
         ;;
     esac
-
+    dst_dir=$(dirname "$dst")
     echo -e
     echo "%%%%%%%%%%% remotely: Content ADD/COPY %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: true
   tasks:
+  - name: stat foo
+    stat: path=$dst_dir
+    register: foo_stat
 EOF
     case $src in
     # for any archived source
     *".zip" | *".tar.gz" | *".tgz")
+        [[ $src =~ "://" ]] && remote="yes"
+
         set_PACKAGE zip unzip tar >/dev/null
         do_VOLUME "$(dirname "$dst")" "$usr:$grp" 0755 >/dev/null
         cat <<EOF >>"$tmp"
   - name: ADD archived
     ansible.builtin.unarchive:
       src: $src
-      dest: $dst
+      dest: $dst_dir
+      remote_src: $remote
+      list_files: yes
 EOF
-        [[ $src =~ "://" ]] && echo "      remote_src: yes" >>"$tmp"
+        [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
+        [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
+        [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
+        cat <<EOF >>"$tmp"
+    register: archive_contents
+  - name: Delete existing dist folder
+    file:
+      path: "$dst"
+      state: absent
+  - name: Move foo to bar
+    command: mv "$dst_dir/{{archive_contents.files[0].split('/')[0]}}"  $dst
+    args:
+      creates: $dst
+      removes: "$dst_dir/{{archive_contents.files[0].split('/')[0]}}"
+EOF
         ;;
         # for git source
     *".git")
@@ -249,15 +308,21 @@ EOF
       repo: $src
       dest: $dst
 EOF
+        [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
+        [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
+        [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
         ;;
     *"://"*)
-        do_VOLUME "$(dirname "$dst")" "$usr:$grp" 0755 >/dev/null
+        #        do_VOLUME "$(dirname "$dst")" "$usr:$grp" 0755 >/dev/null
         cat <<EOF >>"$tmp"
   - name: ADD remote 
     ansible.builtin.get_url:
       url: $src
       dest: $dst
 EOF
+        [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
+        [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
+        [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
         ;;
     *)
         cat <<EOF >>"$tmp"
@@ -266,19 +331,19 @@ EOF
       src: $src
       dest: $dst
 EOF
+        [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
+        [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
+        [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
         ;;
     esac
 
-    [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
-    [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
-    [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
-
+    #   echo "    when: foo_stat.stat.exists" >>"$tmp"
+    #cat "$tmp"
     grep <"$tmp" "src\|dest\|repo\|mode\|owner\|group\|url" | tr -d ' '
     play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|^[[:space:]]*$\|ok" | grep -v '""'
 }
 
 do_ARG() { # Docker ARG analogue
-
     [ -z "$1" ] && return
     #  ANSIBLE_ARG=$1
 }
@@ -951,6 +1016,8 @@ do_VOLUME() { # Docker VOLUME analogue
     local grp
     local mode="'0755'"
     local tmp
+    local t
+    t=$(rt)
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
 
     [ -n "$3" ] && mode=$3
