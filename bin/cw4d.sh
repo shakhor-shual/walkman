@@ -108,7 +108,7 @@ tf_hashed() {
     return 1
 }
 
-is_hashed() {
+ans_hashed() {
     local helper=$1
     local hashed=0
     local md5
@@ -118,6 +118,7 @@ is_hashed() {
     md5=$(echo -n "$*" | md5sum | awk '{print $1}')
     ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
     case $helper in
+    "cmd_INTERACT") return 1 ;;
     "set_TARGET" | "do_FROM") return 1 ;;
     "do_RUN") ;;
     "do_ADD" | "do_COPY") cnt=2 ;&
@@ -308,11 +309,13 @@ EOF
     file:
       path: "$dst"
       state: absent
+    when: ('$dst_dir/' ~ archive_contents.files[0].split('/')[0]) != '$dst'
   - name: Move foo to bar
     command: mv "$dst_dir/{{archive_contents.files[0].split('/')[0]}}"  $dst
     args:
       creates: $dst
       removes: "$dst_dir/{{archive_contents.files[0].split('/')[0]}}"
+    when: ('$dst_dir/' ~ archive_contents.files[0].split('/')[0]) != '$dst'
 EOF
         ;;
         # for git source
@@ -548,7 +551,6 @@ cmd_HELM() { # helm Wrapper
 #============== I
 cmd_INTERACT() {
     RUN_CMD_CONNECT="yes"
-    echo "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"
 }
 #============== K
 cmd_KUBECTL() { # kubectl Wrapper
@@ -747,7 +749,7 @@ set_PLAY() { # ansible Wrapper
     #cat "$playbook"
     echo "%%%%%%%%%%% remotely: PLAY: $playbook %%%%%%%%%%%%%%%"
     #   play_this "$playbook" "$t" #| grep -v "^PLAY \|^[[:space:]]*$"
-    ansible-playbook "$playbook" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | sed ':a;N;$!ba;s/\*\n/\*\t/g' | sed 's/\*//g' | grep -v "skipping:"
+    ansible-playbook "$playbook" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | awk '/*$/ { printf("%s\t", $0); next } 1' | grep -v "skipping:"
     rt "$t"
 }
 #============== R
@@ -1124,7 +1126,7 @@ run_helper_by_name() {
                 echo "%%%%%%%%%%%%%%%%%%% accelertion: Check HELPER hash changes: %%%%%%%%%%%%%%%%%%%%%%%%%%%%"
                 local hp="$helper_name "$(eval "$(echo "${helper_params}" | sed 's/^/echo "/;s/$/"/')")
                 echo "$hp"
-                if is_hashed ${hp}; then
+                if ans_hashed ${hp}; then
                     echo "Helper params changes not detected execution skipped!"
                     echo -e
                     return
