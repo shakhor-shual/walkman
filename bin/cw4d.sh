@@ -992,8 +992,8 @@ set_TARGET() { # create ssh access artefacts for target
     local secret=$3
     echo -e
     echo -e
-    echo -e
-    echo "%%%%%%%%%%% remotely: Init TARGET for Setup %%%%%%%%%%% speed: $PLAY_SPEED"
+    echo "speed: $PLAY_SPEED"
+    echo "%%%%%%%%%%% remotely: Init TARGET for Setup %%%%%%%%%%%"
     echo "#full album playbook" >$PLAYBOOK_SHADOW_TMP
 
     ANSIBLE_USER=$user
