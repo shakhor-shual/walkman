@@ -763,19 +763,54 @@ set_REPO() {
     local repo="$1"
     local repos_string
     local t
+    local tmp
     t=$(rt)
     repos_string=$*
     echo -e
     echo "%%%%%%%%%%% remotely: Add REPOSITORY  %%%%%%%%%%%"
 
-    if [[ $repos_string =~ "amazon-linux-extras" ]]; then
-        repos_string=$(echo "$repos_string" | sed 's/sudo//g;s/amazon-linux-extras/sudo amazon-linux-extras/g')
-        do_RUN "$repos_string; sudo yum clean metadata" >/dev/null
-    else
-        [[ -n $2 ]] && [[ $2 =~ "enable" ]] && YUM_ENABLE_REPO=$(echo "$2" | cut -d '=' -f 2)
-        local tmp
+    if [ -f "$repo" ]; then
+        local yum_name
+        yum_name=$(basename "$repo")
         tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
         cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  become: true
+  gather_facts: yes
+  tasks:
+  - name: install $repo
+    block:
+      - name: $yum_name
+        ansible.builtin.copy:
+          src: $repo
+          dest: /etc/yum.repos.d/$yum_name
+        when: ansible_os_family == 'RedHat'
+      - name: $repo
+        ansible.builtin.apt:
+          state: present
+          name: $repos_string
+        when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
+      - name: APT update
+        ansible.builtin.apt:
+          update_cache: yes
+        when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
+      - name: $repo
+        zypper_repository:
+          repo: $repo
+          auto_import_keys: yes
+        when: ansible_os_family == 'Suse'
+    ignore_errors: true
+EOF
+        play_this "$tmp" "$t"
+    else
+
+        if [[ $repos_string =~ "amazon-linux-extras" ]]; then
+            repos_string=$(echo "$repos_string" | sed 's/sudo//g;s/amazon-linux-extras/sudo amazon-linux-extras/g')
+            do_RUN "$repos_string; sudo yum clean metadata" >/dev/null
+        else
+            [[ -n $2 ]] && [[ $2 =~ "enable" ]] && YUM_ENABLE_REPO=$(echo "$2" | cut -d '=' -f 2)
+            tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
+            cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: true
   gather_facts: yes
@@ -804,9 +839,10 @@ set_REPO() {
         when: ansible_os_family == 'Suse'
     ignore_errors: true
 EOF
-        play_this "$tmp" "$t" #| grep  -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+            play_this "$tmp" "$t" #| grep  -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+        fi
     fi
-    echo "OS repository installed"
+    echo "OS repository [$*] installed"
 }
 
 do_RUN() { # Docker RUN analogue

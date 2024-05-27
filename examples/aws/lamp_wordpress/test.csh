@@ -16,7 +16,7 @@
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ 1   # possible here are 0, 1, 2, 3
-speed@@@ 3
+speed@@@ 1
 
 p_file=@@meta/mysql_root.key
 mysql_root_pass=$(GEN_password root $p_file)
@@ -110,34 +110,37 @@ set_TARGET "IP-public" "ec2-user" $auto_key_private
 do_FROM all
 
 #Install Wodrpess
-do_REPO $extra_repo
-do_REPO $extra_repo_php
-do_PACKAGE $extra_pkgs
-do_ENTRYPOINT $db_service
-cmd_MYSQL_SECURE root $mysql_root_pass
-cmd_MYSQL "CREATE DATABASE IF NOT EXISTS wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$mysql_wp_user'@'localhost' identified by '$mysql_wp_pass';FLUSH PRIVILEGES;"
-do_ENV $http_service WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$mysql_wp_user" WORDPRESS_DB_PASSWORD="$mysql_wp_pass" WORDPRESS_DB_NAME="wordpress" APACHE_LOG_DIR="/var/log/$http_service" APACHE_DOCUMENT_ROOT="$www_home"
-do_ADD http://wordpress.org/latest.tar.gz $www_home/wordpress $wp_owner 0755
-do_RUN "sudo find $www_home/wordpress -type f -exec chmod 644 {} \;"
-do_ADD @@meta/wordpress.conf $wp_http_conf root:root
-do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
-do_ENTRYPOINT $http_service
+#do_REPO $extra_repo
+#do_REPO $extra_repo_php
+# do_PACKAGE $extra_pkgs
+# do_ENTRYPOINT $db_service
+# cmd_MYSQL_SECURE root $mysql_root_pass
+# cmd_MYSQL "CREATE DATABASE IF NOT EXISTS wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$mysql_wp_user'@'localhost' identified by '$mysql_wp_pass';FLUSH PRIVILEGES;"
+# do_ENV $http_service WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$mysql_wp_user" WORDPRESS_DB_PASSWORD="$mysql_wp_pass" WORDPRESS_DB_NAME="wordpress" APACHE_LOG_DIR="/var/log/$http_service" APACHE_DOCUMENT_ROOT="$www_home"
+# do_ADD http://wordpress.org/latest.tar.gz $www_home/wordpress $wp_owner 0755
+# do_RUN "sudo find $www_home/wordpress -type f -exec chmod 644 {} \;"
+# do_ADD @@meta/wordpress.conf $wp_http_conf root:root
+# do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
+# do_ENTRYPOINT $http_service
 
-# Install Prometheus
-do_RUN "id -u prometheus &>/dev/null || sudo useradd --no-create-home --shell /bin/false prometheus"
-do_ADD https://github.com/prometheus/prometheus/releases/download/v2.37.0/prometheus-2.37.0.linux-amd64.tar.gz /etc/prometheus prometheus:prometheus
-do_ADD @@meta/prometheus.yml /etc/prometheus/prometheus.yml prometheus:prometheus
-do_ADD @@meta/prometheus.service /etc/systemd/system/prometheus.service
-do_VOLUME /var/lib/prometheus
-do_MOVE /etc/prometheus/prometheus /usr/local/bin/prometheus
-do_MOVE /etc/prometheus/promtool /usr/local/bin/promtool
-do_RUN "sudo chown prometheus:prometheus /usr/local/bin/prometheus; sudo chown prometheus:prometheus /usr/local/bin/promtool; sudo chown -R prometheus:prometheus /var/lib/prometheus"
-do_RUN "sudo systemctl daemon-reload; sudo systemctl start prometheus; sudo systemctl enable prometheus"
+# # Install Prometheus
+# do_RUN "id -u prometheus &>/dev/null || sudo useradd --no-create-home --shell /bin/false prometheus"
+# do_ADD https://github.com/prometheus/prometheus/releases/download/v2.37.0/prometheus-2.37.0.linux-amd64.tar.gz /etc/prometheus prometheus:prometheus
+# do_ADD @@meta/prometheus.yml /etc/prometheus/prometheus.yml prometheus:prometheus
+# do_ADD @@meta/prometheus.service /etc/systemd/system/prometheus.service
+# do_VOLUME /var/lib/prometheus
+# do_MOVE /etc/prometheus/prometheus /usr/local/bin/prometheus
+# do_MOVE /etc/prometheus/promtool /usr/local/bin/promtool
+# do_RUN "sudo chown prometheus:prometheus /usr/local/bin/prometheus; sudo chown prometheus:prometheus /usr/local/bin/promtool; sudo chown -R prometheus:prometheus /var/lib/prometheus"
+# do_RUN "sudo systemctl daemon-reload; sudo systemctl start prometheus; sudo systemctl enable prometheus"
 
+do_REPO @@meta/grafana.repo
+do_PACKAGE grafana
+do_ENTRYPOINT grafana
 #do_COPY /etc/prometheus/
 #set_PLAY
 #set_TUNNEL
-cmd_INTERACT -L 8080:localhost:8080 -L 8081:localhost:80 -L 9090:localhost:9090
+cmd_INTERACT -L 8080:localhost:8080 -L 3000:localhost:3000 -L 9090:localhost:9090
 
 /*
 echo $mysql_root_pass
