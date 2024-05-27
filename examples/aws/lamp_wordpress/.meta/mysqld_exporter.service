@@ -5,7 +5,7 @@ After=network.target
 [Service]
 User=nobody
 Environment="DATA_SOURCE_NAME=exporter:password@(localhost:3306)/"
-ExecStart=/opt/mysqld_exporter-0.14.0.linux-amd64/mysqld_exporter
+ExecStart=/opt/mysqld_exporter/mysqld_exporter
 
 [Install]
 WantedBy=multi-user.target

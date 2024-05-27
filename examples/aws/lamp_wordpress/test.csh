@@ -135,16 +135,16 @@ do_RUN "sudo chown prometheus:prometheus /usr/local/bin/prometheus; sudo chown p
 do_RUN "sudo systemctl daemon-reload; sudo systemctl start prometheus; sudo systemctl enable prometheus"
 do_ENTRYPOINT prometheus
 
-do_ADD https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz /opt/node_exporter-1.6.1.linux-amd64 prometheus:prometheus
+do_ADD https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz /opt/node_exporter prometheus:prometheus
 do_ADD @@meta/node_exporter.service /etc/systemd/system/node_exporter.service root:root
 do_ENTRYPOINT node_exporter
 
-do_ADD https://github.com/prometheus/mysqld_exporter/releases/download/v0.14.0/mysqld_exporter-0.14.0.linux-amd64.tar.gz /opt/mysqld_exporter-0.14.0.linux-amd64 prometheus:prometheus
+do_ADD https://github.com/prometheus/mysqld_exporter/releases/download/v0.14.0/mysqld_exporter-0.14.0.linux-amd64.tar.gz /opt/mysqld_exporter prometheus:prometheus
 do_ADD @@meta/mysqld_exporter.service /etc/systemd/system/mysqld_exporter.service root:root
 do_ENTRYPOINT mysqld_exporter
 
-do_ADD https://github.com/prometheus/blackbox_exporter/releases/download/v0.23.0/blackbox_exporter-0.23.0.linux-amd64.tar.gz /opt/blackbox_exporter-0.23.0.linux-amd64 prometheus:prometheus
-do_ADD @@meta/blackbox.yml blackbox.yml prometheus:prometheus
+do_ADD https://github.com/prometheus/blackbox_exporter/releases/download/v0.23.0/blackbox_exporter-0.23.0.linux-amd64.tar.gz /opt/blackbox_exporter prometheus:prometheus
+do_ADD @@meta/blackbox.yml /opt/blackbox_exporter/blackbox.yml prometheus:prometheus
 do_ADD @@meta/blackbox_exporter.service /etc/systemd/system/blackbox_exporter.service root:root
 do_ENTRYPOINT blackbox_exporter
 
