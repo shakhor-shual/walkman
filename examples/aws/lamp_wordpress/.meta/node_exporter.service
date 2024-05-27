@@ -1,0 +1,10 @@
+[Unit]
+Description=Node Exporter
+After=network.target
+
+[Service]
+User=nobody
+ExecStart=/opt/node_exporter-1.6.1.linux-amd64/node_exporter
+
+[Install]
+WantedBy=multi-user.target

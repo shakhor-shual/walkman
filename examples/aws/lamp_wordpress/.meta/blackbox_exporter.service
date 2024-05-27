@@ -1,0 +1,10 @@
+[Unit]
+Description=Blackbox Exporter
+After=network.target
+
+[Service]
+User=nobody
+ExecStart=/opt/blackbox_exporter-0.23.0.linux-amd64/blackbox_exporter --config.file=/opt/blackbox_exporter-0.23.0.linux-amd64/blackbox.yml
+
+[Install]
+WantedBy=multi-user.target
