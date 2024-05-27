@@ -34,6 +34,7 @@ SQL_USER="root"
 SQL_PASSWORD=""
 SQL_DATABASE=""
 PLAYBOOK_SHADOW_TMP=/tmp/full_playbook.yaml
+SSH_TUNNEL_PARAMS=""
 
 ALLWAYS_RUN=1
 
@@ -551,6 +552,7 @@ cmd_HELM() { # helm Wrapper
 #============== I
 cmd_INTERACT() {
     RUN_CMD_CONNECT="yes"
+    SSH_TUNNEL_PARAMS="$*"
 }
 #============== K
 cmd_KUBECTL() { # kubectl Wrapper
@@ -1010,7 +1012,7 @@ EOF
 
     for ip in $(echo "$ips" | sed 's/,/ /;s/\[//;s/\]//'); do
         # shellcheck disable=SC2016
-        echo 'ssh  -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i $KEY_FILE '"$user"'@'"$ip" >>"$STAGE_TARGET_FILE"
+        echo 'ssh $@ -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i $KEY_FILE '"$user"'@'"$ip" >>"$STAGE_TARGET_FILE"
         print_hostvars_for_host_request "$ip" "$user" "$secret" >>"$INVENTORY_HOST"
         print_hostvars_for_list_request "$ip" "$user" "$secret" >>"$INVENTORY_LIST_TAIL"
     done
@@ -1083,6 +1085,15 @@ set_WALKMAN() { # Walkman installer
     echo "%%%%%%%%%%% remotely: WALKMAN INSTALL %%%%%%%%%%%%%%%"
     sed <"$STAGE_TARGET_FILE" 's/^ssh /cw4d.sh /' | bash
     echo -e
+}
+
+set_TUNNEL() {
+    local tun="$*"
+    echo -e
+    echo "%%%%%%%%%%% remotely: WALKMAN INSTALL %%%%%%%%%%%%%%%"
+    sed <"$STAGE_TARGET_FILE" "s/^ssh /ssh $tun /" | bash
+    echo -e
+
 }
 
 do_WORKDIR() { # Docker WORKDIR analogue
@@ -2331,7 +2342,7 @@ case $RUN_MODE in
                             echo "!!!!!!!!!!! Perfom any task on it OR/AND run 'exit' for continue !!!!!!!!!!!"
                             echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
                             # shellcheck disable=SC1090
-                            . "$STAGE_TARGET_FILE"
+                            . "$STAGE_TARGET_FILE" ${SSH_TUNNEL_PARAMS}
                             unset RUN_CMD_CONNECT
                             echo "!!!!!!!!!!!!!!!!!!! TARGET SSH SESSION FINISHED !!!!!!!!!!!!!!!!!!!!!!!!!!!!"
                         fi

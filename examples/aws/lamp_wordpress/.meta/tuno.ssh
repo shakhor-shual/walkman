@@ -1,0 +1,5 @@
+#!/bin/bash
+# ~INSTACE_1
+# hosts:[13.53.45.69]
+KEY_FILE=/home/ubuntu/github/walkman/examples/aws/lamp_wordpress/.meta/private.key
+ssh -L 9090:localhost:9090 -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i $KEY_FILE ec2-user@13.53.45.69
