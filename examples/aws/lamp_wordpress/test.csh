@@ -38,7 +38,7 @@ ami="ami-0f0ec0d37d04440e3" # Amazon Linux 2
 volume_size=@@
 auto_key_public=@@meta/public.key
 auto_key_private=@@meta/private.key
-instance_type="t3.micro"
+instance_type="t3.xlarge"
 
 /* ############# inlined BASH part
 db_pkgs="mariadb mariadb-server"
@@ -106,12 +106,12 @@ esac
 walkman_install=@@self
 
 ############ setup deployment via HELPERs
-set_TARGET "IP-public" "ec2-user" $auto_key_private
+set_TARGET "IP-public" $ssh_user $auto_key_private
 do_FROM all
 
 #Install Wodrpess
-#do_REPO $extra_repo
-#do_REPO $extra_repo_php
+# do_REPO $extra_repo
+# do_REPO $extra_repo_php
 # do_PACKAGE $extra_pkgs
 # do_ENTRYPOINT $db_service
 # cmd_MYSQL_SECURE root $mysql_root_pass
@@ -123,38 +123,38 @@ do_FROM all
 # do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
 # do_ENTRYPOINT $http_service
 
-# # Install Prometheus
-# do_RUN "id -u prometheus &>/dev/null || sudo useradd --no-create-home --shell /bin/false prometheus"
-do_ADD https://github.com/prometheus/prometheus/releases/download/v2.37.0/prometheus-2.37.0.linux-amd64.tar.gz /etc/prometheus prometheus:prometheus
-do_ADD @@meta/prometheus.yml /etc/prometheus/prometheus.yml prometheus:prometheus
-do_ADD @@meta/prometheus.service /etc/systemd/system/prometheus.service root:root
-do_VOLUME /var/lib/prometheus
-do_MOVE /etc/prometheus/prometheus /usr/local/bin/prometheus
-do_MOVE /etc/prometheus/promtool /usr/local/bin/promtool
-do_RUN "sudo chown prometheus:prometheus /usr/local/bin/prometheus; sudo chown prometheus:prometheus /usr/local/bin/promtool; sudo chown -R prometheus:prometheus /var/lib/prometheus"
-do_RUN "sudo systemctl daemon-reload; sudo systemctl start prometheus; sudo systemctl enable prometheus"
-do_ENTRYPOINT prometheus
+# # # Install Prometheus
+do_RUN "id -u prometheus &>/dev/null || sudo useradd --no-create-home --shell /bin/false prometheus"
+do_ADD https://github.com/prometheus/prometheus/releases/download/v2.37.0/prometheus-2.37.0.linux-amd64.tar.gz /etc/prometheus/ prometheus:prometheus
+# do_ADD @@meta/prometheus.yml /etc/prometheus/prometheus.yml prometheus:prometheus
+# do_ADD @@meta/prometheus.service /etc/systemd/system/prometheus.service root:root
+# do_VOLUME /var/lib/prometheus
+# do_MOVE /etc/prometheus/prometheus /usr/local/bin/prometheus
+# do_MOVE /etc/prometheus/promtool /usr/local/bin/promtool
+# do_RUN "sudo chown prometheus:prometheus /usr/local/bin/prometheus; sudo chown prometheus:prometheus /usr/local/bin/promtool; sudo chown -R prometheus:prometheus /var/lib/prometheus"
+# do_ENTRYPOINT prometheus
+# #  Install Prometheus node_exporter
+# do_ADD https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz /opt/node_exporter root:root
+# do_ADD @@meta/node_exporter.service /etc/systemd/system/node_exporter.service root:root
+# do_ENTRYPOINT node_exporter
+# #  Install Prometheus mysqld_exporter
+# do_ADD https://github.com/prometheus/mysqld_exporter/releases/download/v0.14.0/mysqld_exporter-0.14.0.linux-amd64.tar.gz /opt/mysqld_exporter root:root
+# do_ADD @@meta/mysqld_exporter.service /etc/systemd/system/mysqld_exporter.service root:root
+# do_ENTRYPOINT mysqld_exporter
+# #  Install Prometheus blackbox_exporter
+# do_ADD https://github.com/prometheus/blackbox_exporter/releases/download/v0.23.0/blackbox_exporter-0.23.0.linux-amd64.tar.gz /opt/blackbox_exporter root:root
+# do_ADD @@meta/blackbox.yml /opt/blackbox_exporter/blackbox.yml root:root
+# do_ADD @@meta/blackbox_exporter.service /etc/systemd/system/blackbox_exporter.service root:root
+# do_ENTRYPOINT blackbox_exporter
 
-do_ADD https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz /opt/node_exporter prometheus:prometheus
-do_ADD @@meta/node_exporter.service /etc/systemd/system/node_exporter.service root:root
-do_ENTRYPOINT node_exporter
+do_ADD https://download.docker.com/linux/static/stable/x86_64/docker-26.1.3.tgz /tmp/ root:root
+#do_RUN "sudo groupadd -f docker; sudo usermod -aG docker $ssh_user; sudo dockerd &"
+# Install Grafana
+# do_REPO @@meta/grafana.repo
+# do_PACKAGE grafana
+# do_ENTRYPOINT grafana-server
 
-do_ADD https://github.com/prometheus/mysqld_exporter/releases/download/v0.14.0/mysqld_exporter-0.14.0.linux-amd64.tar.gz /opt/mysqld_exporter prometheus:prometheus
-do_ADD @@meta/mysqld_exporter.service /etc/systemd/system/mysqld_exporter.service root:root
-do_ENTRYPOINT mysqld_exporter
-
-do_ADD https://github.com/prometheus/blackbox_exporter/releases/download/v0.23.0/blackbox_exporter-0.23.0.linux-amd64.tar.gz /opt/blackbox_exporter prometheus:prometheus
-do_ADD @@meta/blackbox.yml /opt/blackbox_exporter/blackbox.yml prometheus:prometheus
-do_ADD @@meta/blackbox_exporter.service /etc/systemd/system/blackbox_exporter.service root:root
-do_ENTRYPOINT blackbox_exporter
-
-do_REPO @@meta/grafana.repo
-do_PACKAGE grafana
-do_ENTRYPOINT grafana-server
-#do_COPY /etc/prometheus/
-#set_PLAY
-#set_TUNNEL
-cmd_INTERACT -L 8080:localhost:8080 -L 3000:localhost:3000 -L 9090:localhost:9090
+cmd_INTERACT -L 8080:localhost:80 -L 3000:localhost:3000 -L 9090:localhost:9090
 
 /*
 echo $mysql_root_pass

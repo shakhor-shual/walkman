@@ -82,7 +82,7 @@ play_this() {
     local tmp=$1
     local timer=$2
     if [ "$PLAY_SPEED" -le 1 ]; then
-        ansible-playbook "$tmp" -i "$ALBUM_SELF" | sed ':a;N;$!ba;s/\*\n/\*\t/g' | grep -v "skipping:\|^[[:space:]]*$\|^PLAY\|^TASK "
+        ansible-playbook "$tmp" -i "$ALBUM_SELF" # | sed ':a;N;$!ba;s/\*\n/\*\t/g' | grep -v "skipping:\|^[[:space:]]*$\|^PLAY\|^TASK "
         rt "$timer"
     fi
     if [ -z "$3" ]; then
@@ -204,6 +204,11 @@ GEN_strong_password() {
     echo "$password"
 }
 
+# set_DOCKER() {
+
+#    # https://download.docker.com/linux/static/stable/x86_64/docker-26.1.3.tgz
+# }
+
 do_MOVE() {
     [ -z "$1" ] && return
     local src=$1
@@ -228,7 +233,7 @@ do_MOVE() {
     file:
       path: "$dst"
       state: absent
-  - name: Move foo to bar
+  - name: MOVE $src TO $dst
     command: mv $src $dst
     args:
       creates: $dst
@@ -275,14 +280,19 @@ do_ADD() { # Docker ADD analogue
         grp=$3
         ;;
     esac
-    dst_dir=$(dirname "$dst")
+
+    case $dst in
+    *'/') dst_dir=${dst%?} ;;
+    *) dst_dir=$(dirname "$dst") ;;
+    esac
+
     echo -e
     echo "%%%%%%%%%%% remotely: Content ADD/COPY %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: true
   tasks:
-  - name: stat foo
+  - name: stat $dst_dir
     stat: path=$dst_dir
     register: foo_stat
 EOF
@@ -292,9 +302,10 @@ EOF
         [[ $src =~ "://" ]] && remote="yes"
 
         set_PACKAGE zip unzip tar >/dev/null
-        do_VOLUME "$(dirname "$dst")" "$usr:$grp" 0755 >/dev/null
+        do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
+
         cat <<EOF >>"$tmp"
-  - name: ADD archived
+  - name: ADD $src TO $dst_dir
     ansible.builtin.unarchive:
       src: $src
       dest: $dst_dir
@@ -304,20 +315,35 @@ EOF
         [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
         [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
         [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
-        cat <<EOF >>"$tmp"
+
+        case $dst in
+        *'/') ;&
+        *)
+            cat <<EOF >>"$tmp"
     register: archive_contents
-  - name: Delete existing dist folder
+  - name: CREATE $dst_dir FOLDER
     file:
-      path: "$dst"
-      state: absent
+      path:  $dst_dir
+      state: directory
+      mode: $mode
+      owner: $usr
+      group: $grp
     when: ('$dst_dir/' ~ archive_contents.files[0].split('/')[0]) != '$dst'
-  - name: Move foo to bar
-    command: mv "$dst_dir/{{archive_contents.files[0].split('/')[0]}}"  $dst
+  - name: MOVE unarchived TO $dst
+    command: cp -rlf "$dst_dir/{{archive_contents.files[0].split('/')[0]}}/*"  $dst
     args:
       creates: $dst
       removes: "$dst_dir/{{archive_contents.files[0].split('/')[0]}}"
     when: ('$dst_dir/' ~ archive_contents.files[0].split('/')[0]) != '$dst'
+#   - name: DELETE $dst FOLDER
+#     file:
+#       path: "$dst_dir/{{archive_contents.files[0].split('/')[0]}}"
+#       state: absent
+#     when: ('$dst_dir/' ~ archive_contents.files[0].split('/')[0]) != '$dst'
 EOF
+            ;;
+        esac
+
         ;;
         # for git source
     *".git")
@@ -335,7 +361,7 @@ EOF
     *"://"*)
         #        do_VOLUME "$(dirname "$dst")" "$usr:$grp" 0755 >/dev/null
         cat <<EOF >>"$tmp"
-  - name: ADD remote 
+  - name: ADD $src TO $dst  
     ansible.builtin.get_url:
       url: $src
       dest: $dst
@@ -346,7 +372,7 @@ EOF
         ;;
     *)
         cat <<EOF >>"$tmp"
-  - name: ADD local content 
+  - name: ADD $src TO $dst 
     ansible.builtin.copy:
       src: $src
       dest: $dst
