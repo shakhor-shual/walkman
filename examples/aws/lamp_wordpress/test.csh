@@ -147,8 +147,8 @@ do_ADD https://github.com/prometheus/prometheus/releases/download/v2.37.0/promet
 # do_ADD @@meta/blackbox_exporter.service /etc/systemd/system/blackbox_exporter.service root:root
 # do_ENTRYPOINT blackbox_exporter
 
-do_ADD https://download.docker.com/linux/static/stable/x86_64/docker-26.1.3.tgz /tmp/ root:root
-#do_RUN "sudo groupadd -f docker; sudo usermod -aG docker $ssh_user; sudo dockerd &"
+do_ADD https://download.docker.com/linux/static/stable/x86_64/docker-26.1.3.tgz /usr/bin/ root:root
+do_RUN "sudo groupadd -f docker; sudo usermod -aG docker $ssh_user; sudo dockerd &"
 # Install Grafana
 # do_REPO @@meta/grafana.repo
 # do_PACKAGE grafana

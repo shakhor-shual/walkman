@@ -251,6 +251,7 @@ do_ADD() { # Docker ADD analogue
     local src=$1
     local dst=$2
     local dst_dir
+    local tmp_dst_dir=/tmp/walkman_add
     local usr
     local grp
     local mode
@@ -302,13 +303,13 @@ EOF
         [[ $src =~ "://" ]] && remote="yes"
 
         set_PACKAGE zip unzip tar >/dev/null
-        do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
+        do_VOLUME "$tmp_dst_dir" "$usr:$grp" 0755 >/dev/null
 
         cat <<EOF >>"$tmp"
-  - name: ADD $src TO $dst_dir
+  - name: ADD $src TO $tmp_dst_dir
     ansible.builtin.unarchive:
       src: $src
-      dest: $dst_dir
+      dest: $tmp_dst_dir
       remote_src: $remote
       list_files: yes
 EOF
@@ -328,18 +329,13 @@ EOF
       mode: $mode
       owner: $usr
       group: $grp
-    when: ('$dst_dir/' ~ archive_contents.files[0].split('/')[0]) != '$dst'
   - name: MOVE unarchived TO $dst
-    command: cp -rlf "$dst_dir/{{archive_contents.files[0].split('/')[0]}}/*"  $dst
-    args:
-      creates: $dst
-      removes: "$dst_dir/{{archive_contents.files[0].split('/')[0]}}"
-    when: ('$dst_dir/' ~ archive_contents.files[0].split('/')[0]) != '$dst'
-#   - name: DELETE $dst FOLDER
-#     file:
-#       path: "$dst_dir/{{archive_contents.files[0].split('/')[0]}}"
-#       state: absent
-#     when: ('$dst_dir/' ~ archive_contents.files[0].split('/')[0]) != '$dst'
+    command: cp -rlf "$tmp_dst_dir/{{archive_contents.files[0].split('/')[0]}}/."  $dst
+  - name: DELETE $tmp_dst_dir FOLDER
+    file:
+      path: "$tmp_dst_dir/{{archive_contents.files[0].split('/')[0]}}"
+      state: absent
+#    when: ('$dst_dir/' ~ archive_contents.files[0].split('/')[0]) != '$dst'
 EOF
             ;;
         esac
