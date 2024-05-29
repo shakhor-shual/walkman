@@ -16,7 +16,7 @@
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ 1   # possible here are 0, 1, 2, 3
-speed@@@ 1
+speed@@@ 3
 
 p_file=@@meta/mysql_root.key
 mysql_root_pass=$(GEN_password root $p_file)
@@ -124,8 +124,8 @@ do_FROM all
 # do_ENTRYPOINT $http_service
 
 # # # Install Prometheus
-do_RUN "id -u prometheus &>/dev/null || sudo useradd --no-create-home --shell /bin/false prometheus"
-do_ADD https://github.com/prometheus/prometheus/releases/download/v2.37.0/prometheus-2.37.0.linux-amd64.tar.gz /etc/prometheus/ prometheus:prometheus
+# do_RUN "id -u prometheus &>/dev/null || sudo useradd --no-create-home --shell /bin/false prometheus"
+# do_ADD https://github.com/prometheus/prometheus/releases/download/v2.37.0/prometheus-2.37.0.linux-amd64.tar.gz /etc/prometheus/ prometheus:prometheus
 # do_ADD @@meta/prometheus.yml /etc/prometheus/prometheus.yml prometheus:prometheus
 # do_ADD @@meta/prometheus.service /etc/systemd/system/prometheus.service root:root
 # do_VOLUME /var/lib/prometheus
@@ -148,7 +148,15 @@ do_ADD https://github.com/prometheus/prometheus/releases/download/v2.37.0/promet
 # do_ENTRYPOINT blackbox_exporter
 
 do_ADD https://download.docker.com/linux/static/stable/x86_64/docker-26.1.3.tgz /usr/bin/ root:root
-do_RUN "sudo groupadd -f docker; sudo usermod -aG docker $ssh_user; sudo dockerd &"
+do_ADD https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64 /usr/local/lib/docker/docker-compose root:root 0755
+do_ADD @@meta/docker.socket /etc/systemd/system/docker.socket root:root
+do_ADD @@meta/docker.service /etc/systemd/system/docker.service root:root
+do_VOLUME /etc/docker root:root 0755
+#do_VOLUME /usr/local/lib/docker root:root 0755
+do_RUN "sudo cp -f /usr/local/lib/docker/docker-compose /usr/local/bin/docker-compose"
+do_RUN "sudo groupadd -f docker; sudo usermod -aG docker $ssh_user"
+do_ENTRYPOINT docker
+
 # Install Grafana
 # do_REPO @@meta/grafana.repo
 # do_PACKAGE grafana

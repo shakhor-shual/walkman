@@ -315,7 +315,7 @@ EOF
 EOF
         [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
         [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
-        [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
+        [ -n "$mode" ] && echo "      mode: '$mode'" >>"$tmp"
 
         case $dst in
         *'/') ;&
@@ -352,10 +352,10 @@ EOF
 EOF
         [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
         [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
-        [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
+        [ -n "$mode" ] && echo "      mode: '$mode'" >>"$tmp"
         ;;
     *"://"*)
-        #        do_VOLUME "$(dirname "$dst")" "$usr:$grp" 0755 >/dev/null
+        do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
         cat <<EOF >>"$tmp"
   - name: ADD $src TO $dst  
     ansible.builtin.get_url:
@@ -364,7 +364,7 @@ EOF
 EOF
         [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
         [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
-        [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
+        [ -n "$mode" ] && echo "      mode: '$mode'" >>"$tmp"
         ;;
     *)
         cat <<EOF >>"$tmp"
@@ -375,12 +375,12 @@ EOF
 EOF
         [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
         [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
-        [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
+        [ -n "$mode" ] && echo "      mode: '$mode'" >>"$tmp"
         ;;
     esac
 
     #   echo "    when: foo_stat.stat.exists" >>"$tmp"
-    #cat "$tmp"
+    cat "$tmp"
     grep <"$tmp" "src\|dest\|repo\|mode\|owner\|group\|url" | tr -d ' '
     play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|^[[:space:]]*$\|ok" | grep -v '""'
 }
@@ -1131,7 +1131,7 @@ do_VOLUME() { # Docker VOLUME analogue
     ansible.builtin.file:
       path:  $dir
       state: directory
-      mode: $mode
+      mode: '$mode'
       owner: $usr
       group: $grp
 EOF
