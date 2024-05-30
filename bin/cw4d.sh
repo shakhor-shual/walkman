@@ -204,11 +204,6 @@ GEN_strong_password() {
     echo "$password"
 }
 
-# set_DOCKER() {
-
-#    # https://download.docker.com/linux/static/stable/x86_64/docker-26.1.3.tgz
-# }
-
 do_MOVE() {
     [ -z "$1" ] && return
     local src=$1
@@ -395,24 +390,6 @@ do_ARG() { # Docker ARG analogue
     #  ANSIBLE_ARG=$1
 }
 
-set_APACHE() {
-    local t
-    t=$(rt)
-    echo -e
-    echo "%%%%%%%%%%% remotely: Setup APACHE  %%%%%%%%%%%"
-
-    if [ -n "$1" ]; then
-        echo "Setup service unit ENV variables"
-        do_ENTRYPOINT "httpd" >/dev/null
-        do_ENV "$@" >/dev/null
-        do_ENTRYPOINT "apache2" >/dev/null
-        do_ENV "$@" >/dev/null
-    else
-        set_SERVICE "httpd" >/dev/null
-    fi
-    rt "$t"
-    echo "service APACHE configured and restarted"
-}
 #============== C
 do_COPY() { # Docker COPY analogue
     [ -z "$1" ] && return
@@ -592,17 +569,6 @@ cmd_KUBECTL() { # kubectl Wrapper
 }
 #============== L
 #============== M
-set_MARIADB() {
-    SQL_CONTEXT="mariadb"
-    local t
-    t=$(rt)
-    echo "%%%%%%%%%%% remotely: Setup mariadb-server %%%%%%%%%%%%%%%"
-    set_PACKAGE mariadb mariadb-server >/dev/null
-    set_PACKAGE mariadb105 mariadb105-server >/dev/null
-    set_MYSQL_SECURE "$1" "$2" >/dev/null
-    rt "$t"
-}
-
 cmd_MYSQL_SECURE() {
     local tmp
     local t
@@ -655,36 +621,6 @@ EOF
     echo "$SQL_CONTEXT-server secured!"
 }
 #============== N
-set_NGINX() {
-    local t
-    t=$(rt)
-    echo -e
-    echo "%%%%%%%%%%% remotely: Setup NGINX  %%%%%%%%%%%"
-    set_SERVICE "nginx" >/dev/null
-    if [ -n "$1" ]; then
-        echo "Setup service unit ENV variables"
-        do_ENTRYPOINT "nginx" >/dev/null
-        do_ENV "$@" >/dev/null
-    fi
-    rt "$t"
-    echo "service NGINX configured and restarted"
-}
-
-set_NODE_JS() {
-    local t
-    t=$(rt)
-    echo -e
-    echo "%%%%%%%%%%% remotely: Setup NODE-JS  %%%%%%%%%%%"
-    set_SERVICE "node" >/dev/null
-    echo "service NODE-JS restarted"
-    if [ -n "$1" ]; then
-        echo "Setup service unit ENV variables"
-        do_ENTRYPOINT "node" >/dev/null
-        do_ENV "$@" >/dev/null
-    fi
-    rt "$t"
-}
-
 #============== P
 do_PACKAGE() {
     set_PACKAGE "$@"
@@ -753,22 +689,147 @@ EOF
     echo "OS packages installed"
 }
 
-set_PHP_FPM() {
+set_DOCKER() {
+    local docker_ver="26.1.3"
+    local compose_ver="2.27.0"
+    local MAINPID='$MAINPID'
     local t
+    local tmp
     t=$(rt)
     echo -e
-    echo "%%%%%%%%%%% remotely: Setup PHP-FPM  %%%%%%%%%%%"
-    set_SERVICE "php-fpm" >/dev/null
-    if [ -n "$1" ]; then
-        echo "Setup service unit ENV variables"
-        do_ENTRYPOINT "php-fpm" >/dev/null
-        do_ENV "$@" >/dev/null
-    fi
-    rt "$t"
-    echo "service PHP-FPM configured and restarted"
+    echo "%%%%%%%%%%% remotely: DOCKER STACK init  %%%%%%%%%%%"
+
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
+    cat <<EOF >"$tmp"
+- hosts: all
+  become: true
+  gather_facts: yes
+  tasks:
+  - name: Gather package facts
+    ansible.builtin.package_facts:
+      manager: auto
+  - name: Gather services facts
+    ansible.builtin.service_facts:
+  - name: INSTALL docker binaries
+    block:
+      - name: APT update
+        ansible.builtin.apt:
+          update_cache: yes
+        when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
+      - name: install tar
+        block:
+          - name: tar
+            ansible.builtin.yum:
+              state: present
+              name: tar
+            when: (ansible_os_family == 'RedHat') and ('dnf' not in ansible_facts.packages)
+          - name: tar
+            ansible.builtin.dnf:
+              state: present
+              name: tar
+            when: (ansible_os_family == 'RedHat') and ('dnf' in ansible_facts.packages)
+          - name: tar
+            ansible.builtin.apt:
+              state: present
+              name: tar
+            when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
+        ignore_errors: true
+        when: ('tar' not in ansible_facts.packages)
+      - name: Create FOLDERS
+        ansible.builtin.file:
+          path:  "{{ item }}" 
+          state: directory
+          mode: '0755'
+          owner: root
+          group: root
+        loop:
+           - /tmp/walkman_add
+           - /usr/local/lib/docker/cli-plugins
+           - /etc/docker
+      - name: ADD https://download.docker.com/linux/static/stable/x86_64/docker-$docker_ver.tgz TO /tmp/walkman_add
+        ansible.builtin.unarchive:
+          src: https://download.docker.com/linux/static/stable/x86_64/docker-$docker_ver.tgz
+          dest: /tmp/walkman_add
+          remote_src: yes
+          list_files: yes
+          owner: root
+          group: root
+        register: archive_contents
+      - name: MOVE docker files TO /usr/bin/
+        command: cp -rlf "/tmp/walkman_add/{{archive_contents.files[0].split('/')[0]}}/."  /usr/bin/
+      - name: CLEAN-UP 
+        ansible.builtin.file:
+          path: "{{ item }}"
+          state: absent
+        loop:
+           - /usr/local/lib/docker/cli-plugins/docker-compose
+           - "/tmp/walkman_add/{{archive_contents.files[0].split('/')[0]}}"
+      - name: ADD https://github.com/docker/compose/releases/download/v$compose_ver/docker-compose-linux-x86_64 TO /usr/local/lib/docker/cli-plugins/docker-compose
+        ansible.builtin.get_url:
+          url: https://github.com/docker/compose/releases/download/v$compose_ver/docker-compose-linux-x86_64
+          dest: /usr/local/lib/docker/cli-plugins/docker-compose
+          force: true
+          owner: root
+          group: root
+          mode: '0755'
+      - name: ADD /etc/systemd/system/docker.socket
+        ansible.builtin.copy:
+          dest: /etc/systemd/system/docker.socket
+          owner: root
+          group: root
+          content: |
+            [Unit]
+            Description=Docker Socket for the API
+            [Socket]
+            ListenStream=/run/docker.sock
+            SocketMode=0660
+            SocketUser=root
+            SocketGroup=docker
+            [Install]
+            WantedBy=sockets.target
+      - name: ADD /etc/systemd/system/docker.service
+        ansible.builtin.copy:
+          dest: /etc/systemd/system/docker.service
+          owner: root
+          group: root
+          content: |
+            [Unit]
+            Description=Docker Application Container Engine
+            Documentation=https://docs.docker.com
+            After=network-online.target docker.socket firewalld.service time-set.target
+            Wants=network-online.target
+            Requires=docker.socket
+            [Service]
+            Type=notify
+            ExecStart=/usr/bin/dockerd
+            ExecReload=/bin/kill -s HUP $MAINPID
+            TimeoutStartSec=0
+            RestartSec=2
+            Restart=always
+            StartLimitBurst=3
+            StartLimitInterval=60s
+            LimitNPROC=infinity
+            LimitCORE=infinity
+            TasksMax=infinity
+            Delegate=yes
+            KillMode=process
+            OOMScoreAdjust=-500
+            [Install]
+            WantedBy=multi-user.target
+      - name: commands RUN
+        ansible.builtin.shell: cp -lf /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose; groupadd -f docker; usermod -aG docker $ANSIBLE_USER
+      - name: Start docker service
+        ansible.builtin.systemd_service:
+          state: restarted
+          daemon_reload: true
+          name: docker
+    when: ansible_facts.services['docker.service'] is not defined
+EOF
+    play_this "$tmp" "$t"
+    echo "docker/docker-compose are installes"
 }
 
-set_PLAY() { # ansible Wrapper
+do_PLAYBOOK() { # ansible Wrapper
     local playbook=$1
     local t
     t=$(rt)
@@ -2411,7 +2472,7 @@ case $RUN_MODE in
                         [ "$TF_EC" -eq 1 ] && finish_grace "err_tf" "$STAGE_COUNT" "$stage_path"
                         update_variables_state "$STAGE_INIT_FILE" "env_after"
                         if [ "$RUN_MODE" = "apply" ] || [ "$RUN_MODE" = "gitops" ]; then
-                            [ "$PLAY_SPEED" -ge 2 ] && [ -s "$PLAYBOOK_SHADOW_TMP" ] && set_PLAY
+                            [ "$PLAY_SPEED" -ge 2 ] && [ -s "$PLAYBOOK_SHADOW_TMP" ] && do_PLAYBOOK "$PLAYBOOK_SHADOW_TMP"
                         fi
                         if [ -n "$RUN_CMD_CONNECT" ] && [ "$RUN_MODE" = "apply" ] && [ -f "$STAGE_TARGET_FILE" ]; then
                             echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"

@@ -16,7 +16,7 @@
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ 1   # possible here are 0, 1, 2, 3
-speed@@@ 3
+speed@@@ 2
 
 # Set used versions of docker/docker-compose !!!FULL(MAJOR|MINOR) EXISTED VERSIONS ONLY!!!
 docker_version="26.1.3"
@@ -78,14 +78,24 @@ esac
 set_TARGET "IP-public" $ssh_user $auto_key_private
 do_FROM all
 
-# Install Docker from binaries
-do_ADD https://download.docker.com/linux/static/stable/$instance_arch/docker-$docker_version.tgz /usr/bin/ root:root
-do_ADD https://github.com/docker/compose/releases/download/v$docker_compose_version/docker-compose-linux-$instance_arch /usr/local/lib/docker/cli-plugins/docker-compose root:root 0755
-do_ADD @@assets/docker.socket /etc/systemd/system/docker.socket root:root
-do_ADD @@assets/docker.service /etc/systemd/system/docker.service root:root
-do_VOLUME /etc/docker root:root 0755
-do_RUN "sudo cp -lf /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose"
-do_RUN "sudo groupadd -f docker; sudo usermod -aG docker $ssh_user"
-do_ENTRYPOINT docker
+############################################################################
+# Install Docker from binaries possible in any of 2 ways, unccomment chosen
+#  and comment alternatives
+############################################################################
+############## WAY 1:
+# do_ADD https://download.docker.com/linux/static/stable/$instance_arch/docker-$docker_version.tgz /usr/bin/ root:root
+# do_ADD https://github.com/docker/compose/releases/download/v$docker_compose_version/docker-compose-linux-$instance_arch /usr/local/lib/docker/cli-plugins/docker-compose root:root 0755
+# do_ADD @@assets/docker.socket /etc/systemd/system/docker.socket root:root
+# do_ADD @@assets/docker.service /etc/systemd/system/docker.service root:root
+# do_VOLUME /etc/docker root:root 0755
+# do_RUN "sudo cp -lf /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose"
+# do_RUN "sudo groupadd -f docker; sudo usermod -aG docker $ssh_user"
+# do_ENTRYPOINT docker
+
+############## WAY 2:
+#do_PLAYBOOK @@assets/docker-install-playbook.yaml
+
+############## WAY 3:
+set_DOCKER
 
 cmd_INTERACT -L 8080:localhost:80 -L 3000:localhost:3000 -L 9090:localhost:9090
