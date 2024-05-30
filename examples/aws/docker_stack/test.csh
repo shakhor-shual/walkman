@@ -16,7 +16,7 @@
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ 1   # possible here are 0, 1, 2, 3
-speed@@@ 2
+speed@@@ 3
 
 # Set used versions of docker/docker-compose !!!FULL(MAJOR|MINOR) EXISTED VERSIONS ONLY!!!
 docker_version="26.1.3"
@@ -79,9 +79,10 @@ set_TARGET "IP-public" $ssh_user $auto_key_private
 do_FROM all
 
 ############################################################################
-# Install Docker from binaries possible in any of 2 ways, unccomment chosen
+# Install Docker from binaries possible in any of 2 ways, uncomment chosen
 #  and comment alternatives
 ############################################################################
+
 ############## WAY 1:
 # do_ADD https://download.docker.com/linux/static/stable/$instance_arch/docker-$docker_version.tgz /usr/bin/ root:root
 # do_ADD https://github.com/docker/compose/releases/download/v$docker_compose_version/docker-compose-linux-$instance_arch /usr/local/lib/docker/cli-plugins/docker-compose root:root 0755
@@ -97,5 +98,7 @@ do_FROM all
 
 ############## WAY 3:
 set_DOCKER $docker_version $docker_compose_version
-
+#do_ADD https://github.com/ChristianLempa/boilerplates.git /home/ec-2user/newlib
+do_ADD https://github.com/shakhor-shual/walkman.git /home/ec2-user/newlib
+do_PACKAGE mc nano
 cmd_INTERACT -L 8080:localhost:80 -L 3000:localhost:3000 -L 9090:localhost:9090

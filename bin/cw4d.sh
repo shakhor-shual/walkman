@@ -63,7 +63,6 @@ EOF
   gather_facts: yes
   tasks:
 EOF
-
     rt "$t"
     rm -f "$tmp"
 }
@@ -82,7 +81,7 @@ play_this() {
     local tmp=$1
     local timer=$2
     if [ "$PLAY_SPEED" -le 1 ]; then
-        ansible-playbook "$tmp" -i "$ALBUM_SELF" # | sed ':a;N;$!ba;s/\*\n/\*\t/g' | grep -v "skipping:\|^[[:space:]]*$\|^PLAY\|^TASK "
+        ansible-playbook "$tmp" -i "$ALBUM_SELF" | sed ':a;N;$!ba;s/\*\n/\*\t/g' | grep -v "skipping:\|^[[:space:]]*$\|^PLAY\|^TASK "
         rt "$timer"
     fi
     if [ -z "$3" ]; then
@@ -110,7 +109,7 @@ tf_hashed() {
 }
 
 ans_hashed() {
-    local helper=$1
+    local helper=$*
     local hashed=0
     local md5
     local cnt=$#
@@ -119,10 +118,14 @@ ans_hashed() {
     md5=$(echo -n "$*" | md5sum | awk '{print $1}')
     ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
     case $helper in
-    "cmd_INTERACT") return 1 ;;
-    "set_TARGET" | "do_FROM") return 1 ;;
-    "do_RUN") ;;
-    "do_ADD" | "do_COPY") cnt=2 ;&
+    "cmd_INTERACT"*) return 1 ;;
+    "set_TARGET"*) return 1 ;;
+    "do_FROM"*) return 1 ;;
+    "do_RUN"* | "do_COPY"* | "do_MOVE"*) ;;
+    "do_ADD"*)
+        cnt=2
+        [[ $helper =~ ".git " ]] && return 1
+        ;&
     *)
         local i=0
         for pm in "$@"; do
@@ -251,6 +254,7 @@ do_ADD() { # Docker ADD analogue
     local grp
     local mode
     local tmp
+    local version
     local remote="no"
     local t
     t=$(rt)
@@ -277,13 +281,17 @@ do_ADD() { # Docker ADD analogue
         ;;
     esac
 
+    [[ $3 =~ "version=" ]] && version=${3#*}
+    [[ $4 =~ "version=" ]] && version=${4#*}
+    [[ $5 =~ "version=" ]] && version=${5#*}
+
     case $dst in
     *'/') dst_dir=${dst%?} ;;
     *) dst_dir=$(dirname "$dst") ;;
     esac
 
     echo -e
-    echo "%%%%%%%%%%% remotely: Content ADD/COPY %%%%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: Content ADD to remote %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: true
@@ -297,7 +305,7 @@ EOF
     *".zip" | *".tar.gz" | *".tgz")
         [[ $src =~ "://" ]] && remote="yes"
 
-        set_PACKAGE zip unzip tar >/dev/null
+        do_PACKAGE zip unzip tar >/dev/null
         do_VOLUME "$tmp_dst_dir" "$usr:$grp" 0755 >/dev/null
 
         cat <<EOF >>"$tmp"
@@ -334,20 +342,35 @@ EOF
 EOF
             ;;
         esac
-
         ;;
         # for git source
     *".git")
-        do_VOLUME "$(dirname "$dst")" "$usr:$grp" 0755 >/dev/null
+        do_PACKAGE git >/dev/null
+        do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
         cat <<EOF >>"$tmp"
-  - name: GIT remote 
+  - name: GIT remote clone/pull $dst
     ansible.builtin.git:
       repo: $src
       dest: $dst
+      clone: yes
+      update: yes
 EOF
-        [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
+        [ -n "$version" ] && echo "      version: '$version'" >>"$tmp"
+        echo "    register: repo_state" >>"$tmp"
+        [ -n "$usr" ] && cat <<EOF >>"$tmp"
+  - name: GIT tune access
+    ansible.builtin.file:
+      path: $dst
+      owner: $usr
+EOF
         [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
-        [ -n "$mode" ] && echo "      mode: '$mode'" >>"$tmp"
+        [ -n "$mode" ] && echo "     'mode': '$mode'" >>"$tmp"
+        echo "    when: repo_state.changed" >>"$tmp"
+        cat <<EOF >>"$tmp"
+  - name: GIT trigger updates
+    local_action: ansible.builtin.command rm -f $STAGE_REHASH_FILE
+    when: repo_state.changed
+EOF
         ;;
     *"://"*)
         do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
@@ -378,10 +401,9 @@ EOF
         [ -n "$mode" ] && echo "      mode: '$mode'" >>"$tmp"
         ;;
     esac
-
-    #   echo "    when: foo_stat.stat.exists" >>"$tmp"
-    cat "$tmp"
-    grep <"$tmp" "src\|dest\|repo\|mode\|owner\|group\|url" | tr -d ' '
+    #cat "$tmp"
+    #echo "------------------------------------------------------"
+    grep <"$tmp" "src:\|dest:\|repo:\|mode:\|owner:\|group:\|url:" | tr -d ' '
     play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|^[[:space:]]*$\|ok" | grep -v '""'
 }
 
@@ -573,7 +595,7 @@ cmd_MYSQL_SECURE() {
     local tmp
     local t
     t=$(rt)
-    set_PACKAGE expect python3 python3-pip >/dev/null
+    do_PACKAGE expect python3 python3-pip >/dev/null
     SQL_USER=$1
     SQL_PASSWORD=$2
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
@@ -622,10 +644,7 @@ EOF
 }
 #============== N
 #============== P
-do_PACKAGE() {
-    set_PACKAGE "$@"
-}
-set_PACKAGE() { # rpm/apt/zipper Wrapper
+do_PACKAGE() { # rpm/apt/zipper Wrapper
     [ -z "$1" ] && return
     local t
     t=$(rt)
@@ -835,8 +854,8 @@ do_PLAYBOOK() { # ansible Wrapper
     t=$(rt)
     [ -z "$1" ] && playbook=$PLAYBOOK_SHADOW_TMP
     echo -e
-    #echo "%%%%%%%%%%%%%%%%% used PLAYBOOK:  %%%%%%%%%%%%%%%%%%%"
-    #cat "$playbook"
+    # echo "%%%%%%%%%%%%%%%%% used PLAYBOOK:  %%%%%%%%%%%%%%%%%%%"
+    # cat "$playbook"
     echo "%%%%%%%%%%% remotely: PLAY: $playbook %%%%%%%%%%%%%%%"
     #   play_this "$playbook" "$t" #| grep -v "^PLAY \|^[[:space:]]*$"
     ansible-playbook "$playbook" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | awk '/*$/ { printf("%s\t", $0); next } 1' | grep -v "skipping:"
@@ -1116,10 +1135,9 @@ set_TARGET() { # create ssh access artefacts for target
     local ips='[]'
     local user=$2
     local secret=$3
-    echo -e
-    echo -e
-    echo "speed: $PLAY_SPEED"
+
     echo "%%%%%%%%%%% remotely: Init TARGET for Setup %%%%%%%%%%%"
+    echo -n "speed: $PLAY_SPEED  "
     echo "#full album playbook" >$PLAYBOOK_SHADOW_TMP
 
     ANSIBLE_USER=$user
@@ -1235,7 +1253,7 @@ run_helper_by_name() {
     local val
     local helper_name
     local helper_params
-
+    local hp
     case $2 in
     "<<<"*)
         helper_call_string="$(echo "$2" | tr -d ' ' | sed 's/<<<//; s/|/ /g;')"
@@ -1258,15 +1276,13 @@ run_helper_by_name() {
         "do_"[A-Z]* | "set_"[A-Z]* | "cmd_"[A-Z]*)
 
             if [ "$PLAY_SPEED" -ge 3 ] && [[ "$3" =~ "env_after" ]]; then
-                echo "%%%%%%%%%%%%%%%%%%% accelertion: Check HELPER hash changes: %%%%%%%%%%%%%%%%%%%%%%%%%%%%"
-                local hp="$helper_name "$(eval "$(echo "${helper_params}" | sed 's/^/echo "/;s/$/"/')")
-                echo "$hp"
+                hp="$helper_name "$(eval "$(echo "${helper_params}" | sed 's/^/echo "/;s/$/"/')")
+                echo -e
                 if ans_hashed ${hp}; then
-                    echo "!!! NO CHANGES: ANSIBLE execution skipped !!!"
-                    echo -e
+                    echo "!!!!! Helper accelerated [$helper_name]"
                     return
                 else
-                    echo "Helper params changes detected execution required"
+                    echo "--- Helper executed [$helper_name]"
                 fi
             fi
             ;;
