@@ -18,10 +18,10 @@ run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, de
 debug@@@ 1   # possible here are 0, 1, 2, 3
 speed@@@ 1
 
-p_file=@@vault/mysql_root.key
+p_file=@@meta/mysql_root.key
 mysql_root_pass=$(GEN_password root $p_file)
 mysql_wp_user="my_wordpf"
-mysql_wp_pass=$(GEN_password $mysql_wp_user @@vault/mysql_wp_user.key)
+mysql_wp_pass=$(GEN_password $mysql_wp_user @@meta/mysql_wp_user.key)
 
 ~INSTACE_1:
 region=eu-north-1
@@ -36,8 +36,8 @@ subnet_cidr_block=@@
 #ami="ami-029e4db491be76287" # Amazon Linux 2023
 ami="ami-0f0ec0d37d04440e3" # Amazon Linux 2
 volume_size=@@
-auto_key_public=@@vault/public.key
-auto_key_private=@@vault/private.key
+auto_key_public=@@meta/public.key
+auto_key_private=@@meta/private.key
 instance_type="t3.xlarge"
 
 /* ############# inlined BASH part
@@ -119,15 +119,15 @@ do_FROM all
 # do_ENV $http_service WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$mysql_wp_user" WORDPRESS_DB_PASSWORD="$mysql_wp_pass" WORDPRESS_DB_NAME="wordpress" APACHE_LOG_DIR="/var/log/$http_service" APACHE_DOCUMENT_ROOT="$www_home"
 # do_ADD http://wordpress.org/latest.tar.gz $www_home/wordpress $wp_owner 0755
 # do_RUN "sudo find $www_home/wordpress -type f -exec chmod 644 {} \;"
-# do_ADD @@assets/wordpress.conf $wp_http_conf root:root
-# do_ADD @@assets/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
+# do_ADD @@meta/wordpress.conf $wp_http_conf root:root
+# do_ADD @@meta/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
 # do_ENTRYPOINT $http_service
 
 # # # Install Prometheus
 # do_RUN "id -u prometheus &>/dev/null || sudo useradd --no-create-home --shell /bin/false prometheus"
 # do_ADD https://github.com/prometheus/prometheus/releases/download/v2.37.0/prometheus-2.37.0.linux-amd64.tar.gz /etc/prometheus/ prometheus:prometheus
-# do_ADD @@assets/prometheus.yml /etc/prometheus/prometheus.yml prometheus:prometheus
-# do_ADD @@assets/prometheus.service /etc/systemd/system/prometheus.service root:root
+# do_ADD @@meta/prometheus.yml /etc/prometheus/prometheus.yml prometheus:prometheus
+# do_ADD @@meta/prometheus.service /etc/systemd/system/prometheus.service root:root
 # do_VOLUME /var/lib/prometheus
 # do_MOVE /etc/prometheus/prometheus /usr/local/bin/prometheus
 # do_MOVE /etc/prometheus/promtool /usr/local/bin/promtool
@@ -135,22 +135,22 @@ do_FROM all
 # do_ENTRYPOINT prometheus
 # #  Install Prometheus node_exporter
 # do_ADD https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz /opt/node_exporter root:root
-# do_ADD @@assets/node_exporter.service /etc/systemd/system/node_exporter.service root:root
+# do_ADD @@meta/node_exporter.service /etc/systemd/system/node_exporter.service root:root
 # do_ENTRYPOINT node_exporter
 # #  Install Prometheus mysqld_exporter
 # do_ADD https://github.com/prometheus/mysqld_exporter/releases/download/v0.14.0/mysqld_exporter-0.14.0.linux-amd64.tar.gz /opt/mysqld_exporter root:root
-# do_ADD @@assets/mysqld_exporter.service /etc/systemd/system/mysqld_exporter.service root:root
+# do_ADD @@meta/mysqld_exporter.service /etc/systemd/system/mysqld_exporter.service root:root
 # do_ENTRYPOINT mysqld_exporter
 # #  Install Prometheus blackbox_exporter
 # do_ADD https://github.com/prometheus/blackbox_exporter/releases/download/v0.23.0/blackbox_exporter-0.23.0.linux-amd64.tar.gz /opt/blackbox_exporter root:root
-# do_ADD @@assets/blackbox.yml /opt/blackbox_exporter/blackbox.yml root:root
-# do_ADD @@assets/blackbox_exporter.service /etc/systemd/system/blackbox_exporter.service root:root
+# do_ADD @@meta/blackbox.yml /opt/blackbox_exporter/blackbox.yml root:root
+# do_ADD @@meta/blackbox_exporter.service /etc/systemd/system/blackbox_exporter.service root:root
 # do_ENTRYPOINT blackbox_exporter
 
 do_ADD https://download.docker.com/linux/static/stable/x86_64/docker-26.1.3.tgz /usr/bin/ root:root
 do_ADD https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64 /usr/local/lib/docker/cli-plugins/docker-compose root:root 0755
-do_ADD @@assets/docker.socket /etc/systemd/system/docker.socket root:root
-do_ADD @@assets/docker.service /etc/systemd/system/docker.service root:root
+do_ADD @@meta/docker.socket /etc/systemd/system/docker.socket root:root
+do_ADD @@meta/docker.service /etc/systemd/system/docker.service root:root
 do_VOLUME /etc/docker root:root 0755
 #do_VOLUME /usr/local/lib/docker root:root 0755
 do_RUN "sudo cp -lf /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose"
@@ -158,7 +158,7 @@ do_RUN "sudo groupadd -f docker; sudo usermod -aG docker $ssh_user"
 do_ENTRYPOINT docker
 
 # Install Grafana
-# do_REPO @@assets/grafana.repo
+# do_REPO @@meta/grafana.repo
 # do_PACKAGE grafana
 # do_ENTRYPOINT grafana-server
 

@@ -357,10 +357,15 @@ EOF
     *"://"*)
         do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
         cat <<EOF >>"$tmp"
+  - name: clean-up $dst 
+    file:
+      path: $dst
+      state: absent
   - name: ADD $src TO $dst  
     ansible.builtin.get_url:
       url: $src
       dest: $dst
+      force: true
 EOF
         [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
         [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
@@ -1425,6 +1430,16 @@ bashcl_translator() {
         [ "$STAGE_LABEL" = "&root&" ] && tmp=$DIR_ALBUM_HOME/.meta
         val=${val//@@meta/$tmp}
         ;&
+    *"@@assets"*)
+        tmp=$(readlink -f ../.assets)
+        [ "$STAGE_LABEL" = "&root&" ] && tmp=$DIR_ALBUM_HOME/.assets
+        val=${val//@@assets/$tmp}
+        ;&
+    *"@@vault"*)
+        tmp=$(readlink -f ../.vault)
+        [ "$STAGE_LABEL" = "&root&" ] && tmp=$DIR_ALBUM_HOME/.vault
+        val=${val//@@vault/$tmp}
+        ;&
     "{"* | "["*)
         val=$(echo "$val" | sed 's/^{ */{/;s/ *}$/}/; s/^\[ */[/;s/ *\]$/]/; s/, */,/g; s/ *,/,/g')
         ;&
@@ -1568,6 +1583,8 @@ init_album_home() {
         DIR_ALBUM_HOME=$PWD
         ALBUM_SELF="$DIR_ALBUM_HOME/$album_name"
         DIR_ALBUM_META="$DIR_ALBUM_HOME/.meta"
+        DIR_ALBUM_ASSETS="$DIR_ALBUM_HOME/.assets"
+        DIR_ALBUM_VAULT="$DIR_ALBUM_HOME/.vault"
         DIR_WS_TMP="$DIR_ALBUM_META/$WS_NAME/tmp"
         DIR_WS_HASH="$DIR_ALBUM_META/$WS_NAME/hash"
         BASH_INLINE="$DIR_WS_TMP/bash_inline.sh"
@@ -1584,6 +1601,8 @@ init_album_home() {
         INVENTORY_LIST_TAIL="$DIR_WS_TMP/$WS_NAME.inventoty_tail.draft"
 
         DIR_META="../.meta"
+        DIR_ASSETS="../.assets"
+        DIR_VAULT="../.vault"
     fi
 }
 
@@ -2183,7 +2202,7 @@ update_from_git() {
 
     while [ $updated -eq 1 ]; do
         updated=0
-        for packet_path in $(find "$DIR_ALBUM_HOME" -maxdepth 2 -name "*.csh" | grep -v '\.meta\|\.git' | sort); do
+        for packet_path in $(find "$DIR_ALBUM_HOME" -maxdepth 2 -name "*.csh" | grep -v '\.meta\|\.assets\|\.vault\|\.git' | sort); do
             cd "$DIR_ALBUM_HOME" || exit
             packet_dir=$(dirname "$packet_path")
             for git in $(sed <"$packet_path" 's/#.*$//;/^$/d' | tr -d ' ' | grep '^git' | sed 's/^git=//;s/^git@@@=//; s/^git@@@//;'); do
@@ -2303,7 +2322,7 @@ case $RUN_MODE in
     stages_tmp=$(mktemp)
     head_tmp=$(mktemp)
     print_head_yes=yes
-    for packet_path in $(find "$DIR_ALBUM_HOME" -maxdepth 3 -name "variables.tf" -o -name "*.yaml" -o -name ".RUN" | grep -v '\.meta\|\.git' | sort); do
+    for packet_path in $(find "$DIR_ALBUM_HOME" -maxdepth 3 -name "variables.tf" -o -name "*.yaml" -o -name ".RUN" | grep -v '\.meta\|\.assets\|\.vault\|\.git' | sort); do
         cd "$(dirname "$packet_path")" || exit
         stage_template_print "$stages_tmp" "$packet_path" $print_head_yes
         unset print_head_yes
@@ -2344,7 +2363,7 @@ case $RUN_MODE in
 
         STAGE_COUNT=1
         for stage_path in $(
-            find "$DIR_ALBUM_HOME" -maxdepth 1 -type d | sort | grep -v '\.meta\|\.git' | tail -n +2
+            find "$DIR_ALBUM_HOME" -maxdepth 1 -type d | sort | grep -v '\.meta\|\.assets\|\.vault\|\.git' | tail -n +2
         ); do
             STAGE_INIT_FILE="$DIR_WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
             STAGE_LABEL=$(head <"$STAGE_INIT_FILE" -n 1 | sed 's/#//g;s/ //g;s/://g;s/~//g;')
@@ -2360,7 +2379,7 @@ case $RUN_MODE in
             echo
 
             if get_in_tf_packet_home "$stage_path"; then #get in packet dir
-                mkdir -p "$DIR_META"
+                mkdir -p "$DIR_META" "$DIR_ASSETS" "$DIR_VAULT"
                 draft_tfvars_from_packet_variables
                 update_variables_state "$STAGE_INIT_FILE" "env_file"
 

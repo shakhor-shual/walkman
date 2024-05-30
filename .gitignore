@@ -23,6 +23,7 @@ gcp.json
 crash.log
 crash.*.log
 *.vscode/
+*.vault/
 *.hash
 *.rehash
 
