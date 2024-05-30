@@ -96,6 +96,6 @@ do_FROM all
 #do_PLAYBOOK @@assets/docker-install-playbook.yaml
 
 ############## WAY 3:
-set_DOCKER
+set_DOCKER $docker_version $docker_compose_version
 
 cmd_INTERACT -L 8080:localhost:80 -L 3000:localhost:3000 -L 9090:localhost:9090
