@@ -110,57 +110,48 @@ set_TARGET "IP-public" $ssh_user $auto_key_private
 do_FROM all
 
 #Install Wodrpess
-# do_REPO $extra_repo
-# do_REPO $extra_repo_php
-# do_PACKAGE $extra_pkgs
-# do_ENTRYPOINT $db_service
-# cmd_MYSQL_SECURE root $mysql_root_pass
-# cmd_MYSQL "CREATE DATABASE IF NOT EXISTS wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$mysql_wp_user'@'localhost' identified by '$mysql_wp_pass';FLUSH PRIVILEGES;"
-# do_ENV $http_service WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$mysql_wp_user" WORDPRESS_DB_PASSWORD="$mysql_wp_pass" WORDPRESS_DB_NAME="wordpress" APACHE_LOG_DIR="/var/log/$http_service" APACHE_DOCUMENT_ROOT="$www_home"
-# do_ADD http://wordpress.org/latest.tar.gz $www_home/wordpress $wp_owner 0755
-# do_RUN "sudo find $www_home/wordpress -type f -exec chmod 644 {} \;"
-# do_ADD @@assets/wordpress.conf $wp_http_conf root:root
-# do_ADD @@assets/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
-# do_ENTRYPOINT $http_service
+do_REPO $extra_repo
+do_REPO $extra_repo_php
+do_PACKAGE $extra_pkgs
+do_ENTRYPOINT $db_service
+cmd_MYSQL_SECURE root $mysql_root_pass
+cmd_MYSQL "CREATE DATABASE IF NOT EXISTS wordpress;GRANT ALL PRIVILEGES on wordpress.* to '$mysql_wp_user'@'localhost' identified by '$mysql_wp_pass';FLUSH PRIVILEGES;"
+do_ENV $http_service WORDPRESS_DB_HOST="localhost" WORDPRESS_DB_USER="$mysql_wp_user" WORDPRESS_DB_PASSWORD="$mysql_wp_pass" WORDPRESS_DB_NAME="wordpress" APACHE_LOG_DIR="/var/log/$http_service" APACHE_DOCUMENT_ROOT="$www_home"
+do_ADD http://wordpress.org/latest.tar.gz $www_home/wordpress $wp_owner 0755
+do_RUN "sudo find $www_home/wordpress -type f -exec chmod 644 {} \;"
+do_ADD @@assets/wordpress.conf $wp_http_conf root:root
+do_ADD @@assets/wp-config.php $www_home/wordpress/wp-config.php $wp_owner
+do_ENTRYPOINT $http_service
 
 # # # Install Prometheus
-# do_RUN "id -u prometheus &>/dev/null || sudo useradd --no-create-home --shell /bin/false prometheus"
-# do_ADD https://github.com/prometheus/prometheus/releases/download/v2.37.0/prometheus-2.37.0.linux-amd64.tar.gz /etc/prometheus/ prometheus:prometheus
-# do_ADD @@assets/prometheus.yml /etc/prometheus/prometheus.yml prometheus:prometheus
-# do_ADD @@assets/prometheus.service /etc/systemd/system/prometheus.service root:root
-# do_VOLUME /var/lib/prometheus
-# do_MOVE /etc/prometheus/prometheus /usr/local/bin/prometheus
-# do_MOVE /etc/prometheus/promtool /usr/local/bin/promtool
-# do_RUN "sudo chown prometheus:prometheus /usr/local/bin/prometheus; sudo chown prometheus:prometheus /usr/local/bin/promtool; sudo chown -R prometheus:prometheus /var/lib/prometheus"
-# do_ENTRYPOINT prometheus
-# #  Install Prometheus node_exporter
-# do_ADD https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz /opt/node_exporter root:root
-# do_ADD @@assets/node_exporter.service /etc/systemd/system/node_exporter.service root:root
-# do_ENTRYPOINT node_exporter
-# #  Install Prometheus mysqld_exporter
-# do_ADD https://github.com/prometheus/mysqld_exporter/releases/download/v0.14.0/mysqld_exporter-0.14.0.linux-amd64.tar.gz /opt/mysqld_exporter root:root
-# do_ADD @@assets/mysqld_exporter.service /etc/systemd/system/mysqld_exporter.service root:root
-# do_ENTRYPOINT mysqld_exporter
-# #  Install Prometheus blackbox_exporter
-# do_ADD https://github.com/prometheus/blackbox_exporter/releases/download/v0.23.0/blackbox_exporter-0.23.0.linux-amd64.tar.gz /opt/blackbox_exporter root:root
-# do_ADD @@assets/blackbox.yml /opt/blackbox_exporter/blackbox.yml root:root
-# do_ADD @@assets/blackbox_exporter.service /etc/systemd/system/blackbox_exporter.service root:root
-# do_ENTRYPOINT blackbox_exporter
+do_RUN "id -u prometheus &>/dev/null || sudo useradd --no-create-home --shell /bin/false prometheus"
+do_ADD https://github.com/prometheus/prometheus/releases/download/v2.37.0/prometheus-2.37.0.linux-amd64.tar.gz /etc/prometheus/ prometheus:prometheus
+do_ADD @@assets/prometheus.yml /etc/prometheus/prometheus.yml prometheus:prometheus
+do_ADD @@assets/prometheus.service /etc/systemd/system/prometheus.service root:root
+do_VOLUME /var/lib/prometheus
+do_MOVE /etc/prometheus/prometheus /usr/local/bin/prometheus
+do_MOVE /etc/prometheus/promtool /usr/local/bin/promtool
+do_RUN "sudo chown prometheus:prometheus /usr/local/bin/prometheus; sudo chown prometheus:prometheus /usr/local/bin/promtool; sudo chown -R prometheus:prometheus /var/lib/prometheus"
+do_ENTRYPOINT prometheus
 
-do_ADD https://download.docker.com/linux/static/stable/x86_64/docker-26.1.3.tgz /usr/bin/ root:root
-do_ADD https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64 /usr/local/lib/docker/cli-plugins/docker-compose root:root 0755
-do_ADD @@assets/docker.socket /etc/systemd/system/docker.socket root:root
-do_ADD @@assets/docker.service /etc/systemd/system/docker.service root:root
-do_VOLUME /etc/docker root:root 0755
-#do_VOLUME /usr/local/lib/docker root:root 0755
-do_RUN "sudo cp -lf /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose"
-do_RUN "sudo groupadd -f docker; sudo usermod -aG docker $ssh_user"
-do_ENTRYPOINT docker
+# #  Install Prometheus node_exporter
+do_ADD https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz /opt/node_exporter root:root
+do_ADD @@assets/node_exporter.service /etc/systemd/system/node_exporter.service root:root
+do_ENTRYPOINT node_exporter
+#  Install Prometheus mysqld_exporter
+do_ADD https://github.com/prometheus/mysqld_exporter/releases/download/v0.14.0/mysqld_exporter-0.14.0.linux-amd64.tar.gz /opt/mysqld_exporter root:root
+do_ADD @@assets/mysqld_exporter.service /etc/systemd/system/mysqld_exporter.service root:root
+do_ENTRYPOINT mysqld_exporter
+# #  Install Prometheus blackbox_exporter
+do_ADD https://github.com/prometheus/blackbox_exporter/releases/download/v0.23.0/blackbox_exporter-0.23.0.linux-amd64.tar.gz /opt/blackbox_exporter root:root
+do_ADD @@assets/blackbox.yml /opt/blackbox_exporter/blackbox.yml root:root
+do_ADD @@assets/blackbox_exporter.service /etc/systemd/system/blackbox_exporter.service root:root
+do_ENTRYPOINT blackbox_exporter
 
 # Install Grafana
-# do_REPO @@assets/grafana.repo
-# do_PACKAGE grafana
-# do_ENTRYPOINT grafana-server
+do_REPO @@assets/grafana.repo
+do_PACKAGE grafana
+do_ENTRYPOINT grafana-server
 
 cmd_INTERACT -L 8080:localhost:80 -L 3000:localhost:3000 -L 9090:localhost:9090
 
