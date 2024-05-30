@@ -38,7 +38,7 @@ ami="ami-0f0ec0d37d04440e3" # Amazon Linux 2
 volume_size=@@
 auto_key_public=@@vault/public.key
 auto_key_private=@@vault/private.key
-instance_type="t3.xlarge"
+instance_type="t3.micro"
 
 /* ############# inlined BASH part
 db_pkgs="mariadb mariadb-server"
@@ -100,6 +100,11 @@ case $ami in
     www_home=/var/www/html
     ;;
 esac
+
+case $instance_type in
+*"g."* | *"g") pkg_arch="arm64" ;;
+*) pkg_arch="amd64" ;;
+esac
 */
 
 ######### TF outputs returned parameters
@@ -125,7 +130,7 @@ do_ENTRYPOINT $http_service
 
 # # # Install Prometheus
 do_RUN "id -u prometheus &>/dev/null || sudo useradd --no-create-home --shell /bin/false prometheus"
-do_ADD https://github.com/prometheus/prometheus/releases/download/v2.37.0/prometheus-2.37.0.linux-amd64.tar.gz /etc/prometheus/ prometheus:prometheus
+do_ADD https://github.com/prometheus/prometheus/releases/download/v2.37.0/prometheus-2.37.0.linux-$pkg_arch.tar.gz /etc/prometheus/ prometheus:prometheus
 do_ADD @@assets/prometheus.yml /etc/prometheus/prometheus.yml prometheus:prometheus
 do_ADD @@assets/prometheus.service /etc/systemd/system/prometheus.service root:root
 do_VOLUME /var/lib/prometheus
@@ -135,15 +140,15 @@ do_RUN "sudo chown prometheus:prometheus /usr/local/bin/prometheus; sudo chown p
 do_ENTRYPOINT prometheus
 
 # #  Install Prometheus node_exporter
-do_ADD https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz /opt/node_exporter root:root
+do_ADD https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-$pkg_arch.tar.gz /opt/node_exporter root:root
 do_ADD @@assets/node_exporter.service /etc/systemd/system/node_exporter.service root:root
 do_ENTRYPOINT node_exporter
 #  Install Prometheus mysqld_exporter
-do_ADD https://github.com/prometheus/mysqld_exporter/releases/download/v0.14.0/mysqld_exporter-0.14.0.linux-amd64.tar.gz /opt/mysqld_exporter root:root
+do_ADD https://github.com/prometheus/mysqld_exporter/releases/download/v0.14.0/mysqld_exporter-0.14.0.linux-$pkg_arch.tar.gz /opt/mysqld_exporter root:root
 do_ADD @@assets/mysqld_exporter.service /etc/systemd/system/mysqld_exporter.service root:root
 do_ENTRYPOINT mysqld_exporter
 # #  Install Prometheus blackbox_exporter
-do_ADD https://github.com/prometheus/blackbox_exporter/releases/download/v0.23.0/blackbox_exporter-0.23.0.linux-amd64.tar.gz /opt/blackbox_exporter root:root
+do_ADD https://github.com/prometheus/blackbox_exporter/releases/download/v0.23.0/blackbox_exporter-0.23.0.linux-$pkg_arch.tar.gz /opt/blackbox_exporter root:root
 do_ADD @@assets/blackbox.yml /opt/blackbox_exporter/blackbox.yml root:root
 do_ADD @@assets/blackbox_exporter.service /etc/systemd/system/blackbox_exporter.service root:root
 do_ENTRYPOINT blackbox_exporter
@@ -152,20 +157,15 @@ do_ENTRYPOINT blackbox_exporter
 do_REPO @@assets/grafana.repo
 do_PACKAGE grafana
 do_ENTRYPOINT grafana-server
+/*
+echo -e
+echo "================ Quick acces to deployment components via SSH tunnel: ================="
+echo -e
+echo "  Wordpress  -> http://localhost:8080"
+echo "  Prometheus -> http://localhost:9090"
+echo "  Grafana    -> http://localhost:3000"
+echo -e
+echo "======================================================================================="
+*/
 
 cmd_INTERACT -L 8080:localhost:80 -L 3000:localhost:3000 -L 9090:localhost:9090
-
-/*
-echo $mysql_root_pass
-#hhhx
-#/bin/ssh -t -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i /home/ubuntu/github/walkman/examples/gcp/linux_wordpress/.meta/private.key devops@34.65.146.167
-if [ -n "$walkman_install" ]; then
-    #   echo "Wait 30 sec before Install Walkman on deployed VM"
-    #   sleep 30
-    #   eval $walkman_install
-    echo "http://"
-
-else
-    echo "Can't Install Walkman"
-fi
-*/
