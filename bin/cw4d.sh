@@ -43,8 +43,6 @@ ALLWAYS_RUN=1
 check_ansible_connection() {
     local group=${1:-"all"}
     #  local delay=${2:-"120"}
-    local t
-    t=$(rt)
     local tmp
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
     cat <<EOF >"$tmp"
@@ -56,14 +54,12 @@ check_ansible_connection() {
       timeout: 120
 EOF
     ansible-playbook "$tmp" -i "$ALBUM_SELF"
-
     cat <<EOF >$PLAYBOOK_SHADOW_TMP
 - hosts: $group
   become: true
   gather_facts: yes
   tasks:
 EOF
-    rt "$t"
     rm -f "$tmp"
 }
 
@@ -74,6 +70,7 @@ rt() {
         local end
         end=$(date +%s)
         echo "--$((end - $1)) sec--"
+        echo " "
     fi
 }
 
@@ -81,14 +78,14 @@ play_this() {
     local tmp=$1
     local timer=$2
     if [ "$PLAY_SPEED" -le 1 ]; then
-        ansible-playbook "$tmp" -i "$ALBUM_SELF" | sed ':a;N;$!ba;s/\*\n/\*\t/g' | grep -v "skipping:\|^[[:space:]]*$\|^PLAY\|^TASK "
-        rt "$timer"
+        ansible-playbook "$tmp" -i "$ALBUM_SELF" | sed ':a;N;$!ba;s/\*\n/\*\t/g' | grep -v "skipping:\|^[[:space:]]*$" | sed 's/\*\t/\n/g'
     fi
     if [ -z "$3" ]; then
         grep <"$tmp" -v "^  tasks:\|^- hosts:\|^  become:\|^  gather_facts:" >>$PLAYBOOK_SHADOW_TMP
     else
         cat "$tmp" >>$PLAYBOOK_SHADOW_TMP
     fi
+    rt "$timer"
     rm -f "$tmp"
 }
 
@@ -218,7 +215,6 @@ do_MOVE() {
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
     dst_dir=$(dirname "$dst")
 
-    echo -e
     echo "%%%%%%%%%%% remotely: MOVE content on remote %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
@@ -290,7 +286,6 @@ do_ADD() { # Docker ADD analogue
     *) dst_dir=$(dirname "$dst") ;;
     esac
 
-    echo -e
     echo "%%%%%%%%%%% remotely: Content ADD to remote %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
@@ -446,7 +441,6 @@ do_COPY() { # Docker COPY analogue
         ;;
     esac
 
-    echo -e
     echo "%%%%%%%%%%% remotely: Content COPY %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
@@ -476,7 +470,7 @@ do_ENTRYPOINT() { # Docker ENTRYPOINT analogue
     t=$(rt)
     tmp=$(mktemp -d)
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
-    echo -e
+
     echo "%%%%%%%%%%% remotely: setup Service $1 ENV %%%%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
@@ -515,7 +509,7 @@ do_ENV() { # Docker ENV analogue
             [ -s "$param" ] && cat "$param" >>"$tmp_env"
         fi
     done
-    echo -e
+
     echo "%%%%%%%%%%% remotely: setup $1.service %%%%%%%%%%%%%%%"
     do_VOLUME "/etc/systemd/system/$1.service.d" "root:root" 0755 >/dev/null
     do_VOLUME "/etc/env.walkman" "root:root" 0755 >/dev/null
@@ -560,20 +554,21 @@ EOF
 }
 #============== F
 do_FROM() { # Docker FROM analogue
+    local t
+    t=$(rt)
     ANSIBLE_TARGET=all
     [ -n "$1" ] && ANSIBLE_TARGET=$1
-    echo -e
     echo "%%%%%%%%%%% remotely: FROM chosen Target(s) %%%%%%%%%%%%%%%"
     check_ansible_connection "$ANSIBLE_TARGET" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | sed 's/^ok/Target(s) chosen/'
+    rt "$t"
 }
 #============== H
 cmd_HELM() { # helm Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
-    echo -e
+
     echo "%%%%%%%%%%% remotely: HELM %%%%%%%%%%%%%%%"
     helm "$@"
-    echo -e
 }
 #============== I
 cmd_INTERACT() {
@@ -584,10 +579,9 @@ cmd_INTERACT() {
 cmd_KUBECTL() { # kubectl Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
-    echo -e
+
     echo "%%%%%%%%%%% remotely: KUBECTL %%%%%%%%%%%%%%%"
     kubectl "$@"
-    echo -e
 }
 #============== L
 #============== M
@@ -599,7 +593,7 @@ cmd_MYSQL_SECURE() {
     SQL_USER=$1
     SQL_PASSWORD=$2
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
-    echo -e
+
     echo "%%%%%%%%%%% remotely: Secure $SQL_CONTEXT %%%%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
@@ -639,7 +633,7 @@ cmd_MYSQL_SECURE() {
     vars:
       ansible_python_interpreter: /usr/bin/python3
 EOF
-    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed\|^skipping" | grep -v '""' | sort -u | sed 's/^ok/Target/'
+    play_this "$tmp" "$t"
     echo "$SQL_CONTEXT-server secured!"
 }
 #============== N
@@ -648,7 +642,7 @@ do_PACKAGE() { # rpm/apt/zipper Wrapper
     [ -z "$1" ] && return
     local t
     t=$(rt)
-    echo -e
+
     echo "%%%%%%%%%%% remotely: Install PACKAGE(s)  %%%%%%%%%%%"
     local tmp
     local t
@@ -703,9 +697,8 @@ EOF
     when: ('$pkg' not in ansible_facts.packages)
 EOF
     done
-    play_this "$tmp" "$t" #| grep  -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+    play_this "$tmp" "$t"
     unset YUM_ENABLE_REPO
-    echo "OS packages installed"
 }
 
 set_DOCKER() {
@@ -715,10 +708,9 @@ set_DOCKER() {
     local t
     local tmp
     t=$(rt)
-    echo -e
-    echo "%%%%%%%%%%% remotely: DOCKER STACK init  %%%%%%%%%%%"
-
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
+
+    echo "%%%%%%%%%%% remotely: DOCKER STACK init  %%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: all
   become: true
@@ -853,12 +845,12 @@ do_PLAYBOOK() { # ansible Wrapper
     local t
     t=$(rt)
     [ -z "$1" ] && playbook=$PLAYBOOK_SHADOW_TMP
-    echo -e
+
     # echo "%%%%%%%%%%%%%%%%% used PLAYBOOK:  %%%%%%%%%%%%%%%%%%%"
     # cat "$playbook"
     echo "%%%%%%%%%%% remotely: PLAY: $playbook %%%%%%%%%%%%%%%"
     #   play_this "$playbook" "$t" #| grep -v "^PLAY \|^[[:space:]]*$"
-    ansible-playbook "$playbook" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | awk '/*$/ { printf("%s\t", $0); next } 1' | grep -v "skipping:"
+    ansible-playbook "$playbook" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | awk '/*$/ { printf("%s\t", $0); next } 1' | grep -v "skipping:" | sed 's/\*\t/\n/g'
     rt "$t"
 }
 #============== R
@@ -873,7 +865,7 @@ set_REPO() {
     local tmp
     t=$(rt)
     repos_string=$*
-    echo -e
+
     echo "%%%%%%%%%%% remotely: Add REPOSITORY  %%%%%%%%%%%"
 
     if [ -f "$repo" ]; then
@@ -910,7 +902,6 @@ set_REPO() {
 EOF
         play_this "$tmp" "$t"
     else
-
         if [[ $repos_string =~ "amazon-linux-extras" ]]; then
             repos_string=$(echo "$repos_string" | sed 's/sudo//g;s/amazon-linux-extras/sudo amazon-linux-extras/g')
             do_RUN "$repos_string; sudo yum clean metadata" >/dev/null
@@ -946,7 +937,7 @@ EOF
         when: ansible_os_family == 'Suse'
     ignore_errors: true
 EOF
-            play_this "$tmp" "$t" #| grep  -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+            play_this "$tmp" "$t"
         fi
     fi
     echo "OS repository [$*] installed"
@@ -960,7 +951,7 @@ do_RUN() { # Docker RUN analogue
     t=$(rt)
 
     tmp_sh=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.sh)
-    echo -e
+
     echo "%%%%%%%%%%% remotely: Script RUN %%%%%%%%%%%"
     {
         echo "#!/bin/bash"
@@ -982,13 +973,13 @@ do_RUN() { # Docker RUN analogue
     become: false
   - debug: var=out.stdout_lines
 EOF
-    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$'
+    play_this "$tmp" "$t"
 }
 
 cmd_RSYNC() { # rsync Wrapper
     [ -z "$1" ] && return
     [ "$1" = "test" ] && return
-    echo -e
+
     echo "%%%%%%%%%%% remotely: RSYNC %%%%%%%%%%%%%%%"
     rsync "$@"
 }
@@ -1003,7 +994,6 @@ set_SERVICE() {
     [ "$1" = "apache2" ] && rpm_name="httpd" && deb_name="apache2"
     [ "$1" = "httpd" ] && rpm_name="httpd" && deb_name="apache2"
 
-    echo -e
     echo "%%%%%%%%%%% remotely: Setup $1 %%%%%%%%%%%"
     local tmp
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
@@ -1036,19 +1026,16 @@ set_SERVICE() {
           name: $rpm_name
         when: (ansible_os_family == 'Suse') and ('$rpm_name' not in ansible_facts.packages)
     ignore_errors: true
-
   - name: Make sure a $rpm_name unit is running
     ansible.builtin.systemd_service:
       state: restarted
       name: $rpm_name
     when: ansible_os_family == 'RedHat'
-  
-  - name: Make sure a $deb_name unit is running
+   - name: Make sure a $deb_name unit is running
     ansible.builtin.systemd_service:
       state: restarted
       name: $deb_name
     when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
-
   - name: Make sure a $rpm_name unit is running
     ansible.builtin.systemd_service:
       state: restarted
@@ -1063,7 +1050,6 @@ cmd_SLEEP() {
     [ -z "$1" ] && return
     case $1 in
     *[!0-9]*)
-        echo -e
         echo "%%%%%%%%%%% remotely: Wait $1 sec. %%%%%%%%%%%"
         sleep "$1"
         ;;
@@ -1085,7 +1071,6 @@ cmd_SQL() {
     else
         echo "$@" >"$tmp_sql"
     fi
-    echo -e
     echo "%%%%%%%%%%% remotely: run SQL-commands on DB: $SQL_CONTEXT  %%%%%%%%%%%"
     echo "$@"
     cat "$tmp_sql"
@@ -1116,7 +1101,7 @@ EOF
     "postgress") ;;
     *) ;;
     esac
-    play_this "$tmp" "$t" # | grep -v "^TASK \|^PLAY \|rescued=\|^changed\|out.stdout_lines" | sed 's/^ok/Target stdout/;s/^[ \t]*//;s/[ \t]*$//; s/^"//;s/",$//;s/"$//;s/^\]//' | grep -v '""\|^[[:space:]]*$' | grep "^ERROR"
+    play_this "$tmp" "$t"
 }
 cmd_MYSQL() {
     SQL_CONTEXT="mysql"
@@ -1161,6 +1146,8 @@ EOF
 
     chmod 777 "$STAGE_TARGET_FILE"
     echo "Available targets: $ips"
+    echo "--- 0 sec ---"
+    echo -e
 }
 #============== U
 do_USER() { # Docker USER analogue
@@ -1205,7 +1192,7 @@ do_VOLUME() { # Docker VOLUME analogue
         grp=$2
         ;;
     esac
-    echo -e
+
     echo "%%%%%%%%%%% remotely: Create VOLUME(directory) %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
@@ -1223,7 +1210,7 @@ EOF
 }
 #============== W
 set_WALKMAN() { # Walkman installer
-    echo -e
+
     echo "%%%%%%%%%%% remotely: WALKMAN INSTALL %%%%%%%%%%%%%%%"
     sed <"$STAGE_TARGET_FILE" 's/^ssh /cw4d.sh /' | bash
     echo -e
@@ -1231,10 +1218,9 @@ set_WALKMAN() { # Walkman installer
 
 set_TUNNEL() {
     local tun="$*"
-    echo -e
+
     echo "%%%%%%%%%%% remotely: WALKMAN INSTALL %%%%%%%%%%%%%%%"
     sed <"$STAGE_TARGET_FILE" "s/^ssh /ssh $tun /" | bash
-    echo -e
 
 }
 
@@ -1277,12 +1263,11 @@ run_helper_by_name() {
 
             if [ "$PLAY_SPEED" -ge 3 ] && [[ "$3" =~ "env_after" ]]; then
                 hp="$helper_name "$(eval "$(echo "${helper_params}" | sed 's/^/echo "/;s/$/"/')")
-                echo -e
                 if ans_hashed ${hp}; then
-                    echo "!!!!! Helper accelerated [$helper_name]"
+                    echo "!!!> Acceleration SKIP: {$hp}"
                     return
                 else
-                    echo "--- Helper executed [$helper_name]"
+                    echo "---> Acceleration  RUN: {$hp}"
                 fi
             fi
             ;;
@@ -2447,7 +2432,7 @@ case $RUN_MODE in
             STAGE_TARGET_FILE=$DIR_ALBUM_META/ssh-to-$WS_NAME-$STAGE_LABEL.sh
             STAGE_HASH_FILE=$DIR_WS_HASH/$STAGE_LABEL.hash
             STAGE_REHASH_FILE=$DIR_WS_HASH/$STAGE_LABEL.rehash
-            touch "$STAGE_REHASH_FILE"
+            touch "$STAGE_HASH_FILE" "$STAGE_REHASH_FILE"
 
             echo
             echo "############################## Stage-$STAGE_COUNT ################################"
@@ -2478,8 +2463,14 @@ case $RUN_MODE in
                     ! grep -q "$STAGE_HASH" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && STAGE_HASH=1
 
                     touch "$FLAG_LOCK"
-                    tf_hashed && echo "!!!!!!!!! NO CHANGES: TERRAFORM execution skipped !!!!!!!!!"
-                    tf_hashed || echo "------------------ Refresh TERRAFORM with init -----------------------------"
+                    if tf_hashed; then
+                        echo "---------------------- Any TERRAFORM changes -----------------------"
+                        echo "!!!> Acceleration: SKIP Terraforn execution"
+                        echo "--------------------------------------------------------------------"
+                        echo -e
+                    else
+                        echo "------------------ Refresh TERRAFORM with init -----------------------------"
+                    fi
                     if tf_hashed || terraform init --upgrade; then
 
                         tf_hashed || echo "---------------------- Run TERRAFORM apply ---------------------------------"
