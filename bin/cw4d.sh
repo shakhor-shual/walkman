@@ -36,6 +36,9 @@ SQL_DATABASE=""
 PLAYBOOK_SHADOW_TMP=/tmp/full_playbook.yaml
 SSH_TUNNEL_PARAMS=""
 
+GITADD_CNT=0
+GITADD_TRIGGERS='    when: false'
+
 ALLWAYS_RUN=1
 
 #ANSIBLE_ARG=""
@@ -77,16 +80,33 @@ rt() {
 play_this() {
     local tmp=$1
     local timer=$2
+    local block_tmp
+    block_tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
+
+    cat <<EOF >"$block_tmp"
+  - name: AUTO Block
+    block:  
+EOF
+
     if [ "$PLAY_SPEED" -le 1 ]; then
         ansible-playbook "$tmp" -i "$ALBUM_SELF" | sed ':a;N;$!ba;s/\*\n/\*\t/g' | grep -v "skipping:\|^[[:space:]]*$" | sed 's/\*\t/\n/g'
     fi
-    if [ -z "$3" ]; then
-        grep <"$tmp" -v "^  tasks:\|^- hosts:\|^  become:\|^  gather_facts:" >>$PLAYBOOK_SHADOW_TMP
-    else
-        cat "$tmp" >>$PLAYBOOK_SHADOW_TMP
-    fi
+    # if [ -z "$3" ]; then
+    grep <"$tmp" -v "^  tasks:\|^- hosts:\|^  become:\|^  gather_facts:" | sed 's/^/    /' >>"$block_tmp"
+    [ -z "$3" ] && [ "$GITADD_TRIGGERS" != '    when: false' ] && echo "$GITADD_TRIGGERS" >>"$block_tmp"
+    cat "$block_tmp" >>$PLAYBOOK_SHADOW_TMP
+    # else
+    #     sed <"$tmp" 's/^/    /' >>"$block_tmp"
+    #     [[ $GITADD_TRIGGERS != "    when: false" ]] && echo "$GITADD_TRIGGERS" >>"$block_tmp"
+    #     cat "$block_tmp" >>$PLAYBOOK_SHADOW_TMP
+    # fi
+
+    echo "============================================="
+    cat "$block_tmp"
+    echo "============================================="
     rt "$timer"
     rm -f "$tmp"
+    rm -f "$block_tmp"
 }
 
 tf_hashed() {
@@ -122,7 +142,6 @@ ans_hashed() {
     "do_ADD"*)
         cnt=2
         if [[ $helper =~ ".git " ]]; then
-            [[ $PLAY_SPEED -ge 2 ]] && PLAY_SPEED=1
             return 1
         fi
         ;&
@@ -343,6 +362,7 @@ EOF
         ;;
         # for git source
     *".git")
+        ((GITADD_CNT++))
         do_PACKAGE git >/dev/null
         do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
         cat <<EOF >>"$tmp"
@@ -354,7 +374,7 @@ EOF
       update: yes
 EOF
         [ -n "$version" ] && echo "      version: '$version'" >>"$tmp"
-        echo "    register: repo_state" >>"$tmp"
+        echo "    register: repo_$GITADD_CNT" >>"$tmp"
         [ -n "$usr" ] && cat <<EOF >>"$tmp"
   - name: GIT tune access
     ansible.builtin.file:
@@ -363,12 +383,16 @@ EOF
 EOF
         [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
         [ -n "$mode" ] && echo "     'mode': '$mode'" >>"$tmp"
-        echo "    when: repo_state.changed" >>"$tmp"
+        echo "    when: repo_$GITADD_CNT.changed" >>"$tmp"
         cat <<EOF >>"$tmp"
   - name: GIT trigger updates
     local_action: ansible.builtin.command rm -f $STAGE_REHASH_FILE
-    when: repo_state.changed
+    when: repo_$GITADD_CNT.changed
 EOF
+        GITADD_TRIGGERS="$GITADD_TRIGGERS or repo_$GITADD_CNT.changed"
+        grep <"$tmp" "src:\|dest:\|repo:\|mode:\|owner:\|group:\|url:" | tr -d ' '
+        play_this "$tmp" "$t" "no_skip"
+        return
         ;;
     *"://"*)
         do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
@@ -402,7 +426,7 @@ EOF
     #cat "$tmp"
     #echo "------------------------------------------------------"
     grep <"$tmp" "src:\|dest:\|repo:\|mode:\|owner:\|group:\|url:" | tr -d ' '
-    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|^[[:space:]]*$\|ok" | grep -v '""'
+    play_this "$tmp" "$t"
 }
 
 do_ARG() { # Docker ARG analogue
@@ -462,7 +486,7 @@ EOF
     echo "    ignore_errors: true" >>"$tmp"
 
     grep <"$tmp" "src\|dest\|repo\|mode\|owner\|group\|url" | tr -d ' '
-    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|^[[:space:]]*$\|ok" | grep -v '""'
+    play_this "$tmp" "$t"
 }
 #============== D
 #============== E
@@ -488,7 +512,7 @@ do_ENTRYPOINT() { # Docker ENTRYPOINT analogue
       name: $1
     when: ansible_facts.services['$1.service'] is defined  
 EOF
-    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
+    play_this "$tmp" "$t"
 }
 
 do_ENV() { # Docker ENV analogue
@@ -553,7 +577,7 @@ EOF
 EOF
     echo "Entrypoint: [$1] Environment:"
     cut <"$tmp_env" -d "=" -f 1 | sed 's/^/[/;s/$/]/'
-    play_this "$tmp" "$t" | grep -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$\|^changed" | grep -v '""' | sort -u | sed 's/^ok/Target/'
+    play_this "$tmp" "$t"
 }
 #============== F
 do_FROM() { # Docker FROM analogue
@@ -849,11 +873,11 @@ do_PLAYBOOK() { # ansible Wrapper
     t=$(rt)
     [ -z "$1" ] && playbook=$PLAYBOOK_SHADOW_TMP
 
-    # echo "%%%%%%%%%%%%%%%%% used PLAYBOOK:  %%%%%%%%%%%%%%%%%%%"
-    # cat "$playbook"
+    echo "%%%%%%%%%%%%%%%%% used PLAYBOOK:  %%%%%%%%%%%%%%%%%%%"
+    cat "$playbook"
     echo "%%%%%%%%%%% remotely: PLAY: $playbook %%%%%%%%%%%%%%%"
     #   play_this "$playbook" "$t" #| grep -v "^PLAY \|^[[:space:]]*$"
-    ansible-playbook "$playbook" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | awk '/*$/ { printf("%s\t", $0); next } 1' | grep -v "skipping:" | sed 's/\*\t/\n/g'
+    ansible-playbook "$playbook" -i "$ALBUM_SELF" #| grep -v "^[[:space:]]*$" | awk '/*$/ { printf("%s\t", $0); next } 1' | grep -v "skipping:" | sed 's/\*\t/\n/g'
     rt "$t"
 }
 #============== R
@@ -1045,7 +1069,7 @@ set_SERVICE() {
       name: $rpm_name
     when: ansible_os_family == 'Suse'
 EOF
-    play_this "$tmp" "$t" #| grep  -v "^[[:space:]]*$" | grep -v '""' | sed '/\*$/N;s/\n/\t/;s/\*//g;s/TASK //' | tr -s " " | grep -v "skipping:\|\[Gather\|\[APT\|rescued=\|^ok"
+    play_this "$tmp" "$t"
     echo "SERVICE $1 configured"
 }
 
@@ -1209,7 +1233,7 @@ do_VOLUME() { # Docker VOLUME analogue
       owner: $usr
       group: $grp
 EOF
-    play_this "$tmp" "$t" #| grep  -v "^TASK \|^PLAY \|rescued=\|^[[:space:]]*$" | grep -v '""'
+    play_this "$tmp" "$t"
 }
 #============== W
 set_WALKMAN() { # Walkman installer

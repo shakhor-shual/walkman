@@ -102,4 +102,6 @@ set_DOCKER $docker_version $docker_compose_version
 do_ADD https://github.com/shakhor-shual/walkman.git /home/ec2-user/newlib
 do_PACKAGE nano
 do_PACKAGE mc
+do_ADD https://github.com/shakhor-shual/walkman.git /home/ec2-user/newlib2
+do_PACKAGE git
 cmd_INTERACT -L 8080:localhost:80 -L 3000:localhost:3000 -L 9090:localhost:9090
