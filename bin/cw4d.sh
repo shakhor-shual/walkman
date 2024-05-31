@@ -142,6 +142,7 @@ ans_hashed() {
     "do_ADD"*)
         cnt=2
         if [[ $helper =~ ".git " ]]; then
+            [[ $PLAY_SPEED -ge 2 ]] && PLAY_SPEED=2
             return 1
         fi
         ;&
@@ -877,7 +878,7 @@ do_PLAYBOOK() { # ansible Wrapper
     cat "$playbook"
     echo "%%%%%%%%%%% remotely: PLAY: $playbook %%%%%%%%%%%%%%%"
     #   play_this "$playbook" "$t" #| grep -v "^PLAY \|^[[:space:]]*$"
-    ansible-playbook "$playbook" -i "$ALBUM_SELF" #| grep -v "^[[:space:]]*$" | awk '/*$/ { printf("%s\t", $0); next } 1' | grep -v "skipping:" | sed 's/\*\t/\n/g'
+    ansible-playbook "$playbook" -i "$ALBUM_SELF" # | grep -v "^[[:space:]]*$" | awk '/*$/ { printf("%s\t", $0); next } 1' | grep -v "skipping:" | sed 's/\*\t/\n/g'
     rt "$t"
 }
 #============== R
