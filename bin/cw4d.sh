@@ -121,7 +121,10 @@ ans_hashed() {
     "do_RUN"* | "do_COPY"* | "do_MOVE"*) ;;
     "do_ADD"*)
         cnt=2
-        [[ $helper =~ ".git " ]] && return 1
+        if [[ $helper =~ ".git " ]]; then
+            [[ $PLAY_SPEED -ge 2 ]] && PLAY_SPEED=1
+            return 1
+        fi
         ;&
     *)
         local i=0
