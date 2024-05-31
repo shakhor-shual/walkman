@@ -490,6 +490,146 @@ EOF
     play_this "$tmp" "$t"
 }
 #============== D
+
+set_DOCKER() {
+    local docker_ver="26.1.3"
+    local compose_ver="2.27.0"
+    local MAINPID='$MAINPID'
+    local t
+    local tmp
+    t=$(rt)
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
+
+    echo "%%%%%%%%%%% remotely: DOCKER STACK init  %%%%%%%%%%%"
+    cat <<EOF >"$tmp"
+- hosts: all
+  become: true
+  gather_facts: yes
+  tasks:
+  - name: Gather package facts
+    ansible.builtin.package_facts:
+      manager: auto
+  - name: Gather services facts
+    ansible.builtin.service_facts:
+  - name: INSTALL docker binaries
+    block:
+      - name: APT update
+        ansible.builtin.apt:
+          update_cache: yes
+        when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
+      - name: install tar
+        block:
+          - name: tar
+            ansible.builtin.yum:
+              state: present
+              name: tar
+            when: (ansible_os_family == 'RedHat') and ('dnf' not in ansible_facts.packages)
+          - name: tar
+            ansible.builtin.dnf:
+              state: present
+              name: tar
+            when: (ansible_os_family == 'RedHat') and ('dnf' in ansible_facts.packages)
+          - name: tar
+            ansible.builtin.apt:
+              state: present
+              name: tar
+            when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
+        ignore_errors: true
+        when: ('tar' not in ansible_facts.packages)
+      - name: Create FOLDERS
+        ansible.builtin.file:
+          path:  "{{ item }}" 
+          state: directory
+          mode: '0755'
+          owner: root
+          group: root
+        loop:
+           - /tmp/walkman_add
+           - /usr/local/lib/docker/cli-plugins
+           - /etc/docker
+      - name: ADD https://download.docker.com/linux/static/stable/x86_64/docker-$docker_ver.tgz TO /tmp/walkman_add
+        ansible.builtin.unarchive:
+          src: https://download.docker.com/linux/static/stable/x86_64/docker-$docker_ver.tgz
+          dest: /tmp/walkman_add
+          remote_src: yes
+          list_files: yes
+          owner: root
+          group: root
+        register: archive_contents
+      - name: MOVE docker files TO /usr/bin/
+        command: cp -rlf "/tmp/walkman_add/{{archive_contents.files[0].split('/')[0]}}/."  /usr/bin/
+      - name: CLEAN-UP 
+        ansible.builtin.file:
+          path: "{{ item }}"
+          state: absent
+        loop:
+           - /usr/local/lib/docker/cli-plugins/docker-compose
+           - "/tmp/walkman_add/{{archive_contents.files[0].split('/')[0]}}"
+      - name: ADD https://github.com/docker/compose/releases/download/v$compose_ver/docker-compose-linux-x86_64 TO /usr/local/lib/docker/cli-plugins/docker-compose
+        ansible.builtin.get_url:
+          url: https://github.com/docker/compose/releases/download/v$compose_ver/docker-compose-linux-x86_64
+          dest: /usr/local/lib/docker/cli-plugins/docker-compose
+          force: true
+          owner: root
+          group: root
+          mode: '0755'
+      - name: ADD /etc/systemd/system/docker.socket
+        ansible.builtin.copy:
+          dest: /etc/systemd/system/docker.socket
+          owner: root
+          group: root
+          content: |
+            [Unit]
+            Description=Docker Socket for the API
+            [Socket]
+            ListenStream=/run/docker.sock
+            SocketMode=0660
+            SocketUser=root
+            SocketGroup=docker
+            [Install]
+            WantedBy=sockets.target
+      - name: ADD /etc/systemd/system/docker.service
+        ansible.builtin.copy:
+          dest: /etc/systemd/system/docker.service
+          owner: root
+          group: root
+          content: |
+            [Unit]
+            Description=Docker Application Container Engine
+            Documentation=https://docs.docker.com
+            After=network-online.target docker.socket firewalld.service time-set.target
+            Wants=network-online.target
+            Requires=docker.socket
+            [Service]
+            Type=notify
+            ExecStart=/usr/bin/dockerd
+            ExecReload=/bin/kill -s HUP $MAINPID
+            TimeoutStartSec=0
+            RestartSec=2
+            Restart=always
+            StartLimitBurst=3
+            StartLimitInterval=60s
+            LimitNPROC=infinity
+            LimitCORE=infinity
+            TasksMax=infinity
+            Delegate=yes
+            KillMode=process
+            OOMScoreAdjust=-500
+            [Install]
+            WantedBy=multi-user.target
+      - name: commands RUN
+        ansible.builtin.shell: cp -lf /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose; groupadd -f docker; usermod -aG docker $ANSIBLE_USER
+      - name: Start docker service
+        ansible.builtin.systemd_service:
+          state: restarted
+          daemon_reload: true
+          name: docker
+    when: ansible_facts.services['docker.service'] is not defined
+EOF
+    play_this "$tmp" "$t"
+    echo "docker/docker-compose are installes"
+}
+
 #============== E
 do_ENTRYPOINT() { # Docker ENTRYPOINT analogue
     [ -z "$1" ] && return
@@ -692,7 +832,7 @@ EOF
         cat <<EOF >>"$tmp"
   - name: install $pkg
     block:
-      - name: $pkg
+      - name: $pkg Install-yum
         ansible.builtin.yum:
           state: present
           name: $pkg
@@ -701,7 +841,7 @@ EOF
 
         cat <<EOF >>"$tmp"
         when: (ansible_os_family == 'RedHat') and ('dnf' not in ansible_facts.packages)
-      - name: $pkg
+      - name: $pkg Install-dnf
         ansible.builtin.dnf:
           state: present
           name: $pkg
@@ -710,12 +850,12 @@ EOF
 
         cat <<EOF >>"$tmp"
         when: (ansible_os_family == 'RedHat') and ('dnf' in ansible_facts.packages)
-      - name: $pkg
+      - name: $pkg Install-apt
         ansible.builtin.apt:
           state: present
           name: $pkg
         when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
-      - name: $pkg
+      - name: $pkg Install-zypper
         community.general.zypper:
           state: present
           disable_recommends: false
@@ -727,145 +867,6 @@ EOF
     done
     play_this "$tmp" "$t"
     unset YUM_ENABLE_REPO
-}
-
-set_DOCKER() {
-    local docker_ver="26.1.3"
-    local compose_ver="2.27.0"
-    local MAINPID='$MAINPID'
-    local t
-    local tmp
-    t=$(rt)
-    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
-
-    echo "%%%%%%%%%%% remotely: DOCKER STACK init  %%%%%%%%%%%"
-    cat <<EOF >"$tmp"
-- hosts: all
-  become: true
-  gather_facts: yes
-  tasks:
-  - name: Gather package facts
-    ansible.builtin.package_facts:
-      manager: auto
-  - name: Gather services facts
-    ansible.builtin.service_facts:
-  - name: INSTALL docker binaries
-    block:
-      - name: APT update
-        ansible.builtin.apt:
-          update_cache: yes
-        when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
-      - name: install tar
-        block:
-          - name: tar
-            ansible.builtin.yum:
-              state: present
-              name: tar
-            when: (ansible_os_family == 'RedHat') and ('dnf' not in ansible_facts.packages)
-          - name: tar
-            ansible.builtin.dnf:
-              state: present
-              name: tar
-            when: (ansible_os_family == 'RedHat') and ('dnf' in ansible_facts.packages)
-          - name: tar
-            ansible.builtin.apt:
-              state: present
-              name: tar
-            when: ansible_os_family == 'Debian' or ansible_os_family == 'Ubuntu'
-        ignore_errors: true
-        when: ('tar' not in ansible_facts.packages)
-      - name: Create FOLDERS
-        ansible.builtin.file:
-          path:  "{{ item }}" 
-          state: directory
-          mode: '0755'
-          owner: root
-          group: root
-        loop:
-           - /tmp/walkman_add
-           - /usr/local/lib/docker/cli-plugins
-           - /etc/docker
-      - name: ADD https://download.docker.com/linux/static/stable/x86_64/docker-$docker_ver.tgz TO /tmp/walkman_add
-        ansible.builtin.unarchive:
-          src: https://download.docker.com/linux/static/stable/x86_64/docker-$docker_ver.tgz
-          dest: /tmp/walkman_add
-          remote_src: yes
-          list_files: yes
-          owner: root
-          group: root
-        register: archive_contents
-      - name: MOVE docker files TO /usr/bin/
-        command: cp -rlf "/tmp/walkman_add/{{archive_contents.files[0].split('/')[0]}}/."  /usr/bin/
-      - name: CLEAN-UP 
-        ansible.builtin.file:
-          path: "{{ item }}"
-          state: absent
-        loop:
-           - /usr/local/lib/docker/cli-plugins/docker-compose
-           - "/tmp/walkman_add/{{archive_contents.files[0].split('/')[0]}}"
-      - name: ADD https://github.com/docker/compose/releases/download/v$compose_ver/docker-compose-linux-x86_64 TO /usr/local/lib/docker/cli-plugins/docker-compose
-        ansible.builtin.get_url:
-          url: https://github.com/docker/compose/releases/download/v$compose_ver/docker-compose-linux-x86_64
-          dest: /usr/local/lib/docker/cli-plugins/docker-compose
-          force: true
-          owner: root
-          group: root
-          mode: '0755'
-      - name: ADD /etc/systemd/system/docker.socket
-        ansible.builtin.copy:
-          dest: /etc/systemd/system/docker.socket
-          owner: root
-          group: root
-          content: |
-            [Unit]
-            Description=Docker Socket for the API
-            [Socket]
-            ListenStream=/run/docker.sock
-            SocketMode=0660
-            SocketUser=root
-            SocketGroup=docker
-            [Install]
-            WantedBy=sockets.target
-      - name: ADD /etc/systemd/system/docker.service
-        ansible.builtin.copy:
-          dest: /etc/systemd/system/docker.service
-          owner: root
-          group: root
-          content: |
-            [Unit]
-            Description=Docker Application Container Engine
-            Documentation=https://docs.docker.com
-            After=network-online.target docker.socket firewalld.service time-set.target
-            Wants=network-online.target
-            Requires=docker.socket
-            [Service]
-            Type=notify
-            ExecStart=/usr/bin/dockerd
-            ExecReload=/bin/kill -s HUP $MAINPID
-            TimeoutStartSec=0
-            RestartSec=2
-            Restart=always
-            StartLimitBurst=3
-            StartLimitInterval=60s
-            LimitNPROC=infinity
-            LimitCORE=infinity
-            TasksMax=infinity
-            Delegate=yes
-            KillMode=process
-            OOMScoreAdjust=-500
-            [Install]
-            WantedBy=multi-user.target
-      - name: commands RUN
-        ansible.builtin.shell: cp -lf /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose; groupadd -f docker; usermod -aG docker $ANSIBLE_USER
-      - name: Start docker service
-        ansible.builtin.systemd_service:
-          state: restarted
-          daemon_reload: true
-          name: docker
-    when: ansible_facts.services['docker.service'] is not defined
-EOF
-    play_this "$tmp" "$t"
-    echo "docker/docker-compose are installes"
 }
 
 do_PLAYBOOK() { # ansible Wrapper
