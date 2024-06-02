@@ -15,7 +15,7 @@
 # limitations under the License.
 #########################################################################
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
-debug@@@ 1   # possible here are 0, 1, 2, 3
+debug@@@ 2   # possible here are 0, 1, 2, 3
 speed@@@ 3
 
 # Set used versions of docker/docker-compose !!!FULL(MAJOR|MINOR) EXISTED VERSIONS ONLY!!!
@@ -41,7 +41,6 @@ instance_type="t3.micro"
 ami=@@last
 
 /*
-
 case $ami in
 "ami-010b74bc1a8b29122" | "ami-0914547665e6a707c")
     ssh_user="ubuntu" #Ubuntu 20-04 & 22-04
@@ -72,6 +71,9 @@ case $instance_type in
 *"g."* | *"g") instance_arch="aarch64" ;;
 *) instance_arch="x86_64" ;;
 esac
+
+templates=/home/$ssh_user/templates
+compose_lib=$templates/docker-compose
 */
 
 ############ setup deployment via HELPERs
@@ -97,12 +99,11 @@ do_FROM all
 #do_PLAYBOOK @@assets/docker-install-playbook.yaml
 
 ############## WAY 3:
-set_DOCKER $docker_version $docker_compose_version
+#set_DOCKER $docker_version $docker_compose_version
 #do_ADD https://github.com/ChristianLempa/boilerplates.git /home/ec-2user/newlib
-do_ADD https://github.com/shakhor-shual/walkman.git /home/ec2-user/newlib
-do_PACKAGE nano
+
 do_PACKAGE mc
-do_RUN "ls -l  /home/ec2-user/newlib"
-do_ADD https://github.com/shakhor-shual/walkman.git /home/ec2-user/newlib2
-do_RUN "ls -l  /home/ec2-user/newlib2"
+do_ADD https://github.com/shakhor-shual/templates.git $templates
+do_ADD @@assets/prometheus.yml $compose_lib/prometheus/config/prometheus.yaml
+do_COMPOSE_UP $compose_lib/prometheus $compose_lib/nodeexporter $compose_lib/grafana
 cmd_INTERACT -L 8080:localhost:80 -L 3000:localhost:3000 -L 9090:localhost:9090

@@ -88,22 +88,17 @@ play_this() {
     block:  
 EOF
 
-    if [ "$PLAY_SPEED" -le 1 ]; then
+    if [ "$PLAY_SPEED" -le 2 ]; then
         ansible-playbook "$tmp" -i "$ALBUM_SELF" | sed ':a;N;$!ba;s/\*\n/\*\t/g' | grep -v "skipping:\|^[[:space:]]*$" | sed 's/\*\t/\n/g'
     fi
-    # if [ -z "$3" ]; then
+
     grep <"$tmp" -v "^  tasks:\|^- hosts:\|^  become:\|^  gather_facts:" | sed 's/^/    /' >>"$block_tmp"
     [ -z "$3" ] && [ "$GITADD_TRIGGERS" != '    when: false' ] && echo "$GITADD_TRIGGERS" >>"$block_tmp"
     cat "$block_tmp" >>$PLAYBOOK_SHADOW_TMP
-    # else
-    #     sed <"$tmp" 's/^/    /' >>"$block_tmp"
-    #     [[ $GITADD_TRIGGERS != "    when: false" ]] && echo "$GITADD_TRIGGERS" >>"$block_tmp"
-    #     cat "$block_tmp" >>$PLAYBOOK_SHADOW_TMP
-    # fi
 
-    echo "============================================="
-    cat "$block_tmp"
-    echo "============================================="
+    #    echo "============================================="
+    #    cat "$block_tmp"
+    #    echo "============================================="
     rt "$timer"
     rm -f "$tmp"
     rm -f "$block_tmp"
@@ -113,7 +108,7 @@ tf_hashed() {
     local hashed=0
     local md5
     md5=$(find . -type f \( -name \*.tf -o -name \*.tfvars \) -exec cat {} \; | md5sum)
-    if [[ $PLAY_SPEED -ge 1 ]]; then
+    if [[ $PLAY_SPEED -ge 2 ]]; then
         ! grep -q "$md5" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && hashed=1
     else
         hashed=1
@@ -142,7 +137,7 @@ ans_hashed() {
     "do_ADD"*)
         cnt=2
         if [[ $helper =~ ".git " ]]; then
-            [[ $PLAY_SPEED -ge 2 ]] && PLAY_SPEED=2
+            [[ $PLAY_SPEED -ge 3 ]] && PLAY_SPEED=3
             return 1
         fi
         ;&
@@ -373,6 +368,7 @@ EOF
       dest: $dst
       clone: yes
       update: yes
+      force: true
 EOF
         [ -n "$version" ] && echo "      version: '$version'" >>"$tmp"
         echo "    register: repo_$GITADD_CNT" >>"$tmp"
@@ -413,6 +409,7 @@ EOF
         [ -n "$mode" ] && echo "      mode: '$mode'" >>"$tmp"
         ;;
     *)
+        do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
         cat <<EOF >>"$tmp"
   - name: ADD $src TO $dst 
     ansible.builtin.copy:
@@ -436,6 +433,50 @@ do_ARG() { # Docker ARG analogue
 }
 
 #============== C
+do_COMPOSE_UP() {
+    [ -z "$1" ] && return
+    local dst_dir
+    local tmp
+    local t
+    local cnt=0
+    t=$(rt)
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
+
+    set_DOCKER >/dev/null
+    echo "%%%%%%%%%%% remotely: Docker compose up %%%%%%%%%%%%%"
+    echo "$*"
+    cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  become: true
+  tasks:
+EOF
+    for dst in "$@"; do
+        ((cnt++))
+        cat <<EOF >>"$tmp"
+- hosts: $ANSIBLE_TARGET
+  become: true
+  tasks:
+  - name: Extract services
+    shell: /usr/local/bin/docker-compose config --services
+    register: srv$cnt
+    args:
+      chdir: $dst    
+  - name: Watch compose-service
+    ansible.builtin.shell: |
+      if [ -n "\$(/usr/local/bin/docker-compose ps -q {{ item.1 }})" ] && [ -n "\$(docker ps -q --no-trunc | grep "\$(/usr/local/bin/docker-compose ps -q {{ item.1 }})")" ]; then
+       /usr/local/bin/docker-compose restart {{ item.1 }}
+      else
+       /usr/local/bin/docker-compose up -d
+      fi
+    args:
+      executable: /bin/bash
+      chdir: $dst
+    with_indexed_items: "{{ srv$cnt.stdout.split('\n')}}"
+EOF
+    done
+    play_this "$tmp" "$t"
+}
+
 do_COPY() { # Docker COPY analogue
     [ -z "$1" ] && return
     local src=$1
@@ -639,7 +680,7 @@ do_ENTRYPOINT() { # Docker ENTRYPOINT analogue
     tmp=$(mktemp -d)
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
 
-    echo "%%%%%%%%%%% remotely: setup Service $1 ENV %%%%%%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: Init Service $1 Entrypoint %%%%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: true
@@ -652,6 +693,15 @@ do_ENTRYPOINT() { # Docker ENTRYPOINT analogue
       daemon_reload: true
       name: $1
     when: ansible_facts.services['$1.service'] is defined  
+  - name: Watch $1 compose-service
+    ansible.builtin.shell: |
+      if [ -n \$(/usr/local/bin/docker-compose ps -q "$1") ] && [ -n \$(docker ps -q --no-trunc | grep "\$(/usr/local/bin/docker-compose ps -q "$1")") ]; then
+       /usr/local/bin/docker-compose restart $1
+      fi
+    args:
+      executable: /bin/bash
+      chdir: $2
+    when: ("$2" != "") and ansible_facts.services['$1.service'] is not defined  and  ansible_facts.services['docker.service'] is defined
 EOF
     play_this "$tmp" "$t"
 }
@@ -874,12 +924,16 @@ do_PLAYBOOK() { # ansible Wrapper
     local t
     t=$(rt)
     [ -z "$1" ] && playbook=$PLAYBOOK_SHADOW_TMP
+    if [[ $DEBUG -ge 2 ]]; then
+        echo "%%%%%%%%%%%%%%%%% used PLAYBOOK:  %%%%%%%%%%%%%%%%%%%"
+        cat "$playbook"
+        echo "%%%%%%%%%%% remotely: PLAY: $playbook %%%%%%%%%%%%%%%"
+        ansible-playbook "$playbook" -i "$ALBUM_SELF"
+    else
+        echo "%%%%%%%%%%% remotely: PLAY: $playbook %%%%%%%%%%%%%%%"
+        ansible-playbook "$playbook" -i "$ALBUM_SELF" | grep -v "^[[:space:]]*$" | awk '/*$/ { printf("%s\t", $0); next } 1' | grep -v "skipping:" | sed 's/\*\t/\n/g'
 
-    echo "%%%%%%%%%%%%%%%%% used PLAYBOOK:  %%%%%%%%%%%%%%%%%%%"
-    cat "$playbook"
-    echo "%%%%%%%%%%% remotely: PLAY: $playbook %%%%%%%%%%%%%%%"
-    #   play_this "$playbook" "$t" #| grep -v "^PLAY \|^[[:space:]]*$"
-    ansible-playbook "$playbook" -i "$ALBUM_SELF" # | grep -v "^[[:space:]]*$" | awk '/*$/ { printf("%s\t", $0); next } 1' | grep -v "skipping:" | sed 's/\*\t/\n/g'
+    fi
     rt "$t"
 }
 #============== R
@@ -1290,7 +1344,7 @@ run_helper_by_name() {
         case $1 in
         "do_"[A-Z]* | "set_"[A-Z]* | "cmd_"[A-Z]*)
 
-            if [ "$PLAY_SPEED" -ge 3 ] && [[ "$3" =~ "env_after" ]]; then
+            if [ "$PLAY_SPEED" -ge 4 ] && [[ "$3" =~ "env_after" ]]; then
                 hp="$helper_name "$(eval "$(echo "${helper_params}" | sed 's/^/echo "/;s/$/"/')")
                 if ans_hashed ${hp}; then
                     echo "!!!> Acceleration SKIP: {$hp}"
@@ -1650,8 +1704,8 @@ set_debug_mode() {
     speed="$(sed <"$ALBUM_SELF" 's/#.*$//;/^$/d' | grep 'speed@@@' | tr -d ' ' | sed 's/^speed@@@=//; s/^speed@@@//' | tail -n 1)"
     [[ $debug =~ $re ]] && DEBUG=$debug
     [[ $speed =~ $re ]] && PLAY_SPEED=$speed
-    [[ $PLAY_SPEED -gt 3 ]] && PLAY_SPEED=3
-    [[ $PLAY_SPEED -lt 0 ]] && PLAY_SPEED=0
+    [[ $PLAY_SPEED -gt 4 ]] && PLAY_SPEED=4
+    [[ $PLAY_SPEED -lt 1 ]] && PLAY_SPEED=1
 }
 
 init_album_home() {
@@ -2508,7 +2562,7 @@ case $RUN_MODE in
                         [ "$TF_EC" -eq 1 ] && finish_grace "err_tf" "$STAGE_COUNT" "$stage_path"
                         update_variables_state "$STAGE_INIT_FILE" "env_after"
                         if [ "$RUN_MODE" = "apply" ] || [ "$RUN_MODE" = "gitops" ]; then
-                            [ "$PLAY_SPEED" -ge 2 ] && [ -s "$PLAYBOOK_SHADOW_TMP" ] && do_PLAYBOOK "$PLAYBOOK_SHADOW_TMP"
+                            [ "$PLAY_SPEED" -ge 3 ] && [ -s "$PLAYBOOK_SHADOW_TMP" ] && do_PLAYBOOK "$PLAYBOOK_SHADOW_TMP"
                         fi
                         if [ -n "$RUN_CMD_CONNECT" ] && [ "$RUN_MODE" = "apply" ] && [ -f "$STAGE_TARGET_FILE" ]; then
                             echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
