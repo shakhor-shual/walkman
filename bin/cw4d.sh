@@ -555,7 +555,7 @@ set_DOCKER() {
     t=$(rt)
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
 
-    echo "%%%%%%%%%%% remotely: DOCKER STACK init  %%%%%%%%%%%"
+    echo "%%%%%%%%%%% remotely: Setup DOCKER bundle  %%%%%%%%%%%"
     cat <<EOF >"$tmp"
 - hosts: all
   become: true
@@ -682,6 +682,7 @@ set_DOCKER() {
     when: ansible_facts.services['docker.service'] is not defined
 EOF
     play_this "$tmp" "$t"
+    do_RUN "sudo groupadd -f docker; sudo usermod -aG docker $ANSIBLE_USER" >>/dev/null
     echo "docker/docker-compose are installes"
 }
 
