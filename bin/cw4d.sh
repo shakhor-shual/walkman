@@ -408,17 +408,30 @@ EOF
         [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
         [ -n "$mode" ] && echo "      mode: '$mode'" >>"$tmp"
         ;;
+
     *)
-        do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
-        cat <<EOF >>"$tmp"
+        if [[ $dst =~ ":/" ]]; then
+            cat <<EOF >>"$tmp"
+  - name: ADD $src TO $dst 
+    ansible.builtin.copy:
+      src: $src
+      dest: /tmp/copy_to_docker.tmp
+  - name: ADD TO  container $dst 
+    ansible.builtin.shell: docker cp /tmp/copy_to_docker.tmp $dst
+EOF
+        else
+
+            do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
+            cat <<EOF >>"$tmp"
   - name: ADD $src TO $dst 
     ansible.builtin.copy:
       src: $src
       dest: $dst
 EOF
-        [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
-        [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
-        [ -n "$mode" ] && echo "      mode: '$mode'" >>"$tmp"
+            [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
+            [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
+            [ -n "$mode" ] && echo "      mode: '$mode'" >>"$tmp"
+        fi
         ;;
     esac
     #cat "$tmp"
@@ -433,7 +446,7 @@ do_ARG() { # Docker ARG analogue
 }
 
 #============== C
-do_COMPOSE_UP() {
+do_COMPOSE() {
     [ -z "$1" ] && return
     local dst_dir
     local tmp
@@ -454,6 +467,7 @@ EOF
         ((cnt++))
         cat <<EOF >>"$tmp"
 - hosts: $ANSIBLE_TARGET
+
   become: true
   tasks:
   - name: Extract services
