@@ -106,7 +106,7 @@ do_PACKAGE mc
 do_ADD https://github.com/shakhor-shual/templates.git $templates
 do_ADD @@assets/prometheus.yml $compose_lib/prometheus/config/prometheus.yaml
 do_COMPOSE $compose_lib/prometheus $compose_lib/nodeexporter $compose_lib/grafana
-do_VOLUME /var/lib/grafana root:root 0777
+do_VOLUME /var/lib/grafana/dashboards root:root 0777
 do_VOLUME /var/log/grafana root:root 0777
 do_ADD @@assets/dashboards.yml grafana:/etc/grafana/provisioning/dashboards/dashboards.yml
 do_ADD @@assets/datasources.yml grafana:/etc/grafana/provisioning/datasources/datasources.yml

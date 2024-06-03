@@ -682,7 +682,7 @@ set_DOCKER() {
     when: ansible_facts.services['docker.service'] is not defined
 EOF
     play_this "$tmp" "$t"
-    do_RUN "sudo groupadd -f docker; sudo usermod -aG docker $ANSIBLE_USER" >>/dev/null
+    #do_RUN "id -u docker &>/dev/null || sudo useradd --no-create-home --shell /bin/false docker;  sudo usermod -aG docker $ANSIBLE_USER;" >>/dev/null
     echo "docker/docker-compose are installes"
 }
 
