@@ -105,12 +105,14 @@ do_FROM all
 do_PACKAGE mc
 do_ADD https://github.com/shakhor-shual/templates.git $templates
 do_ADD @@assets/prometheus.yml $compose_lib/prometheus/config/prometheus.yaml
-do_COMPOSE $compose_lib/prometheus $compose_lib/nodeexporter $compose_lib/grafana
-do_VOLUME /var/lib/grafana/dashboards root:root 0777
-do_VOLUME /var/log/grafana root:root 0777
+do_COMPOSE $compose_lib/prometheus $compose_lib/nodeexporter $compose_lib/cadvisor $compose_lib/grafana
+do_VOLUME /var/lib/grafana docker:docker 0777
+do_VOLUME /var/lib/grafana/dashboards docker:docker 0777
+do_VOLUME /var/log/grafana docker:docker 0777
 do_ADD @@assets/dashboards.yml grafana:/etc/grafana/provisioning/dashboards/dashboards.yml
 do_ADD @@assets/datasources.yml grafana:/etc/grafana/provisioning/datasources/datasources.yml
-do_ADD @@assets/node-exporter-dashboard.json grafana:/var/lib/grafana/dashboards/node-exporter-dashboard.json
+do_ADD https://grafana.com/api/dashboards/1860/revisions/37/download grafana:/var/lib/grafana/dashboards/node-exporter-dashboard.json
+do_ADD @@assets/dash.json grafana:/var/lib/grafana/dashboards/docker-dashboard.json
 do_COMPOSE $compose_lib/grafana
 
-cmd_INTERACT -L 8080:localhost:80 -L 3000:localhost:3000 -L 9090:localhost:9090
+cmd_INTERACT -L 8000:localhost:80 -L 8080:localhost:8080 -L 3000:localhost:3000 -L 9090:localhost:9090

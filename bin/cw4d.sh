@@ -263,7 +263,8 @@ do_ADD() { # Docker ADD analogue
     local src=$1
     local dst=$2
     local dst_dir
-    local tmp_dst_dir=/tmp/walkman_add
+    local tmp_dst="/tmp/walkman_add.tmp"
+    local tmp_src
     local usr
     local grp
     local mode
@@ -273,6 +274,8 @@ do_ADD() { # Docker ADD analogue
     local t
     t=$(rt)
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
+    src=$(echo "$src" | sed 's/\/\*$/\/\./')
+    tmp_src=$tmp_dst/$(basename "${src%.git}")
 
     [ -n "$4" ] && mode=$4
     case $3 in
@@ -301,31 +304,44 @@ do_ADD() { # Docker ADD analogue
 
     case $dst in
     *'/') dst_dir=${dst%?} ;;
+    *':/'*)
+        dst=$tmp_dst
+        dst_dir=$tmp_dst
+        ;;
     *) dst_dir=$(dirname "$dst") ;;
     esac
 
     echo "%%%%%%%%%%% remotely: Content ADD to remote %%%%%%%%%%%%%"
     cat <<EOF >"$tmp"
+#=== common ADD section   
 - hosts: $ANSIBLE_TARGET
   become: true
   tasks:
+  - name: CLEAN ADD-tmp if exist
+    ansible.builtin.file:
+      path: "$tmp_dst"
+      state: absent
+  - name: Create new ADD-tmp as folder
+    ansible.builtin.file:
+      path: "$tmp_dst"
+      state: directory
+      mode: '0755'
   - name: stat $dst_dir
     stat: path=$dst_dir
     register: foo_stat
 EOF
+
     case $src in
-    # for any archived source
+    # for any ARCHIVE-kind source
     *".zip" | *".tar.gz" | *".tgz")
         [[ $src =~ "://" ]] && remote="yes"
-
         do_PACKAGE zip unzip tar >/dev/null
-        do_VOLUME "$tmp_dst_dir" "$usr:$grp" 0755 >/dev/null
-
         cat <<EOF >>"$tmp"
-  - name: ADD $src TO $tmp_dst_dir
+#=== for any ARCHIVE-kind source
+  - name: ADD $src TO $tmp_dst
     ansible.builtin.unarchive:
       src: $src
-      dest: $tmp_dst_dir
+      dest: $tmp_dst
       remote_src: $remote
       list_files: yes
 EOF
@@ -346,22 +362,22 @@ EOF
       owner: $usr
       group: $grp
   - name: MOVE unarchived TO $dst
-    command: cp -rlf "$tmp_dst_dir/{{archive_contents.files[0].split('/')[0]}}/."  $dst
-  - name: DELETE $tmp_dst_dir FOLDER
+    command: cp -rlf "$tmp_dst/{{archive_contents.files[0].split('/')[0]}}/."  $dst
+  - name: DELETE $tmp_dst FOLDER
     file:
-      path: "$tmp_dst_dir/{{archive_contents.files[0].split('/')[0]}}"
+      path: "$tmp_dst/{{archive_contents.files[0].split('/')[0]}}"
       state: absent
-#    when: ('$dst_dir/' ~ archive_contents.files[0].split('/')[0]) != '$dst'
 EOF
             ;;
         esac
         ;;
-        # for git source
+        # for GIT-kind source
     *".git")
         ((GITADD_CNT++))
         do_PACKAGE git >/dev/null
-        do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
+        [ "$dst_dir" != "$tmp_dst" ] && do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
         cat <<EOF >>"$tmp"
+#=== for any GIT-kind source
   - name: GIT remote clone/pull $dst
     ansible.builtin.git:
       repo: $src
@@ -388,12 +404,23 @@ EOF
 EOF
         GITADD_TRIGGERS="$GITADD_TRIGGERS or repo_$GITADD_CNT.changed"
         grep <"$tmp" "src:\|dest:\|repo:\|mode:\|owner:\|group:\|url:" | tr -d ' '
+        [[ $dst =~ $tmp_dst ]] && cat <<EOF >>"$tmp"
+#== for dst in docker container
+  - name: ADD TO  container '$2' 
+    ansible.builtin.shell: docker cp $tmp_dst $2
+  - name: CLEAN-UP $tmp_dst
+    ansible.builtin.file:
+      path: $tmp_dst
+      state: absent
+EOF
         play_this "$tmp" "$t" "no_skip"
         return
         ;;
     *"://"*)
-        do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
+        tmp_src=$tmp_dst
+        [ "$dst_dir" != "$tmp_dst" ] && do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
         cat <<EOF >>"$tmp"
+#=== for any URL-kind single file source (nonarchived!)
   - name: clean-up $dst 
     file:
       path: $dst
@@ -408,32 +435,31 @@ EOF
         [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
         [ -n "$mode" ] && echo "      mode: '$mode'" >>"$tmp"
         ;;
-
     *)
-        if [[ $dst =~ ":/" ]]; then
-            cat <<EOF >>"$tmp"
-  - name: ADD $src TO $dst 
-    ansible.builtin.copy:
-      src: $src
-      dest: /tmp/copy_to_docker.tmp
-  - name: ADD TO  container $dst 
-    ansible.builtin.shell: docker cp /tmp/copy_to_docker.tmp $dst
-EOF
-        else
-
-            do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
-            cat <<EOF >>"$tmp"
+        [ "$dst_dir" != "$tmp_dst" ] && do_VOLUME "$dst_dir" "$usr:$grp" 0755 >/dev/null
+        cat <<EOF >>"$tmp"
+#=== for any OTHER-kind source
   - name: ADD $src TO $dst 
     ansible.builtin.copy:
       src: $src
       dest: $dst
 EOF
-            [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
-            [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
-            [ -n "$mode" ] && echo "      mode: '$mode'" >>"$tmp"
-        fi
+        [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
+        [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
+        [ -n "$mode" ] && echo "      mode: '$mode'" >>"$tmp"
         ;;
     esac
+
+    [[ $dst =~ $tmp_dst ]] && cat <<EOF >>"$tmp"
+#== for dst in docker container
+  - name: ADD TO  container '$2' 
+    ansible.builtin.shell: docker cp $tmp_src $2
+  - name: CLEAN-UP $tmp_dst
+    ansible.builtin.file:
+      path: $tmp_dst
+      state: absent
+EOF
+
     #cat "$tmp"
     #echo "------------------------------------------------------"
     grep <"$tmp" "src:\|dest:\|repo:\|mode:\|owner:\|group:\|url:" | tr -d ' '
@@ -491,7 +517,7 @@ EOF
     play_this "$tmp" "$t"
 }
 
-do_COPY() { # Docker COPY analogue
+do_COPY() { #  COPY operations on remote
     [ -z "$1" ] && return
     local src=$1
     local dst=$2
@@ -502,30 +528,39 @@ do_COPY() { # Docker COPY analogue
     local t
     t=$(rt)
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
-
-    [ -n "$4" ] && mode=$4
-    case $3 in
-    *":"*)
-        usr=$(echo "$3" | cut -d ':' -f 1)
-        grp=$(echo "$3" | cut -d ':' -f 2)
-        ;;
-    [0-9][0-9][0-9]*)
-        mode=$3
-        usr=$ANSIBLE_USER
-        grp=$ANSIBLE_GROUP
-        ;;
-    "")
-        usr=$ANSIBLE_USER
-        grp=$ANSIBLE_GROUP
-        ;;
-    *)
-        usr=$3
-        grp=$3
-        ;;
-    esac
-
     echo "%%%%%%%%%%% remotely: Content COPY %%%%%%%%%%%%%"
-    cat <<EOF >"$tmp"
+
+    if [[ $dst =~ ":/" ]]; then
+        cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  become: true
+  tasks:
+  - name: COPY to docker container $dst 
+    ansible.builtin.shell: docker cp $src $dst
+    ignore_errors: true
+EOF
+    else
+        [ -n "$4" ] && mode=$4
+        case $3 in
+        *":"*)
+            usr=$(echo "$3" | cut -d ':' -f 1)
+            grp=$(echo "$3" | cut -d ':' -f 2)
+            ;;
+        [0-9][0-9][0-9]*)
+            mode=$3
+            usr=$ANSIBLE_USER
+            grp=$ANSIBLE_GROUP
+            ;;
+        "")
+            usr=$ANSIBLE_USER
+            grp=$ANSIBLE_GROUP
+            ;;
+        *)
+            usr=$3
+            grp=$3
+            ;;
+        esac
+        cat <<EOF >"$tmp"
 - hosts: $ANSIBLE_TARGET
   become: true
   tasks:
@@ -534,14 +569,13 @@ do_COPY() { # Docker COPY analogue
       src: $src
       dest: $dst
       remote_src: true
-
 EOF
-    [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
-    [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
-    [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
-    echo "    ignore_errors: true" >>"$tmp"
-
-    grep <"$tmp" "src\|dest\|repo\|mode\|owner\|group\|url" | tr -d ' '
+        [ -n "$usr" ] && echo "      owner: $usr" >>"$tmp"
+        [ -n "$grp" ] && echo "      group: $grp" >>"$tmp"
+        [ -n "$mode" ] && echo "      mode: $mode" >>"$tmp"
+        echo "    ignore_errors: true" >>"$tmp"
+        grep <"$tmp" "src\|dest\|repo\|mode\|owner\|group\|url" | tr -d ' '
+    fi
     play_this "$tmp" "$t"
 }
 #============== D
@@ -674,6 +708,22 @@ set_DOCKER() {
             WantedBy=multi-user.target
       - name: commands RUN
         ansible.builtin.shell: cp -lf /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose; groupadd -f docker; usermod -aG docker $ANSIBLE_USER
+      - name: Create docker group
+        group:
+          name: docker
+          state: present
+      - name: Create docker User
+        user:
+          name: docker
+          state: present
+          create_home: false
+          shell: /bin/false
+          group: docker
+      - name: adding Ansible user to group docker
+        user:
+          name: $ANSIBLE_USER
+          groups: docker
+          append: yes
       - name: Start docker service
         ansible.builtin.systemd_service:
           state: restarted
