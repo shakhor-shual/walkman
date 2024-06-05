@@ -100,7 +100,6 @@ do_FROM all
 
 ############## WAY 3:
 #set_DOCKER $docker_version $docker_compose_version
-#do_ADD https://github.com/ChristianLempa/boilerplates.git /home/ec-2user/newlib
 
 do_PACKAGE mc
 do_ADD https://github.com/shakhor-shual/templates.git $templates
@@ -112,7 +111,7 @@ do_VOLUME /var/log/grafana docker:docker 0777
 do_ADD @@assets/dashboards.yml grafana:/etc/grafana/provisioning/dashboards/dashboards.yml
 do_ADD @@assets/datasources.yml grafana:/etc/grafana/provisioning/datasources/datasources.yml
 do_ADD https://grafana.com/api/dashboards/1860/revisions/37/download grafana:/var/lib/grafana/dashboards/node-exporter-dashboard.json
-do_ADD @@assets/dash.json grafana:/var/lib/grafana/dashboards/docker-dashboard.json
+do_ADD https://grafana.com/api/dashboards/19908/revisions/1/download grafana:/var/lib/grafana/dashboards/cadvisor-dashboard.json grafana_ds=prometheus
 do_COMPOSE $compose_lib/grafana
 
 cmd_INTERACT -L 8000:localhost:80 -L 8080:localhost:8080 -L 3000:localhost:3000 -L 9090:localhost:9090

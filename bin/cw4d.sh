@@ -265,11 +265,12 @@ do_ADD() { # Docker ADD analogue
     local dst_dir
     local tmp_dst="/tmp/walkman_add.tmp"
     local tmp_src
-    local usr
-    local grp
+    local usr=$ANSIBLE_USER
+    local grp=$ANSIBLE_GROUP
     local mode
     local tmp
     local version
+    local grafana_ds
     local remote="no"
     local t
     t=$(rt)
@@ -277,30 +278,28 @@ do_ADD() { # Docker ADD analogue
     src=$(echo "$src" | sed 's/\/\*$/\/\./')
     tmp_src=$tmp_dst/$(basename "${src%.git}")
 
-    [ -n "$4" ] && mode=$4
-    case $3 in
-    *":"*)
-        usr=$(echo "$3" | cut -d ':' -f 1)
-        grp=$(echo "$3" | cut -d ':' -f 2)
-        ;;
-    [0-9][0-9][0-9]*)
-        mode=$3
-        usr=$ANSIBLE_USER
-        grp=$ANSIBLE_GROUP
-        ;;
-    "")
-        usr=$ANSIBLE_USER
-        grp=$ANSIBLE_GROUP
-        ;;
-    *)
-        usr=$3
-        grp=$3
-        ;;
-    esac
-
-    [[ $3 =~ "version=" ]] && version=${3#*}
-    [[ $4 =~ "version=" ]] && version=${4#*}
-    [[ $5 =~ "version=" ]] && version=${5#*}
+    for arg in "$@"; do
+        [ "$arg" = "$1" ] && continue
+        [ "$arg" = "$2" ] && continue
+        case $arg in
+        *":"*)
+            usr=${arg%:*}  #$(echo "$arg" | cut -d ':' -f 1)
+            grp=${arg##*:} # $(echo "$arg" | cut -d ':' -f 2)
+            ;;
+        [0-9][0-9][0-9]*) mode=$arg ;;
+        *"="*)
+            case $arg in
+            *"version="*) version=${arg##*=} ;;
+            *"grafana_ds="*) grafana_ds=${arg##*=} ;;
+            esac
+            ;;
+        "") ;;
+        *)
+            usr=$arg
+            grp=$arg
+            ;;
+        esac
+    done
 
     case $dst in
     *'/') dst_dir=${dst%?} ;;
@@ -450,6 +449,20 @@ EOF
         ;;
     esac
 
+    if [ -n "$grafana_ds" ]; then
+        local dash_file
+        [ -f "$dst" ] && dash_file=$dst
+        [[ $dst =~ $tmp_dst ]] && dash_file=$tmp_src
+        [ -n "$dash_file" ] && cat <<EOF >>"$tmp"
+#== patch grafana datasource
+  - name: patch grafana datasource
+    ansible.builtin.shell: |
+      DS=\$(grep <"$dash_file" 'name' | tr -d '"' | tr -d ' ' | tr -d ',' | cut -d ':' -f 2 | head -n 1 | sed 's/^/\${/;s/\$/}/')
+      [ -n "\$DS" ] && sed -i -e  "s/\$DS/$grafana_ds/" $dash_file
+    args:
+      executable: /bin/bash
+EOF
+    fi
     [[ $dst =~ $tmp_dst ]] && cat <<EOF >>"$tmp"
 #== for dst in docker container
   - name: ADD TO  container '$2' 
