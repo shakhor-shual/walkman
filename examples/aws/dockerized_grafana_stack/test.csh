@@ -103,8 +103,10 @@ do_FROM all
 
 do_PACKAGE mc
 do_ADD https://github.com/shakhor-shual/templates.git $templates
-do_ADD @@assets/prometheus.yml $compose_lib/prometheus/config/prometheus.yaml
-do_COMPOSE $compose_lib/prometheus $compose_lib/nodeexporter $compose_lib/cadvisor $compose_lib/grafana
+#do_ADD @@assets/prometheus.yml $compose_lib/prometheus/config/prometheus.yaml
+do_ADD @@assets/wordpress/.env $compose_lib/wordpress/.env
+#do_COMPOSE $compose_lib/wordpress #$compose_lib/nodeexporter $compose_lib/cadvisor $compose_lib/grafana
+do_COMPOSE $compose_lib/wordpress $compose_lib/prometheus $compose_lib/nodeexporter $compose_lib/cadvisor $compose_lib/grafana
 do_VOLUME /var/lib/grafana docker:docker 0777
 do_VOLUME /var/lib/grafana/dashboards docker:docker 0777
 do_VOLUME /var/log/grafana docker:docker 0777

@@ -37,7 +37,7 @@ PLAYBOOK_SHADOW_TMP=/tmp/full_playbook.yaml
 SSH_TUNNEL_PARAMS=""
 
 GITADD_CNT=0
-GITADD_TRIGGERS='    when: false'
+#GITADD_TRIGGERS='    when: false'
 
 ALLWAYS_RUN=1
 
@@ -2582,6 +2582,9 @@ case $RUN_MODE in
         STAGE_COUNT=0
         STAGE_INIT_FILE="$DIR_WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
         STAGE_LABEL="&root&"
+        GITADD_TRIGGERS='    when: true'
+        [ "$PLAY_SPEED" -gt 3 ] && GITADD_TRIGGERS='    when: false'
+
         update_variables_state "$STAGE_INIT_FILE" "env_all"
 
         STAGE_COUNT=1
