@@ -2,7 +2,7 @@ server {
         listen 80;
         listen [::]:80;
 
-        server_name shual-www.duckdns.org;
+        server_name $DOMAIN;
 
         location ~ /.well-known/acme-challenge {
                 allow all;
@@ -17,7 +17,7 @@ server {
 server {
         listen 443 ssl http2;
         listen [::]:443 ssl http2;
-        server_name shual-www.duckdns.org;
+        server_name $DOMAIN;
 
         index index.php index.html index.htm;
 
@@ -25,8 +25,8 @@ server {
 
         server_tokens off;
 
-        ssl_certificate /etc/letsencrypt/live/shual-www.duckdns.org/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/shual-www.duckdns.org/privkey.pem;
+        ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
 
         include /etc/nginx/conf.d/options-ssl-nginx.conf;
 

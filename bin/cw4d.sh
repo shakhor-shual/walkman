@@ -480,7 +480,13 @@ EOF
 }
 
 do_ARG() { # Docker ARG analogue
+    ENV_ARG=""
     [ -z "$1" ] && return
+    if [ -f "$1" ]; then
+        while read -r p; do
+            ENV_ARG="$ENV_ARG export $p;"
+        done <"$1"
+    fi
     #  ANSIBLE_ARG=$1
 }
 
@@ -502,6 +508,7 @@ do_COMPOSE() {
   become: true
   tasks:
 EOF
+
     for dst in "$@"; do
         ((cnt++))
         cat <<EOF >>"$tmp"
@@ -517,8 +524,10 @@ EOF
   - name: Watch compose-service
     ansible.builtin.shell: |
       if [ -n "\$(/usr/local/bin/docker-compose ps -q {{ item.1 }})" ] && [ -n "\$(docker ps -q --no-trunc | grep "\$(/usr/local/bin/docker-compose ps -q {{ item.1 }})")" ]; then
+       $ENV_ARG
        /usr/local/bin/docker-compose restart {{ item.1 }}
       else
+       $ENV_ARG
        /usr/local/bin/docker-compose up -d
       fi
     args:
@@ -1116,6 +1125,7 @@ do_RUN() { # Docker RUN analogue
     echo "%%%%%%%%%%% remotely: Script RUN %%%%%%%%%%%"
     {
         echo "#!/bin/bash"
+        echo "$ENV_ARG"
         echo "$@"
     } >>"$tmp_sh"
 

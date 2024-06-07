@@ -105,10 +105,13 @@ do_PACKAGE mc
 do_ADD https://github.com/shakhor-shual/templates.git $templates
 #do_ADD @@assets/prometheus.yml $compose_lib/prometheus/config/prometheus.yaml
 do_ADD @@vault/wordpress.env $compose_lib/wordpress/.env
+#do_ADD @@vault/domain.env $compose_lib/wordpress/domain.env
 do_ADD @@assets/wordpress/nginx-conf $compose_lib/wordpress/
-do_ADD @@vault/duckdns.env $compose_lib/duckdns/.env
+#do_ADD @@vault/domain.env $compose_lib/duckdns/domain.env
+
 #do_COMPOSE $compose_lib/wordpress #$compose_lib/nodeexporter $compose_lib/cadvisor $compose_lib/grafana
-do_COMPOSE $compose_lib/duckdns $compose_lib/wordpress $compose_lib/prometheus $compose_lib/nodeexporter $compose_lib/cadvisor $compose_lib/grafana
+do_COMPOSE $compose_lib/prometheus $compose_lib/nodeexporter $compose_lib/cadvisor $compose_lib/grafana
+
 do_VOLUME /var/lib/grafana docker:docker 0777
 do_VOLUME /var/lib/grafana/dashboards docker:docker 0777
 do_VOLUME /var/log/grafana docker:docker 0777
@@ -118,8 +121,11 @@ do_ADD https://grafana.com/api/dashboards/1860/revisions/37/download grafana:/va
 do_ADD https://grafana.com/api/dashboards/19908/revisions/1/download grafana:/var/lib/grafana/dashboards/cadvisor-dashboard.json grafana_ds=prometheus
 do_COMPOSE $compose_lib/grafana
 
+do_ARG @@vault/domain.env
+do_COMPOSE $compose_lib/duckdns $compose_lib/wordpress
+
 do_ADD https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf $compose_lib/wordpress/nginx-conf/options-ssl-nginx.conf
 do_WORKDIR $compose_lib/wordpress
-#do_RUN "docker-compose up -d --force-recreate --no-deps webserver; docker-compose stop webserver; cat nginx-conf/nginx.conf.final > nginx-conf/nginx.conf;docker-compose up -d --force-recreate --no-deps webserver"
-do_RUN "cat nginx-conf/nginx.conf.final > nginx-conf/nginx.conf;docker-compose up -d --force-recreate --no-deps webserver"
+do_RUN "sudo docker compose up -d --force-recreate --no-deps webserver; cat nginx-conf/nginx.conf.final > nginx-conf/nginx.conf; sudo docker compose up -d --force-recreate --no-deps webserver"
+#do_RUN "cat nginx-conf/nginx.conf.final > nginx-conf/nginx.conf;docker-compose up -d --force-recreate --no-deps webserver"
 cmd_INTERACT -L 8000:localhost:80 -L 4443:localhost:443 -L 8080:localhost:8080 -L 3000:localhost:3000 -L 9090:localhost:9090
