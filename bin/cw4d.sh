@@ -1391,7 +1391,7 @@ do_WORKDIR() { # Docker WORKDIR analogue
     else
         ANSIBLE_WORKDIR=$1
     fi
-    do_VOLUME "$@"
+    #   do_VOLUME "$@"
 }
 
 ############### HELPERS EXECUTOR ##############
