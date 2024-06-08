@@ -525,7 +525,8 @@ EOF
     ansible.builtin.shell: |
       if [ -n "\$(/usr/local/bin/docker-compose ps -q {{ item.1 }})" ] && [ -n "\$(docker ps -q --no-trunc | grep "\$(/usr/local/bin/docker-compose ps -q {{ item.1 }})")" ]; then
        $ENV_ARG
-       /usr/local/bin/docker-compose restart {{ item.1 }}
+       #/usr/local/bin/docker-compose restart {{ item.1 }}
+       /usr/local/bin/docker-compose up --force-recreate --no-deps -d {{ item.1 }}
       else
        $ENV_ARG
        /usr/local/bin/docker-compose up -d
@@ -2653,7 +2654,7 @@ case $RUN_MODE in
                         [ "$TF_EC" -eq 1 ] && finish_grace "err_tf" "$STAGE_COUNT" "$stage_path"
                         update_variables_state "$STAGE_INIT_FILE" "env_after"
                         if [ "$RUN_MODE" = "apply" ] || [ "$RUN_MODE" = "gitops" ]; then
-                            [ "$PLAY_SPEED" -ge 3 ] && [ -s "$PLAYBOOK_SHADOW_TMP" ] && do_PLAYBOOK "$PLAYBOOK_SHADOW_TMP"
+                            [ "$PLAY_SPEED" -ge 3 ] && [ -s "$PLAYBOOK_SHADOW_TMP" ] && grep <"$PLAYBOOK_SHADOW_TMP" -q "\-name" && do_PLAYBOOK "$PLAYBOOK_SHADOW_TMP"
                         fi
                         if [ -n "$RUN_CMD_CONNECT" ] && [ "$RUN_MODE" = "apply" ] && [ -f "$STAGE_TARGET_FILE" ]; then
                             echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"

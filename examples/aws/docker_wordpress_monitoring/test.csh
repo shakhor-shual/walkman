@@ -29,16 +29,31 @@ docker_compose_version="2.27.0"
 #ami="ami-029e4db491be76287" # Amazon Linux 2023
 ami="ami-0f0ec0d37d04440e3" # Amazon Linux 2
 
-~INSTACE_1:
+~INSTACE_EIP:
 region=eu-north-1
+elastic_ip_id=@@self
+
+~INSTACE_NETWORK:
+region=@@last
 namespace=foxy4
 vpc_cidr_block=@@
 subnet_cidr_block=@@
+#------------------
+vps_id=@@self
+subnet_id=@@self
+security_group_id=@@self
+
+~INSTACE_1:
+region=eu-north-1
+namespace=@@last
+subnet_id=@@last
+security_group_id=@@last
 volume_size=@@
 auto_key_public=@@vault/public.key
 auto_key_private=@@vault/private.key
 instance_type="t3.micro"
 ami=@@last
+elastic_ip_id=@@last
 
 /*
 case $ami in
@@ -101,31 +116,26 @@ do_FROM all
 ############## WAY 3:
 #set_DOCKER $docker_version $docker_compose_version
 
-do_PACKAGE mc
-do_ADD https://github.com/shakhor-shual/templates.git $templates
-#do_ADD @@assets/prometheus.yml $compose_lib/prometheus/config/prometheus.yaml
-do_ADD @@vault/wordpress.env $compose_lib/wordpress/.env
-#do_ADD @@vault/domain.env $compose_lib/wordpress/domain.env
-do_ADD @@assets/wordpress/nginx-conf $compose_lib/wordpress/
-#do_ADD @@vault/domain.env $compose_lib/duckdns/domain.env
+# do_PACKAGE mc
+# do_ADD https://github.com/shakhor-shual/templates.git $templates
+# do_ADD @@vault/wordpress.env $compose_lib/wordpress/.env
+# do_ADD @@assets/wordpress/nginx-conf $compose_lib/wordpress/
 
-#do_COMPOSE $compose_lib/wordpress #$compose_lib/nodeexporter $compose_lib/cadvisor $compose_lib/grafana
-do_COMPOSE $compose_lib/prometheus $compose_lib/nodeexporter $compose_lib/cadvisor $compose_lib/grafana
+# do_COMPOSE $compose_lib/prometheus $compose_lib/nodeexporter $compose_lib/cadvisor $compose_lib/grafana
+# do_VOLUME /var/lib/grafana docker:docker 0777
+# do_VOLUME /var/lib/grafana/dashboards docker:docker 0777
+# do_VOLUME /var/log/grafana docker:docker 0777
+# do_ADD @@assets/dashboards.yml grafana:/etc/grafana/provisioning/dashboards/dashboards.yml
+# do_ADD @@assets/datasources.yml grafana:/etc/grafana/provisioning/datasources/datasources.yml
+# do_ADD https://grafana.com/api/dashboards/1860/revisions/37/download grafana:/var/lib/grafana/dashboards/node-exporter-dashboard.json
+# do_ADD https://grafana.com/api/dashboards/19908/revisions/1/download grafana:/var/lib/grafana/dashboards/cadvisor-dashboard.json grafana_ds=prometheus
+# do_COMPOSE $compose_lib/grafana
 
-do_VOLUME /var/lib/grafana docker:docker 0777
-do_VOLUME /var/lib/grafana/dashboards docker:docker 0777
-do_VOLUME /var/log/grafana docker:docker 0777
-do_ADD @@assets/dashboards.yml grafana:/etc/grafana/provisioning/dashboards/dashboards.yml
-do_ADD @@assets/datasources.yml grafana:/etc/grafana/provisioning/datasources/datasources.yml
-do_ADD https://grafana.com/api/dashboards/1860/revisions/37/download grafana:/var/lib/grafana/dashboards/node-exporter-dashboard.json
-do_ADD https://grafana.com/api/dashboards/19908/revisions/1/download grafana:/var/lib/grafana/dashboards/cadvisor-dashboard.json grafana_ds=prometheus
-do_COMPOSE $compose_lib/grafana
-
-do_ARG @@vault/domain.env
-do_COMPOSE $compose_lib/duckdns $compose_lib/wordpress
-
-do_ADD https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf $compose_lib/wordpress/nginx-conf/options-ssl-nginx.conf
-do_WORKDIR $compose_lib/wordpress
-do_RUN "sudo docker compose up -d --force-recreate --no-deps webserver; cat nginx-conf/nginx.conf.final > nginx-conf/nginx.conf; sudo docker compose up -d --force-recreate --no-deps webserver"
+# do_ARG @@vault/domain.env
+# do_COMPOSE $compose_lib/duckdns $compose_lib/wordpress
+#do_RUN "sudo -E docker compose exec webserver ls -la /etc/letsencrypt/live || sudo -E docker compose up --force-recreate --no-deps certbot"
+#do_ADD https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf $compose_lib/wordpress/nginx-conf/options-ssl-nginx.conf
+#do_WORKDIR $compose_lib/wordpress
+#do_RUN "sudo docker compose up -d --force-recreate --no-deps webserver; cat nginx-conf/nginx.conf.final > nginx-conf/nginx.conf; sudo docker compose up -d --force-recreate --no-deps webserver"
 #do_RUN "cat nginx-conf/nginx.conf.final > nginx-conf/nginx.conf;docker-compose up -d --force-recreate --no-deps webserver"
 cmd_INTERACT -L 8000:localhost:80 -L 4443:localhost:443 -L 8080:localhost:8080 -L 3000:localhost:3000 -L 9090:localhost:9090

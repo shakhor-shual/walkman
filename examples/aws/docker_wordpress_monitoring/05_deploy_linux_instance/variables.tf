@@ -9,15 +9,22 @@ variable "namespace" {
   default     = "my-test"
 }
 
-variable "vpc_cidr_block" {
-  description = "VPC cidr"
-  default     = "10.0.0.0/16"
+variable "elastic_ip_id" {
+  description = "Elastic IP id"
+  default     = ""
 }
 
-variable "subnet_cidr_block" {
-  description = "Subnet cidr"
-  default     = "10.0.1.0/24"
+
+variable "subnet_id" {
+  description = "Subnet id"
+  default     = ""
 }
+
+variable "security_group_id" {
+  description = "Security group id"
+  default     = ""
+}
+
 
 variable "instance_type" {
   description = "EC2 Inastace type"
