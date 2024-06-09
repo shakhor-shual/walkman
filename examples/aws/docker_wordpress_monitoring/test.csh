@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #########################################################################
+#protect@@@ ~INSTACE_NETWORK
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ 2   # possible here are 0, 1, 2, 3
 speed@@@ 3

@@ -1861,6 +1861,13 @@ get_in_tf_packet_home() {
     VARS_TF="$PACK_HOME/variables.tf"
     cd "$PACK_HOME" || exit
     PACK_HOME_FULL_PATH=$PWD
+
+    if [ -n "$STAGES_PROTECT_LIST" ] && it_contains "$STAGES_PROTECT_LIST" "$STAGE_LABEL"; then
+        touch .protected_stage.key
+    else
+        [ -f ".protected_stage.key" ] && rm -f .protected_stage.key
+    fi
+
     PLAYBOOK_HELPER=$PACK_HOME_FULL_PATH/playbook.yaml
 }
 
@@ -1871,6 +1878,15 @@ reset_album_tmp() {
 
 finish_grace() {
     case "$1" in
+
+    "protect_tf")
+        echo -e
+        echo "################# PROTECTION from TERRAFORM DESTROY #########################"
+        echo "### IN: $2"
+        echo "############# DESTROY CANCELED, PROTECTED STAGES PRESERVED ##################"
+        echo -e && echo -e
+        ;;
+
     "err_tf")
         echo -e
         echo "################### TERRAFORM ERROR on Stage-$2 ############################"
@@ -2466,17 +2482,25 @@ destroy_deployment() {
     reset_album_tmp
     set_debug_mode
     for tf_packet_path in $(find "$DIR_ALBUM_HOME" -maxdepth 3 -name "variables.tf" | sort -r); do
-
         cd "$(dirname "$tf_packet_path")" || exit
         terraform workspace select -or-create "$WS_NAME"
         if [ -f "variables.tf" ]; then
-            echo "TERRAFORM ################ $tf_packet_path ############################"
-            terraform destroy -auto-approve
-            echo "---------------------------------------------------------------------------------"
+
+            if [ -f ".protected_stage.key" ]; then
+                [ -f "$FLAG_LOCK" ] && rm -f "$FLAG_LOCK"
+                [ -d "$DIR_WS_HASH" ] && rm -rf "$DIR_WS_HASH"
+                cd "$START_POINT" || exit
+                finish_grace "protect_tf" "$(basename "$(dirname "$tf_packet_path")")"
+            else
+                echo "TERRAFORM ################ $tf_packet_path ############################"
+                terraform destroy -auto-approve
+                echo "---------------------------------------------------------------------------------"
+            fi
         fi
         cd "$START_POINT" || exit
     done
     [ -f "$FLAG_LOCK" ] && rm -f "$FLAG_LOCK"
+    [ -d "$DIR_WS_HASH" ] && rm -rf "$DIR_WS_HASH"
 }
 
 #====================================START of SCRIPT BODY ====================================
@@ -2522,6 +2546,8 @@ fi
 export ANSIBLE_HOST_KEY_CHECKING=False
 export ANSIBLE_DEPRECATION_WARNINGS=False
 export ANSIBLE_ACTION_WARNINGS=False
+
+STAGES_PROTECT_LIST=$(grep <"$ALBUM_SELF" '^protect@@@' | sed 's/protect@@@//;s/#.*$//; s/~//;s/://;s/  */ /g;s/^ //;s/ $//' | tail -n 1)
 #echo "************$RUN_MODE *******************"
 case $RUN_MODE in
 "--host")
@@ -2547,8 +2573,9 @@ case $RUN_MODE in
         ! grep <"$SELF" -q "^~" || [ "$album_script" = "$SELF" ] || continue
         grep <"$album_script" -q "^~" || continue
         init_album_home "$album_script"
+        #it_contains "$STAGES_PROTECT_LIST"
         destroy_deployment
-        rm -rf "$DIR_WS_HASH"
+
     done
     ;;
 
@@ -2593,6 +2620,7 @@ case $RUN_MODE in
         STAGE_COUNT=0
         STAGE_INIT_FILE="$DIR_WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
         STAGE_LABEL="&root&"
+
         GITADD_TRIGGERS='    when: true'
         [ "$PLAY_SPEED" -gt 3 ] && GITADD_TRIGGERS='    when: false'
 
@@ -2602,6 +2630,7 @@ case $RUN_MODE in
         for stage_path in $(
             find "$DIR_ALBUM_HOME" -maxdepth 1 -type d | sort | grep -v '\.meta\|\.assets\|\.vault\|\.git' | tail -n +2
         ); do
+
             STAGE_INIT_FILE="$DIR_WS_TMP/$WS_NAME"$(printf %02d $STAGE_COUNT)_vars.draft
             STAGE_LABEL=$(head <"$STAGE_INIT_FILE" -n 1 | sed 's/#//g;s/ //g;s/://g;s/~//g;')
             STAGE_TARGET_FILE=$DIR_ALBUM_META/ssh-to-$WS_NAME-$STAGE_LABEL.sh
