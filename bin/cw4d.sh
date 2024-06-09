@@ -2485,12 +2485,18 @@ destroy_deployment() {
         cd "$(dirname "$tf_packet_path")" || exit
         terraform workspace select -or-create "$WS_NAME"
         if [ -f "variables.tf" ]; then
-
             if [ -f ".protected_stage.key" ]; then
-                [ -f "$FLAG_LOCK" ] && rm -f "$FLAG_LOCK"
-                [ -d "$DIR_WS_HASH" ] && rm -rf "$DIR_WS_HASH"
-                cd "$START_POINT" || exit
-                finish_grace "protect_tf" "$(basename "$(dirname "$tf_packet_path")")"
+                if [ -n "$STAGES_PROTECT_LIST" ]; then
+                    [ -f "$FLAG_LOCK" ] && rm -f "$FLAG_LOCK"
+                    [ -d "$DIR_WS_HASH" ] && rm -rf "$DIR_WS_HASH"
+                    cd "$START_POINT" || exit
+                    finish_grace "protect_tf" "$(basename "$(dirname "$tf_packet_path")")"
+                else
+                    rm -f .protected_stage.key
+                    echo "TERRAFORM ################ $tf_packet_path ############################"
+                    terraform destroy -auto-approve
+                    echo "---------------------------------------------------------------------------------"
+                fi
             else
                 echo "TERRAFORM ################ $tf_packet_path ############################"
                 terraform destroy -auto-approve
