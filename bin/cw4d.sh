@@ -63,7 +63,7 @@ EOF
   gather_facts: yes
   tasks:
 EOF
-    rm -f "$tmp"
+    dispose "$tmp"
 }
 
 rt() {
@@ -100,8 +100,7 @@ EOF
     #    cat "$block_tmp"
     #    echo "============================================="
     rt "$timer"
-    rm -f "$tmp"
-    rm -f "$block_tmp"
+    dispose "$tmp" "$block_tmp"
 }
 
 tf_hashed() {
@@ -114,7 +113,7 @@ tf_hashed() {
         hashed=1
     fi
     if [[ -f $STAGE_REHASH_FILE ]]; then
-        [ $hashed -eq 1 ] && rm -f "$STAGE_REHASH_FILE"
+        [ $hashed -eq 1 ] && dispose "$STAGE_REHASH_FILE"
         return $hashed
     fi
     return 1
@@ -170,7 +169,7 @@ ans_hashed() {
         ;;
     esac
     if [[ -f $STAGE_REHASH_FILE ]]; then
-        [ $hashed -eq 1 ] && rm -f "$STAGE_REHASH_FILE"
+        [ $hashed -eq 1 ] && dispose "$STAGE_REHASH_FILE"
         return $hashed
     fi
     return 1
@@ -1865,14 +1864,14 @@ get_in_tf_packet_home() {
     if [ -n "$STAGES_PROTECT_LIST" ] && it_contains "$STAGES_PROTECT_LIST" "$STAGE_LABEL"; then
         touch .protected_stage.key
     else
-        [ -f ".protected_stage.key" ] && rm -f .protected_stage.key
+        dispose .protected_stage.key
     fi
 
     PLAYBOOK_HELPER=$PACK_HOME_FULL_PATH/playbook.yaml
 }
 
 reset_album_tmp() {
-    [ -d "$DIR_WS_TMP" ] && rm -rf "$DIR_WS_TMP"
+    dispose "$DIR_WS_TMP"
     mkdir -p "$DIR_WS_TMP"
 }
 
@@ -1916,7 +1915,7 @@ finish_grace() {
         ;;
     esac
     unset ANSIBLE_HOST_KEY_CHECKING
-    [ -f "$FLAG_LOCK" ] && rm -f "$FLAG_LOCK"
+    dispose "$FLAG_LOCK"
     cd "$START_POINT" && exit || exit
 }
 
@@ -1963,7 +1962,7 @@ build_shc() {
     try_as_root make install
     try_as_root mv /usr/local/bin/shc /usr/bin/shc
     cd "$HOME" || exit
-    rm -rf "$tmp"
+    dispose "$tmp"
 }
 
 os_detect() {
@@ -2436,7 +2435,7 @@ git_clone_or_pull() {
         git clone "$2" "$1"
         if [ "$1" = "." ]; then
             mv -n "$tmp/"*.csh . 2>/dev/null
-            rm -rf "$tmp"
+            dispose "$tmp"
         fi
     fi
     return 1
@@ -2476,8 +2475,14 @@ update_from_git() {
     return $apply_it
 }
 
+dispose() {
+    for it in "$@"; do
+        [ -e "$it" ] && rm -rf "$it"
+    done
+}
+
 destroy_deployment() {
-    [ -f "$FLAG_OK" ] && rm -f "$FLAG_OK"
+    dispose "$FLAG_OK"
     touch "$FLAG_LOCK"
     reset_album_tmp
     set_debug_mode
@@ -2487,12 +2492,11 @@ destroy_deployment() {
         if [ -f "variables.tf" ]; then
             if [ -f ".protected_stage.key" ]; then
                 if [ -n "$STAGES_PROTECT_LIST" ]; then
-                    [ -f "$FLAG_LOCK" ] && rm -f "$FLAG_LOCK"
-                    [ -d "$DIR_WS_HASH" ] && rm -rf "$DIR_WS_HASH"
+                    dispose "$FLAG_LOCK" "$DIR_WS_HASH"
                     cd "$START_POINT" || exit
                     finish_grace "protect_tf" "$(basename "$(dirname "$tf_packet_path")")"
                 else
-                    rm -f .protected_stage.key
+                    dispose .protected_stage.key
                     echo "TERRAFORM ################ $tf_packet_path ############################"
                     terraform destroy -auto-approve
                     echo "---------------------------------------------------------------------------------"
@@ -2505,8 +2509,7 @@ destroy_deployment() {
         fi
         cd "$START_POINT" || exit
     done
-    [ -f "$FLAG_LOCK" ] && rm -f "$FLAG_LOCK"
-    [ -d "$DIR_WS_HASH" ] && rm -rf "$DIR_WS_HASH"
+    dispose "$FLAG_LOCK" "$DIR_WS_HASH"
 }
 
 #====================================START of SCRIPT BODY ====================================
@@ -2597,7 +2600,7 @@ case $RUN_MODE in
     done
     root_template_print "$head_tmp" "$stages_tmp"
     cat "$head_tmp" >>"$DIR_ALBUM_HOME"/album.tpl.csh
-    rm -f "$stages_tmp" "$head_tmp"
+    dispose "$stages_tmp" "$head_tmp"
     exit
     ;;
 
@@ -2614,7 +2617,7 @@ case $RUN_MODE in
         ! grep <"$SELF" -q "^~" || [ "$album_script" = "$SELF" ] || continue
         grep <"$album_script" -q "^~" || continue
         init_album_home "$album_script"
-        [ -f "$FLAG_OK" ] && rm -f "$FLAG_OK"
+        dispose "$FLAG_OK"
         touch "$FLAG_LOCK"
         reset_album_tmp
         set_debug_mode
@@ -2673,6 +2676,8 @@ case $RUN_MODE in
                     ! grep -q "$STAGE_HASH" <"$STAGE_HASH_FILE" && echo "$md5" >>"$STAGE_HASH_FILE" && STAGE_HASH=1
 
                     touch "$FLAG_LOCK"
+                    dispose "$PLAYBOOK_SHADOW_TMP"
+
                     if tf_hashed; then
                         echo "---------------------- Any TERRAFORM changes -----------------------"
                         echo "!!!> Acceleration: SKIP Terraforn execution"
@@ -2688,8 +2693,12 @@ case $RUN_MODE in
                         TF_EC=$?
                         [ "$TF_EC" -eq 1 ] && finish_grace "err_tf" "$STAGE_COUNT" "$stage_path"
                         update_variables_state "$STAGE_INIT_FILE" "env_after"
+
+                        # cat "$PLAYBOOK_SHADOW_TMP"
                         if [ "$RUN_MODE" = "apply" ] || [ "$RUN_MODE" = "gitops" ]; then
-                            [ "$PLAY_SPEED" -ge 3 ] && [ -s "$PLAYBOOK_SHADOW_TMP" ] && grep <"$PLAYBOOK_SHADOW_TMP" -q "\-name" && do_PLAYBOOK "$PLAYBOOK_SHADOW_TMP"
+                            if [ "$PLAY_SPEED" -ge 3 ] && [ -s "$PLAYBOOK_SHADOW_TMP" ] && grep <"$PLAYBOOK_SHADOW_TMP" -q "\- name:"; then
+                                do_PLAYBOOK "$PLAYBOOK_SHADOW_TMP"
+                            fi
                         fi
                         if [ -n "$RUN_CMD_CONNECT" ] && [ "$RUN_MODE" = "apply" ] && [ -f "$STAGE_TARGET_FILE" ]; then
                             echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
@@ -2734,8 +2743,7 @@ case $RUN_MODE in
             ((STAGE_COUNT++))
 
         done
-        [ -f "$FLAG_LOCK" ] && rm -f "$FLAG_LOCK"
-        [ -f "$FLAG_ERR" ] && rm -f "$FLAG_ERR"
+        dispose "$FLAG_LOCK" "$FLAG_ERR"
         touch "$FLAG_OK"
     done
     ;;

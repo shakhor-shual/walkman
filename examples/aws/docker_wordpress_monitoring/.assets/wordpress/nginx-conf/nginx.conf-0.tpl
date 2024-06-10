@@ -2,7 +2,7 @@ server {
         listen 80;
         listen [::]:80;
 
-        server_name $DOMAIN;
+        server_name ${DOMAIN};
 
         index index.php index.html index.htm;
 
@@ -14,17 +14,17 @@ server {
         }
 
         location / {
-                try_files $uri $uri/ /index.php$is_args$args;
+                try_files ${DOLLAR}uri ${DOLLAR}uri/ /index.php${DOLLAR}is_args${DOLLAR}args;
         }
 
-        location ~ \.php$ {
-                try_files $uri =404;
-                fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        location ~ \.php${DOLLAR} {
+                try_files ${DOLLAR}uri =404;
+                fastcgi_split_path_info ^(.+\.php)(/.+)${DOLLAR};
                 fastcgi_pass wordpress:9000;
                 fastcgi_index index.php;
                 include fastcgi_params;
-                fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-                fastcgi_param PATH_INFO $fastcgi_path_info;
+                fastcgi_param SCRIPT_FILENAME ${DOLLAR}document_root${DOLLAR}fastcgi_script_name;
+                fastcgi_param PATH_INFO ${DOLLAR}fastcgi_path_info;
         }
 
         location ~ /\.ht {
@@ -37,7 +37,7 @@ server {
         location = /robots.txt {
                 log_not_found off; access_log off; allow all;
         }
-        location ~* \.(css|gif|ico|jpeg|jpg|js|png)$ {
+        location ~* \.(css|gif|ico|jpeg|jpg|js|png)${DOLLAR} {
                 expires max;
                 log_not_found off;
         }
