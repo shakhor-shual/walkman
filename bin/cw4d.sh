@@ -35,13 +35,7 @@ SQL_PASSWORD=""
 SQL_DATABASE=""
 PLAYBOOK_SHADOW_TMP=/tmp/full_playbook.yaml
 SSH_TUNNEL_PARAMS=""
-
 GITADD_CNT=0
-#GITADD_TRIGGERS='    when: false'
-
-ALLWAYS_RUN=1
-
-#ANSIBLE_ARG=""
 
 check_ansible_connection() {
     local group=${1:-"all"}
@@ -1387,14 +1381,6 @@ set_WALKMAN() { # Walkman installer
     echo -e
 }
 
-set_TUNNEL() {
-    local tun="$*"
-
-    echo "%%%%%%%%%%% remotely: WALKMAN INSTALL %%%%%%%%%%%%%%%"
-    sed <"$STAGE_TARGET_FILE" "s/^ssh /ssh $tun /" | bash
-
-}
-
 do_WORKDIR() { # Docker WORKDIR analogue
     if [ -z "$1" ]; then
         ANSIBLE_WORKDIR='/'
@@ -2547,7 +2533,6 @@ else
         echo "$2" | grep -q '/' && SELF="$2" && init_album_home "$2"
         echo "$1" | grep -q '/' && SELF="$1" && init_album_home "$1"
         RUN_MODE="$(sed <"$ALBUM_SELF" 's/#.*$//;/^$/d' | grep 'run@@@' | tr -d ' ' | sed 's/^run@@@=//; s/^run@@@//' | tail -n 1)"
-
     fi
 fi
 [ -n "$3" ] && it_contains "$RUN_LIST" "$3" && RUN_MODE=$3
@@ -2582,9 +2567,7 @@ case $RUN_MODE in
         ! grep <"$SELF" -q "^~" || [ "$album_script" = "$SELF" ] || continue
         grep <"$album_script" -q "^~" || continue
         init_album_home "$album_script"
-        #it_contains "$STAGES_PROTECT_LIST"
         destroy_deployment
-
     done
     ;;
 

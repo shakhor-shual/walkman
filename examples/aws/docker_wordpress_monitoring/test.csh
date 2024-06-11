@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #########################################################################
-protect@@@ ~INSTACE_NETWORK
+#protect@@@ ~INSTACE_NETWORK
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ 2   # possible here are 0, 1, 2, 3
 speed@@@ 3
@@ -135,9 +135,8 @@ do_COMPOSE $compose_lib/grafana
 do_WORKDIR $compose_lib/wordpress
 do_ARG @@vault/domain.env
 do_RUN "envsubst <nginx-conf/nginx.conf-0.tpl > nginx-conf/nginx.conf"
-#do_COMPOSE $compose_lib/wordpress
 do_ADD https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf $compose_lib/wordpress/nginx-conf/options-ssl-nginx.conf
-do_RUN "sudo -E docker compose exec webserver ls -la /etc/letsencrypt/live || echo 'DNS not READY!!'"
+do_RUN "sudo -E docker compose exec webserver ls -la /etc/letsencrypt/live || echo 'certbot certificate not ready !!'"
 #do_RUN "sudo -E docker compose exec webserver ls -la /etc/letsencrypt/live || sudo -E docker compose up -d --force-recreate --no-deps certbot"
 #do_RUN "sudo -E docker compose exec webserver ls -la /etc/letsencrypt/live && envsubst <nginx-conf/nginx.conf-1.tpl > nginx-conf/nginx.conf && sudo -E docker compose up -d --force-recreate --no-deps webserver"
 cmd_INTERACT -L 8000:localhost:80 -L 4443:localhost:443 -L 8080:localhost:8080 -L 3000:localhost:3000 -L 9090:localhost:9090
