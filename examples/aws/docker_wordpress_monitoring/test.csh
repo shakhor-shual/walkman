@@ -121,22 +121,23 @@ do_PACKAGE mc
 do_ADD https://github.com/shakhor-shual/templates.git $templates
 do_ADD @@vault/wordpress.env $compose_lib/wordpress/.env
 do_ADD @@assets/wordpress/nginx-conf $compose_lib/wordpress/
+do_ADD https://raw.githubusercontent.com/grafana/loki/v3.0.0/production/docker-compose.yaml $compose_lib/loki/docker-compose.yaml
 
-do_COMPOSE $compose_lib/duckdns $compose_lib/prometheus $compose_lib/nodeexporter $compose_lib/cadvisor $compose_lib/grafana
-do_VOLUME /var/lib/grafana docker:docker 0777
-do_VOLUME /var/lib/grafana/dashboards docker:docker 0777
-do_VOLUME /var/log/grafana docker:docker 0777
+do_COMPOSE $compose_lib/duckdns $compose_lib/loki $compose_lib/prometheus $compose_lib/nodeexporter $compose_lib/cadvisor # $compose_lib/grafana
+# do_VOLUME /var/lib/grafana docker:docker 0777
+# do_VOLUME /var/lib/grafana/dashboards docker:docker 0777
+# do_VOLUME /var/log/grafana docker:docker 0777
 do_ADD @@assets/dashboards.yml grafana:/etc/grafana/provisioning/dashboards/dashboards.yml
 do_ADD @@assets/datasources.yml grafana:/etc/grafana/provisioning/datasources/datasources.yml
 do_ADD https://grafana.com/api/dashboards/1860/revisions/37/download grafana:/var/lib/grafana/dashboards/node-exporter-dashboard.json
 do_ADD https://grafana.com/api/dashboards/19908/revisions/1/download grafana:/var/lib/grafana/dashboards/cadvisor-dashboard.json grafana_ds=prometheus
 do_COMPOSE $compose_lib/grafana
 
-do_WORKDIR $compose_lib/wordpress
-do_ARG @@vault/domain.env
-do_RUN "envsubst <nginx-conf/nginx.conf-0.tpl > nginx-conf/nginx.conf"
-do_ADD https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf $compose_lib/wordpress/nginx-conf/options-ssl-nginx.conf
-do_RUN "sudo -E docker compose exec webserver ls -la /etc/letsencrypt/live || echo 'certbot certificate not ready !!'"
+# do_WORKDIR $compose_lib/wordpress
+# do_ARG @@vault/domain.env
+# do_RUN "envsubst <nginx-conf/nginx.conf-0.tpl > nginx-conf/nginx.conf"
+# do_ADD https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf $compose_lib/wordpress/nginx-conf/options-ssl-nginx.conf
+# do_RUN "sudo -E docker compose exec webserver ls -la /etc/letsencrypt/live || echo 'certbot certificate not ready !!'"
 #do_RUN "sudo -E docker compose exec webserver ls -la /etc/letsencrypt/live || sudo -E docker compose up -d --force-recreate --no-deps certbot"
 #do_RUN "sudo -E docker compose exec webserver ls -la /etc/letsencrypt/live && envsubst <nginx-conf/nginx.conf-1.tpl > nginx-conf/nginx.conf && sudo -E docker compose up -d --force-recreate --no-deps webserver"
-cmd_INTERACT -L 8000:localhost:80 -L 4443:localhost:443 -L 8080:localhost:8080 -L 3000:localhost:3000 -L 9090:localhost:9090
+cmd_INTERACT -L 8000:localhost:80 -L 4443:localhost:443 -L 8080:localhost:8080 -L 3000:localhost:3000 -L 3100:localhost:3100 -L 9090:localhost:9090
