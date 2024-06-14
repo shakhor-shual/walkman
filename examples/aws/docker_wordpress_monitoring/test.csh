@@ -127,11 +127,11 @@ do_COMPOSE $compose_lib/duckdns $compose_lib/loki $compose_lib/prometheus $compo
 # do_VOLUME /var/lib/grafana docker:docker 0777
 # do_VOLUME /var/lib/grafana/dashboards docker:docker 0777
 # do_VOLUME /var/log/grafana docker:docker 0777
-do_ADD @@assets/dashboards.yml grafana:/etc/grafana/provisioning/dashboards/dashboards.yml
-do_ADD @@assets/datasources.yml grafana:/etc/grafana/provisioning/datasources/datasources.yml
-do_ADD https://grafana.com/api/dashboards/1860/revisions/37/download grafana:/var/lib/grafana/dashboards/node-exporter-dashboard.json
-do_ADD https://grafana.com/api/dashboards/19908/revisions/1/download grafana:/var/lib/grafana/dashboards/cadvisor-dashboard.json grafana_ds=prometheus
-do_COMPOSE $compose_lib/grafana
+# do_ADD @@assets/dashboards.yml grafana:/etc/grafana/provisioning/dashboards/dashboards.yml
+# do_ADD @@assets/datasources.yml grafana:/etc/grafana/provisioning/datasources/datasources.yml
+# do_ADD https://grafana.com/api/dashboards/1860/revisions/37/download grafana:/var/lib/grafana/dashboards/node-exporter-dashboard.json
+# do_ADD https://grafana.com/api/dashboards/19908/revisions/1/download grafana:/var/lib/grafana/dashboards/cadvisor-dashboard.json grafana_ds=prometheus
+# do_COMPOSE $compose_lib/grafana
 
 # do_WORKDIR $compose_lib/wordpress
 # do_ARG @@vault/domain.env
