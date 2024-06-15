@@ -521,12 +521,13 @@ EOF
       chdir: $dst    
   - name: Watch compose-service
     ansible.builtin.shell: |
-      $ENV_ARG
-      if  [ -n "\$(/usr/local/bin/docker-compose ps -q {{ item.1 }})" ] && [ -n "\$(docker ps -q --no-trunc | grep "\$(/usr/local/bin/docker-compose ps -q {{ item.1 }})")" ]; then
-       [ "$mode" = "mode=restart" ] && /usr/local/bin/docker-compose restart {{ item.1 }}
-       [ "$mode" = "mode=recreate" ] && /usr/local/bin/docker-compose up --force-recreate --no-deps -d {{ item.1 }}
+      if [ -n "\$(/usr/local/bin/docker-compose ps -q {{ item.1 }})" ] && [ -n "\$(docker ps -q --no-trunc | grep "\$(/usr/local/bin/docker-compose ps -q {{ item.1 }})")" ]; then
+       $ENV_ARG 
+         [ "$mode" = "mode=restart" ] && echo "FAIL A" #&& /usr/local/bin/docker-compose restart {{ item.1 }} || echo "no restart"
+         [ "$mode" = "mode=recreate" ] && /usr/local/bin/docker-compose up --force-recreate --no-deps -d {{ item.1 }} || echo "no recreate"
       else
-       /usr/local/bin/docker-compose up -d
+       $ENV_ARG
+       /usr/local/bin/docker-compose up -d 
       fi
     args:
       executable: /bin/bash

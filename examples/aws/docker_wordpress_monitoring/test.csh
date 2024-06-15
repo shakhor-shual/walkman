@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #########################################################################
-#protect@@@ ~INSTACE_NETWORK
+protect@@@ ~INSTACE_NETWORK
 run@@@ apply # possible here ( or|and in SHEBANG) are: validate, init, apply, destroy, new
 debug@@@ 2   # possible here are 0, 1, 2, 3
 speed@@@ 3
@@ -124,7 +124,9 @@ do_ADD @@assets/wordpress/nginx-conf $compose_lib/wordpress/
 do_ADD https://raw.githubusercontent.com/grafana/loki/v3.0.0/production/docker-compose.yaml $compose_lib/loki/docker-compose.yaml
 
 set_DOCKER
-do_COMPOSE $compose_lib/duckdns $compose_lib/loki $compose_lib/prometheus $compose_lib/nodeexporter $compose_lib/cadvisor # $compose_lib/grafana
+do_COMPOSE $compose_lib/loki $compose_lib/prometheus $compose_lib/nodeexporter $compose_lib/cadvisor # $compose_lib/grafana
+do_ARG @@vault/domain.env
+do_COMPOSE $compose_lib/duckdns
 # do_VOLUME /var/lib/grafana docker:docker 0777
 # do_VOLUME /var/lib/grafana/dashboards docker:docker 0777
 # do_VOLUME /var/log/grafana docker:docker 0777
