@@ -490,10 +490,15 @@ do_COMPOSE() {
     local tmp
     local t
     local cnt=0
+    local mode
     t=$(rt)
     tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
 
-    set_DOCKER >/dev/null
+    for it in "$@"; do
+        [[ $it =~ "mode=" ]] && mode=$it && break
+    done
+
+    #    set_DOCKER >/dev/null
     echo "%%%%%%%%%%% remotely: Docker compose up %%%%%%%%%%%%%"
     echo "$*"
     cat <<EOF >"$tmp"
@@ -503,10 +508,10 @@ do_COMPOSE() {
 EOF
 
     for dst in "$@"; do
+        [[ $it =~ "mode=" ]] && continue
         ((cnt++))
         cat <<EOF >>"$tmp"
 - hosts: $ANSIBLE_TARGET
-
   become: true
   tasks:
   - name: Extract services
@@ -516,10 +521,10 @@ EOF
       chdir: $dst    
   - name: Watch compose-service
     ansible.builtin.shell: |
-      if [ -n "\$(/usr/local/bin/docker-compose ps -q {{ item.1 }})" ] && [ -n "\$(docker ps -q --no-trunc | grep "\$(/usr/local/bin/docker-compose ps -q {{ item.1 }})")" ]; then
+      if  [ -n "\$(/usr/local/bin/docker-compose ps -q {{ item.1 }})" ] && [ -n "\$(docker ps -q --no-trunc | grep "\$(/usr/local/bin/docker-compose ps -q {{ item.1 }})")" ]; then
        $ENV_ARG
-       /usr/local/bin/docker-compose restart {{ item.1 }}
-       #/usr/local/bin/docker-compose up --force-recreate --no-deps -d {{ item.1 }}
+       [ "$mode" = "mode=restart" ] && /usr/local/bin/docker-compose restart {{ item.1 }}
+       [ "$mode" = "mode=recreate" ] && /usr/local/bin/docker-compose up --force-recreate --no-deps -d {{ item.1 }}
       else
        $ENV_ARG
        /usr/local/bin/docker-compose up -d

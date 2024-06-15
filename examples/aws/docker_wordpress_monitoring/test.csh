@@ -123,6 +123,7 @@ do_ADD @@vault/wordpress.env $compose_lib/wordpress/.env
 do_ADD @@assets/wordpress/nginx-conf $compose_lib/wordpress/
 do_ADD https://raw.githubusercontent.com/grafana/loki/v3.0.0/production/docker-compose.yaml $compose_lib/loki/docker-compose.yaml
 
+set_DOCKER
 do_COMPOSE $compose_lib/duckdns $compose_lib/loki $compose_lib/prometheus $compose_lib/nodeexporter $compose_lib/cadvisor # $compose_lib/grafana
 # do_VOLUME /var/lib/grafana docker:docker 0777
 # do_VOLUME /var/lib/grafana/dashboards docker:docker 0777
