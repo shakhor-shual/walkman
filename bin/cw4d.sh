@@ -1024,10 +1024,7 @@ do_PLAYBOOK() { # ansible Wrapper
 }
 #============== R
 do_REPO() {
-    set_REPO "$@"
-}
-set_REPO() {
-    [ -z "$1" ] && return
+    cd [ -z "$1" ] && return
     local repo="$1"
     local repos_string
     local t
