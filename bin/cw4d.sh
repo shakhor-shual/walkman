@@ -168,8 +168,6 @@ ans_hashed() {
     fi
     return 1
 }
-#
-#find /home -exec  stat  -c %Y  {}  \;
 ################ EXTENTION HELPERS LIBRARY #############################
 GET_from_state_by_type() {
     local val
@@ -482,7 +480,6 @@ do_ARG() { # Docker ARG analogue
     fi
     #  ANSIBLE_ARG=$1
 }
-
 #============== C
 do_COMPOSE() {
     [ -z "$1" ] && return
@@ -600,7 +597,6 @@ EOF
     play_this "$tmp" "$t"
 }
 #============== D
-
 set_DOCKER() {
     local docker_ver="26.1.3"
     local compose_ver="2.27.0"
@@ -756,7 +752,6 @@ EOF
     #do_RUN "id -u docker &>/dev/null || sudo useradd --no-create-home --shell /bin/false docker;  sudo usermod -aG docker $ANSIBLE_USER;" >>/dev/null
     echo "docker/docker-compose are installes"
 }
-
 #============== E
 do_ENTRYPOINT() { # Docker ENTRYPOINT analogue
     [ -z "$1" ] && return
@@ -1279,7 +1274,6 @@ cmd_PGSQL() {
     SQL_CONTEXT="pgsql"
     cmd_SQL "$@"
 }
-
 #============== T
 set_TARGET() { # create ssh access artefacts for target
     [ -z "$1" ] && return
@@ -1391,7 +1385,6 @@ do_WORKDIR() { # Docker WORKDIR analogue
     fi
     #   do_VOLUME "$@"
 }
-
 ############### HELPERS EXECUTOR ##############
 run_helper_by_name() {
     local helper_call_string
