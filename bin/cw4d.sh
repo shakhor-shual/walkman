@@ -129,6 +129,7 @@ ans_hashed() {
     "do_RUN"* | "do_COPY"* | "do_MOVE"*) ;;
     "do_ADD"*)
         cnt=2
+        # shellcheck disable=SC2076
         if [[ $helper =~ ".git " ]]; then
             [[ $PLAY_SPEED -ge 3 ]] && PLAY_SPEED=3
             return 1
@@ -1789,7 +1790,6 @@ init_album_home() {
         chmod 744 "$album"
     fi
     if [ -f "$album" ]; then
-        #   ALBUM=$album
         album_home=$(dirname "$album")
         album_name=$(basename "$album")
         [ -d "$album_home" ] && cd "$album_home" || exit
@@ -1797,8 +1797,6 @@ init_album_home() {
         DIR_ALBUM_HOME=$PWD
         ALBUM_SELF="$DIR_ALBUM_HOME/$album_name"
         DIR_ALBUM_META="$DIR_ALBUM_HOME/.meta"
-        DIR_ALBUM_ASSETS="$DIR_ALBUM_HOME/.assets"
-        DIR_ALBUM_VAULT="$DIR_ALBUM_HOME/.vault"
         DIR_WS_TMP="$DIR_ALBUM_META/$WS_NAME/tmp"
         DIR_WS_HASH="$DIR_ALBUM_META/$WS_NAME/hash"
         BASH_INLINE="$DIR_WS_TMP/bash_inline.sh"
@@ -1847,8 +1845,7 @@ get_in_tf_packet_home() {
     else
         dispose .protected_stage.key
     fi
-
-    PLAYBOOK_HELPER=$PACK_HOME_FULL_PATH/playbook.yaml
+    #    PLAYBOOK_HELPER=$PACK_HOME_FULL_PATH/playbook.yaml
 }
 
 reset_album_tmp() {
