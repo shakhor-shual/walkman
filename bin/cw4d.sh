@@ -214,41 +214,6 @@ GEN_strong_password() {
     echo "$password"
 }
 
-do_MOVE() {
-    [ -z "$1" ] && return
-    local src=$1
-    local dst=$2
-    local dst_dir
-    local tmp
-    local t
-    t=$(rt)
-    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
-    dst_dir=$(dirname "$dst")
-
-    echo "%%%%%%%%%%% remotely: MOVE content on remote %%%%%%%%%%%%%"
-    cat <<EOF >"$tmp"
-- hosts: $ANSIBLE_TARGET
-  become: true
-  tasks:
-  - name: stat foo
-    stat: path=$dst_dir
-    register: foo_stat
-  - name: Delete existing dist folder
-    file:
-      path: "$dst"
-      state: absent
-  - name: MOVE $src TO $dst
-    command: mv $src $dst
-    args:
-      creates: $dst
-      removes: $src
-EOF
-    #   echo "    when: foo_stat.stat.exists" >>"$tmp"
-    # cat "$tmp"
-    grep <"$tmp" "src\|dest\|repo\|mode\|owner\|group\|url" | tr -d ' '
-    play_this "$tmp" "$t"
-}
-
 #============== A
 do_ADD() { # Docker ADD analogue
     [ -z "$1" ] && return
@@ -885,6 +850,40 @@ cmd_KUBECTL() { # kubectl Wrapper
 }
 #============== L
 #============== M
+do_MOVE() {
+    [ -z "$1" ] && return
+    local src=$1
+    local dst=$2
+    local dst_dir
+    local tmp
+    local t
+    t=$(rt)
+    tmp=$(mktemp --tmpdir="$DIR_WS_TMP" --suffix=.yaml)
+    dst_dir=$(dirname "$dst")
+
+    echo "%%%%%%%%%%% remotely: MOVE content on remote %%%%%%%%%%%%%"
+    cat <<EOF >"$tmp"
+- hosts: $ANSIBLE_TARGET
+  become: true
+  tasks:
+  - name: stat foo
+    stat: path=$dst_dir
+    register: foo_stat
+  - name: Delete existing dist folder
+    file:
+      path: "$dst"
+      state: absent
+  - name: MOVE $src TO $dst
+    command: mv $src $dst
+    args:
+      creates: $dst
+      removes: $src
+EOF
+    # cat "$tmp"
+    grep <"$tmp" "src\|dest\|repo\|mode\|owner\|group\|url" | tr -d ' '
+    play_this "$tmp" "$t"
+}
+
 cmd_MYSQL_SECURE() {
     local tmp
     local t
@@ -2251,7 +2250,6 @@ init_home_local_bin() {
         else
             pipx install ansible-core
         fi
-
     fi
 
     if not_installed helm; then
@@ -2534,7 +2532,7 @@ export ANSIBLE_DEPRECATION_WARNINGS=False
 export ANSIBLE_ACTION_WARNINGS=False
 
 STAGES_PROTECT_LIST=$(grep <"$ALBUM_SELF" '^protect@@@' | sed 's/protect@@@//;s/#.*$//; s/~//;s/://;s/  */ /g;s/^ //;s/ $//' | tail -n 1)
-#echo "************$RUN_MODE *******************"
+
 case $RUN_MODE in
 "--host")
     if [ -n "$3" ]; then
